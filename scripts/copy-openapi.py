@@ -6,9 +6,10 @@ document:
 
 1. `$CODEHOOD_OPENAPI_JSON`, a URL or a file path.
 2. The local dev server, `http://localhost:4321/openapi.json`.
-3. A sibling checkout: `../codehood-server/public/openapi.json` or
-   `../codehood/public/openapi.json`.
-4. The generator in a sibling checkout, `scripts/generate-openapi.ts`, run
+3. The server checkout: the parent repository when this CLI lives in its
+   `cli/` directory, else a sibling `../codehood-server/` or `../codehood/`.
+   Reads `public/openapi.json` from it.
+4. The generator in that checkout, `scripts/generate-openapi.ts`, run
    through `pnpm exec tsx`. It writes `public/openapi.json`, which is then
    read as in rule 3.
 
@@ -37,7 +38,8 @@ ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_OUTPUT = ROOT / "resources" / "openapi" / "codehood-latest.json"
 ENV_VAR = "CODEHOOD_OPENAPI_JSON"
 LOCAL_SERVER_URL = "http://localhost:4321/openapi.json"
-SIBLING_REPOS = (ROOT.parent / "codehood-server", ROOT.parent / "codehood")
+#: The parent comes first: in the server repository this CLI lives in `cli/`.
+SIBLING_REPOS = (ROOT.parent, ROOT.parent / "codehood-server", ROOT.parent / "codehood")
 SPEC_IN_REPO = Path("public") / "openapi.json"
 GENERATOR_IN_REPO = Path("scripts") / "generate-openapi.ts"
 

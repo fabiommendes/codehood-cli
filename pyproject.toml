@@ -51,4 +51,4 @@ markers = [
 ]
 
 [tool.uv.sources]
-mdq = { path = "../mdq/mdq-py", editable = true }
+mdq = { path = "../../mdq/mdq-py", editable = true }
