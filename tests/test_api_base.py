@@ -11,7 +11,6 @@ import stat
 import httpx
 import pytest
 
-from codehood.api import base as base_module
 from codehood.api.base import (
     DEFAULT_BASE_URL,
     NotLoggedInError,
@@ -23,17 +22,6 @@ from codehood.api.base import (
     save_token,
     stored_servers,
 )
-
-
-@pytest.fixture(autouse=True)
-def credentials_path(tmp_path, monkeypatch):
-    """
-    Every credentials test gets its own store -- nothing here should ever
-    touch the real `~/.codehood/credentials.toml`.
-    """
-    path = tmp_path / "credentials.toml"
-    monkeypatch.setattr(base_module, "CREDENTIALS_PATH", path)
-    return path
 
 
 def test_default_base_url_with_no_repo(tmp_path, monkeypatch):

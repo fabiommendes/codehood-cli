@@ -11,6 +11,7 @@ import httpx
 import pytest
 
 from codehood.api import generated
+from codehood.api.base import save_token
 
 
 def _handler(request: httpx.Request) -> httpx.Response:
@@ -82,7 +83,12 @@ def test_health_error_is_typed_with_no_shadowed_status():
 #
 # Query parameters
 #
-def test_list_resource_with_no_filters_sends_no_query_string():
+@pytest.fixture
+def logged_in() -> None:
+    save_token("http://localhost:4321", "test-token")
+
+
+def test_list_resource_with_no_filters_sends_no_query_string(logged_in):
     """
     Regression: `httpx` renders a `None` parameter as `?types=`, and the
     server reads that as a present-but-empty filter and answers 400. A
@@ -101,7 +107,7 @@ def test_list_resource_with_no_filters_sends_no_query_string():
     assert seen == [""]
 
 
-def test_list_resource_sends_the_filters_it_was_given():
+def test_list_resource_sends_the_filters_it_was_given(logged_in):
     seen: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:

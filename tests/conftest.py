@@ -2,7 +2,19 @@ from __future__ import annotations
 
 import pytest
 
+from codehood.api import base as base_module
 from codehood.models.repo import CourseIdentity, ServerConfig
+
+
+@pytest.fixture(autouse=True)
+def credentials_path(tmp_path, monkeypatch):
+    """
+    Every test gets its own empty credentials store -- nothing should ever
+    read or write the real `~/.codehood/credentials.toml`.
+    """
+    path = tmp_path / "credentials.toml"
+    monkeypatch.setattr(base_module, "CREDENTIALS_PATH", path)
+    return path
 
 
 @pytest.fixture
