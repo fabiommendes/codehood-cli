@@ -5,14 +5,14 @@ or students to manage their Codehood projects and assignments.
 
 ## Installation
 
-You can install the Codehood CLI using pipx, uv or something similar.
+The CLI is not on PyPI yet. Install it from a checkout of the
+[Codehood repository](https://github.com/fabiommendes/codehood), with
+[mdq](https://github.com/fabiommendes/mdq-spec) checked out next to it:
 
 ```bash
-# Using pip
-pipx install codehood-cli
-
-# Using uv
-uv tool install codehood-cli
+git clone https://github.com/fabiommendes/codehood.git
+git clone https://github.com/fabiommendes/mdq-spec.git mdq
+uv tool install --editable codehood/cli
 ```
 
 
@@ -60,3 +60,11 @@ codehood push
 ## For students
 
 TBD!
+
+
+## Contributing
+
+The CLI is developed in the `cli/` directory of the
+[Codehood repository](https://github.com/fabiommendes/codehood). Open issues and
+pull requests there. See its
+[CONTRIBUTING.md](https://github.com/fabiommendes/codehood/blob/main/CONTRIBUTING.md).

@@ -1,7 +1,7 @@
 [project]
 name = "codehood-cli"
 version = "0.1.0"
-description = "Add your description here"
+description = "Command line client for Codehood, an LMS for geeky types."
 readme = "README.md"
 authors = [
     { name = "Fábio Macêdo Mendes", email = "fabiomacedomendes@gmail.com" },
@@ -17,6 +17,12 @@ dependencies = [
     "tomlkit>=0.15.1",
     "typer>=0.27.2",
 ]
+
+[project.urls]
+Homepage = "https://github.com/fabiommendes/codehood"
+Source = "https://github.com/fabiommendes/codehood/tree/main/cli"
+Issues = "https://github.com/fabiommendes/codehood/issues"
+Changelog = "https://github.com/fabiommendes/codehood/blob/main/cli/CHANGELOG.md"
 
 [project.scripts]
 codehood = "codehood.cli:main"
