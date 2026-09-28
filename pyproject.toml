@@ -3,6 +3,8 @@ name = "codehood-cli"
 version = "0.1.0"
 description = "Command line client for Codehood, an LMS for geeky types."
 readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
     { name = "Fábio Macêdo Mendes", email = "fabiomacedomendes@gmail.com" },
 ]

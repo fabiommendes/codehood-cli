@@ -68,3 +68,8 @@ The CLI is developed in the `cli/` directory of the
 [Codehood repository](https://github.com/fabiommendes/codehood). Open issues and
 pull requests there. See its
 [CONTRIBUTING.md](https://github.com/fabiommendes/codehood/blob/main/CONTRIBUTING.md).
+
+
+## License
+
+[MIT](LICENSE).
