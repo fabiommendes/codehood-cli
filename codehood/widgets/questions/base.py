@@ -8,6 +8,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from typing import Any
 
+import mdq
 from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widget import Widget
@@ -15,11 +16,19 @@ from textual.widgets import Button, Markdown
 
 from .responses import Response
 
-__all__ = ["QuestionWidget", "QuestionDocument"]
+__all__ = ["QuestionWidget", "QuestionDocument", "question_document"]
 
-#: The parsed shape `mdq.parser.parse_question` (or `FileLoader.load`)
-#: returns -- this package never parses MDQ source itself.
+#: A question as plain data, built by `question_document` -- this package
+#: never parses MDQ source itself.
 QuestionDocument = Mapping[str, Any]
+
+
+def question_document(question: mdq.Question) -> QuestionDocument:
+    """
+    Return `question` as the mapping a widget reads, with an id on every
+    choice.
+    """
+    return question.with_ids().model_dump(mode="json", exclude_none=True)
 
 
 class QuestionWidget(Widget):

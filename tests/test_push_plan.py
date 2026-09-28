@@ -146,7 +146,7 @@ def _question(slug: str, body: str = EXAMPLE_MDQ) -> QuestionFile:
     return QuestionFile(
         slug=slug,
         version=question_version(raw),
-        question=mdq.parse_question(body),
+        question=mdq.parse(body, kind="question", ids="fill"),
         path=Path(f"questions/{slug}.md"),
     )
 

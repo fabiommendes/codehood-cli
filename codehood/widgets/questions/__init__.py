@@ -7,7 +7,7 @@ Not wired into any `codehood` command yet -- see
 
 from __future__ import annotations
 
-from .base import QuestionDocument, QuestionWidget
+from .base import QuestionDocument, QuestionWidget, question_document
 from .fill_in import FillInQuestion
 from .responses import (
     BlankResponse,
@@ -32,6 +32,7 @@ from .simple import (
 __all__ = [
     "QuestionWidget",
     "QuestionDocument",
+    "question_document",
     "MultipleChoiceQuestion",
     "MultipleSelectionQuestion",
     "TrueFalseQuestion",

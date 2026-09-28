@@ -10,13 +10,15 @@ from pathlib import Path
 from typing import Annotated
 
 import typer
+import mdq
 from mdq.errors import MdqError
-from mdq.parser import is_exam, parse_question
+from mdq.parser import is_exam
 from textual.app import App, ComposeResult
 from textual.widgets import Footer
 
 from ..widgets.questions import (
     QUESTION_WIDGETS,
+    question_document,
     QuestionDocument,
     QuestionWidget,
     Response,
@@ -42,7 +44,7 @@ def show(
         raise typer.Exit(code=1)
 
     try:
-        document = parse_question(text)
+        document = question_document(mdq.parse(text, kind="question"))
     except MdqError as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=1) from exc

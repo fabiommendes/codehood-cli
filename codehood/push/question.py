@@ -4,7 +4,7 @@ The pure core that turns files under `questions/` into `QuestionFile`s.
 Nothing here touches the network or the server's idea of what it holds --
 see `plan.py` for that half. `mdq` is the parser of record: the server's
 `QuestionCreate.question` is a structured, discriminated union, not
-Markdown, so `mdq.parse_question` turns a file's text into the shape the
+Markdown, so `mdq.parse` turns a file's text into the shape the
 server wants and `run.py` translates it into the generated request model.
 """
 
@@ -25,7 +25,7 @@ from .resource import slugify
 
 __all__ = ["AnyQuestion", "QuestionFile", "question_version", "scan_questions"]
 
-#: The discriminated union `mdq.parse_question` returns.
+#: The discriminated union `mdq.parse` returns for a question.
 type AnyQuestion = mdq.Question
 
 
@@ -66,7 +66,7 @@ def scan_questions(root: Path) -> Iterator[QuestionFile]:
         SlugCollisionError: two or more files flatten to the same slug.
             Raised eagerly, before any file is parsed or any network call
             is made.
-        QuestionParseError: the first file `mdq.parse_question` refuses.
+        QuestionParseError: the first file `mdq.parse` refuses.
     """
     base = root / "questions"
     by_slug: dict[str, list[Path]] = defaultdict(list)
@@ -98,8 +98,8 @@ def _read_question(base: Path, slug: str, rel_path: Path) -> QuestionFile:
     path = base / rel_path
     raw = path.read_bytes()
     try:
-        question = mdq.parse_question(raw.decode("utf-8"))
-    except mdq.ParseError as exc:
+        question = mdq.parse(raw.decode("utf-8"), kind="question", ids="fill")
+    except mdq.InvalidDocument as exc:
         raise QuestionParseError(path, exc) from exc
     return QuestionFile(
         slug=slug,

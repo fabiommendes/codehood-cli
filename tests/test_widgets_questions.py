@@ -10,7 +10,7 @@ import asyncio
 from collections.abc import Awaitable, Callable
 
 import pytest
-from mdq.parser import parse_question
+import mdq
 from textual.app import App, ComposeResult
 from textual.pilot import Pilot
 from textual.widgets import Input, RadioButton, RadioSet, SelectionList, TextArea
@@ -26,11 +26,13 @@ from codehood.widgets.questions import (
     MultipleSelectionResponse,
     NumericQuestion,
     NumericResponse,
+    QuestionDocument,
     QuestionWidget,
     ShortAnswerQuestion,
     ShortAnswerResponse,
     TrueFalseQuestion,
     TrueFalseResponse,
+    question_document,
 )
 from codehood.widgets.questions.controls import _ordered
 from codehood.widgets.questions.responses import parse_numeric_text
@@ -41,6 +43,11 @@ from codehood.widgets.questions.responses import parse_numeric_text
 #: overflow -- see `docs/adr/0001-fill-in-blanks-render-below-the-stem.md`
 #: for the sibling layout issue this suite caught).
 SCREEN_SIZE = (80, 50)
+
+
+def parse_question(text: str) -> QuestionDocument:
+    """Parse MDQ source into the mapping a widget reads."""
+    return question_document(mdq.parse(text, kind="question"))
 
 
 class _Harness(App[None]):

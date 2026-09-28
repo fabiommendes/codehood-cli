@@ -38,7 +38,7 @@ class QuestionParseError(Exception):
     """
     `mdq` refused to parse a file under `questions/`.
 
-    Raised by `scan_questions` on the first file `mdq.parse_question`
+    Raised by `scan_questions` on the first file `mdq.parse`
     refuses, refusing the whole push for the same reason a slug collision
     does: push does not upload half a question bank on the way to an
     error.
@@ -48,7 +48,7 @@ class QuestionParseError(Exception):
         """
         Args:
             path: The question file `mdq` refused.
-            cause: The `mdq.ParseError` it raised.
+            cause: The `mdq.InvalidDocument` it raised.
         """
         self.path = path
         self.cause = cause

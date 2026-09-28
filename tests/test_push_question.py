@@ -206,7 +206,7 @@ def test_scan_questions_raises_question_parse_error_for_malformed_mdq(
     with pytest.raises(QuestionParseError) as excinfo:
         list(scan_questions(tmp_path))
     assert excinfo.value.path == bad_path
-    assert isinstance(excinfo.value.cause, mdq.errors.ParseError)
+    assert isinstance(excinfo.value.cause, mdq.InvalidDocument)
 
 
 def test_scan_questions_parse_error_does_not_stop_at_an_earlier_good_file(

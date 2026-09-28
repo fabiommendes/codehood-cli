@@ -602,7 +602,7 @@ def test_run_plan_upsert_question_drops_weight_and_grading_but_keeps_the_rest():
             200, json=_question_json("week1-big-o", "md5:aaa", status="DRAFT")
         )
 
-    question = mdq.parse_question(EXAMPLE_MDQ)
+    question = mdq.parse(EXAMPLE_MDQ, kind="question", ids="fill")
     op = UpsertQuestion(
         slug="week1-big-o",
         version="md5:aaa",
@@ -646,7 +646,7 @@ Describe your reasoning.
 
 [short-answer]:
 """
-    question = mdq.parse_question(short_answer)
+    question = mdq.parse(short_answer, kind="question", ids="fill")
     op = UpsertQuestion(
         slug="open-answer",
         version="md5:bbb",
@@ -672,7 +672,7 @@ def test_run_plan_upsert_ordering_question_is_blocked_without_any_http_call():
             f"an ordering question must not call the network: {request.url}"
         )
 
-    question = mdq.parse_question(ORDERING_MDQ)
+    question = mdq.parse(ORDERING_MDQ, kind="question", ids="fill")
     op = UpsertQuestion(
         slug="order-the-steps",
         version="md5:ccc",
@@ -690,7 +690,7 @@ def test_run_plan_upsert_question_http_failure_yields_a_failed_result():
     def handler(request: httpx.Request) -> httpx.Response:
         return httpx.Response(500, json={"message": "server error"})
 
-    question = mdq.parse_question(EXAMPLE_MDQ)
+    question = mdq.parse(EXAMPLE_MDQ, kind="question", ids="fill")
     op = UpsertQuestion(
         slug="week1-big-o",
         version="md5:aaa",

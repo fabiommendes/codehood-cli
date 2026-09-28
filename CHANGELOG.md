@@ -4,6 +4,13 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- Questions are parsed with `mdq.parse(..., kind="question")`, which replaced
+  `mdq.parse_question`. A file `mdq` rejects now raises `InvalidDocument`
+  rather than `ParseError`, and `codehood show` gives widgets a document with
+  an id on every choice.
+- The CLI now lives in `cli/` of the server repository. `mdq` resolves from
+  `../../mdq/mdq-py`, and `scripts/copy-openapi.py` looks in the parent
+  repository first.
 - `codehood push` now syncs `calendar.md`. A new pure core parses the file
   into time slots, holidays and h2 sections, then allocates every section a
   date from the slots the course's range actually offers. Holidays that land
