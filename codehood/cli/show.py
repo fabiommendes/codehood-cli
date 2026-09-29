@@ -11,8 +11,6 @@ from typing import Annotated
 
 import typer
 import mdq
-from mdq.errors import MdqError
-from mdq.parser import is_exam
 from textual.app import ComposeResult
 from textual.widgets import Footer
 
@@ -37,18 +35,19 @@ def show(
     Open a question file in its interactive widget and print what you submit.
     """
     text = file.read_text(encoding="utf-8")
-    if is_exam(text):
+    try:
+        parsed = mdq.parse(text)
+    except mdq.MdqError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+    if isinstance(parsed, mdq.Exam):
         typer.echo(
             "error: `codehood show` only handles a single question, not an exam",
             err=True,
         )
         raise typer.Exit(code=1)
-
-    try:
-        document = question_document(mdq.parse(text, kind="question"))
-    except MdqError as exc:
-        typer.echo(f"error: {exc}", err=True)
-        raise typer.Exit(code=1) from exc
+    document = question_document(parsed)
 
     widget_class = QUESTION_WIDGETS.get(document["type"])
     if widget_class is None:

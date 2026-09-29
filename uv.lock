@@ -755,6 +755,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "hypothesis", marker = "extra == 'hypothesis'", specifier = ">=6.167.1" },
     { name = "linkify-it-py", specifier = ">=2.2.0" },
     { name = "markdown-it-py", specifier = ">=4.2.0" },
     { name = "optionz", specifier = ">=0.2.0" },
@@ -766,7 +767,7 @@ requires-dist = [
     { name = "rich", specifier = ">=15.0.0" },
     { name = "typer", specifier = ">=0.12" },
 ]
-provides-extras = ["test"]
+provides-extras = ["test", "hypothesis"]
 
 [package.metadata.requires-dev]
 dev = [
