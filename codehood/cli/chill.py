@@ -5,10 +5,11 @@ blink and hop until you quit.
 
 from __future__ import annotations
 
-from textual.app import App, ComposeResult
+from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widgets import Static
 
+from ..theme import CodehoodApp
 from ..widgets.mascot import Mascot
 from .base import app
 
@@ -23,7 +24,7 @@ def chill() -> None:
     ChillApp().run()
 
 
-class ChillApp(App[None]):
+class ChillApp(CodehoodApp[None]):
     """Full-screen mascot with a "Chilling..." caption. Press q to quit."""
 
     BINDINGS = [("q", "quit", "Quit")]

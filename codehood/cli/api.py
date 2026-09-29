@@ -15,9 +15,10 @@ from rich import markup
 from rich.console import Group, RenderableType
 from rich.padding import Padding
 from rich.syntax import Syntax
+from rich.style import Style
 from rich.text import Text
 from textual import work
-from textual.app import App, ComposeResult
+from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.screen import ModalScreen
 from textual.widgets import Button, DataTable, Footer, Header, Input, Label, Static
@@ -26,6 +27,7 @@ from ..api import generated
 from ..api.base import CodehoodAPIError, get_client
 from ..api.generate import ENDPOINTS, arg_name, snake_case
 from ..api.openapi import Endpoint, JSONSchema, OpenAPISpec, Operation, load_openapi
+from ..theme import CodehoodApp, role_style
 from .base import app
 
 __all__ = ["api"]
@@ -33,12 +35,12 @@ __all__ = ["api"]
 #: (field name, required, mask input) triples, in schema order.
 FieldSpec = tuple[str, bool, bool]
 
-METHOD_COLOR = {
-    "GET": "green",
-    "POST": "blue",
-    "PUT": "yellow",
-    "PATCH": "orange",
-    "DELETE": "red",
+METHOD_ROLE = {
+    "GET": "success",
+    "POST": "primary",
+    "PUT": "warning",
+    "PATCH": "accent",
+    "DELETE": "error",
 }
 
 
@@ -80,7 +82,7 @@ def api(
     ApiBrowser(endpoints, spec, get_client(server)).run()
 
 
-class ApiBrowser(App[None]):
+class ApiBrowser(CodehoodApp[None]):
     """
     Lists the endpoints in `ENDPOINTS`; every detail shown is read live from
     the parsed spec, never hardcoded.
@@ -162,7 +164,10 @@ class ApiBrowser(App[None]):
         # Head
         renderables.append(
             Text.assemble(
-                (endpoint.method, f"bold {METHOD_COLOR.get(endpoint.method, 'white')}"),
+                (
+                    endpoint.method,
+                    role_style(METHOD_ROLE.get(endpoint.method, "muted")) + Style(bold=True),
+                ),
                 (f" {endpoint.path}", "bold"),
             )
         )
@@ -290,7 +295,7 @@ class ApiBrowser(App[None]):
         return kwargs
 
     def _show_result(self, text: str, *, is_error: bool) -> None:
-        style = "bold red" if is_error else "bold green"
+        style = role_style("error" if is_error else "success") + Style(bold=True)
         self.query_one("#detail", Static).update(Text(text, style=style))
 
 

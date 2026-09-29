@@ -13,9 +13,10 @@ import typer
 import mdq
 from mdq.errors import MdqError
 from mdq.parser import is_exam
-from textual.app import App, ComposeResult
+from textual.app import ComposeResult
 from textual.widgets import Footer
 
+from ..theme import CodehoodApp
 from ..widgets.questions import (
     QUESTION_WIDGETS,
     question_document,
@@ -59,7 +60,7 @@ def show(
         typer.echo(response)
 
 
-class ShowApp(App[Response]):
+class ShowApp(CodehoodApp[Response]):
     """Mounts the widget for `document`'s type; exits with the `Response` it submits."""
 
     BINDINGS = [("q", "quit", "Quit")]

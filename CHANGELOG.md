@@ -4,6 +4,11 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- The Textual apps (`chill`, `show`, `api`) use Codehood's themes: Forest
+  (dark, the default) and Cerrado (light), switchable from the command
+  palette. Rich output uses role styles (`error`, `success`, `primary`,
+  `muted`, ...) mapped to the 16 ANSI colors, so it follows the terminal's
+  palette. The definitions live in `codehood/theme.py`.
 - Questions are parsed with `mdq.parse(..., kind="question")`, which replaced
   `mdq.parse_question`. A file `mdq` rejects now raises `InvalidDocument`
   rather than `ParseError`, and `codehood show` gives widgets a document with
