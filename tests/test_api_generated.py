@@ -139,9 +139,9 @@ def test_resource_data_request_members_keep_their_names_and_fields():
     }
 
 
-def test_upsert_resource_request_carries_slug_ref_and_the_union():
+def test_upsert_resource_request_carries_slug_rev_and_the_union():
     # `upsertResource`'s inline body is structurally the `ResourceCreate`
     # component, so it is that class rather than an `UpsertResourceRequest`
     # twin of it.
     fields = generated.ResourceCreate.model_fields
-    assert {"slug", "title", "ref", "description", "data"} == set(fields)
+    assert {"slug", "title", "rev", "description", "event", "data"} == set(fields)

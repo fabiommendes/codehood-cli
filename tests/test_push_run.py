@@ -93,6 +93,7 @@ def _course_json(**overrides) -> dict:
         },
         "instructor": {"name": "Ada Lovelace", "username": "ada"},
         "enrollmentCount": 0,
+        "rev": None,
         "startAt": "2026-01-01T00:00:00Z",
         "endAt": "2026-06-01T00:00:00Z",
         "createdAt": "2026-01-01T00:00:00Z",
@@ -109,7 +110,8 @@ def _resource_json(slug: str, ref: str, **overrides) -> dict:
         "title": slug,
         "description": None,
         "data": {"type": "MD", "content": "body"},
-        "ref": ref,
+        "event": None,
+        "rev": ref,
         "createdAt": "2026-01-01T00:00:00Z",
         "updatedAt": "2026-01-01T00:00:00Z",
     }
@@ -168,7 +170,7 @@ def _calendar_event_json(
             "start": {"hour": hour, "minute": minute},
             "duration": {"hours": hours, "minutes": minutes},
         },
-        "ref": ref,
+        "rev": ref,
         "createdAt": "2026-01-01T00:00:00Z",
         "updatedAt": "2026-01-01T00:00:00Z",
     }
@@ -185,6 +187,7 @@ def _question_json(slug: str, version: str, **overrides) -> dict:
         "id": 1,
         "status": "DRAFT",
         "version": version,
+        "rev": None,
         "createdAt": "2026-01-01T00:00:00Z",
         "updatedAt": "2026-01-01T00:00:00Z",
         "question": {
@@ -471,7 +474,8 @@ def test_run_plan_upsert_resource_md_sends_the_tagged_union():
         "slug": "week1-slides",
         "title": "Slides",
         "description": None,
-        "ref": "ref-a",
+        "rev": "ref-a",
+        "event": None,
         "data": {"type": "MD", "content": "# Slides\n"},
     }
 
@@ -841,7 +845,7 @@ def test_run_plan_upsert_calendar_event_puts_week_and_time_slot_slug():
     assert sent["title"] == "Intro"
     assert sent["description"] == "Welcome."
     assert sent["kind"] == "REGULAR"
-    assert sent["ref"] == event.ref
+    assert sent["rev"] == event.ref
 
 
 def test_run_plan_upsert_calendar_event_http_failure_yields_a_failed_result():

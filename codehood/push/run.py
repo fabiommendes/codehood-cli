@@ -119,7 +119,7 @@ def fetch_server_state(
     )
     return ServerState(
         course_exists=True,
-        resources={resource.slug: resource.ref for resource in resources},
+        resources={resource.slug: resource.rev or "" for resource in resources},
         questions={question.slug: question.version for question in questions},
         time_slots={slot.slug: _time_slot_ref(slot) for slot in time_slots},
         calendar_events={
@@ -234,7 +234,7 @@ def _run_upsert_resource(
         slug=op.slug,
         title=op.title,
         description=op.description,
-        ref=op.ref,
+        rev=op.ref,
         data=_request_data(op.data),
     )
     try:
@@ -355,7 +355,7 @@ def _run_upsert_calendar_event(
         title=op.event.title,
         description=op.event.description,
         week=op.event.week,
-        ref=op.event.ref,
+        rev=op.event.ref,
         timeSlot=op.event.time_slot,
     )
     try:
@@ -402,7 +402,7 @@ def _server_event(item: generated.CalendarEvent) -> ServerEvent:
     """
     Project one item of the calendar-event listing down to its markers.
     """
-    return ServerEvent(ref=item.ref, kind=item.kind)
+    return ServerEvent(ref=item.rev or "", kind=item.kind)
 
 
 def _time_slot_ref(item: generated.TimeSlot) -> str:

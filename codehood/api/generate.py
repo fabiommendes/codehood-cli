@@ -53,6 +53,8 @@ ENDPOINTS = {
     *_crud("timeslot"),
     *_crud("calendar-event"),
     *_crud("exam"),
+    *_crud("grade-column"),
+    "courseGrades",
     # `file` is absent: `/api/file` is not in the document while the
     # multipart upload is being written (see `ROADBLOCKS.md` item 1).
 }
@@ -552,7 +554,14 @@ class ShapeRegistry:
         all the way down because a projection is named after it -- see
         `_projection_name`.
         """
-        if not isinstance(schema, dict) or "$ref" in schema:
+        if not isinstance(schema, dict):
+            return
+        if "$ref" in schema:
+            # A component that is a bare union has no class of its own (see
+            # `py_type`), so its members are named as if it were inlined here.
+            _, resolved = self.spec.resolve(schema)
+            if _is_union_component(resolved):
+                self._collect(resolved, candidates, owner, depth, entity)
             return
 
         for member in schema.get("anyOf") or schema.get("oneOf") or []:
@@ -861,6 +870,8 @@ def py_type(schema: JSONSchema, ctx: TypeCtx) -> str:
     """
     if "$ref" in schema:
         ref_name, resolved = ctx.spec.resolve(schema)
+        if _is_union_component(resolved):
+            return py_type(resolved, ctx)
         name = py_class_name(ref_name)
         ctx.needed[name] = resolved
         return name
@@ -880,6 +891,19 @@ def py_type(schema: JSONSchema, ctx: TypeCtx) -> str:
         parts.append("None")
 
     return dedupe_union(parts)
+
+
+def _is_union_component(schema: JSONSchema) -> bool:
+    """
+    Whether a `$ref` target is a union with no properties of its own.
+
+    Such a component cannot be a model class: it has no fields, only
+    members. It maps to the union of its members, exactly as the same
+    `anyOf` written inline would.
+    """
+    return not schema.get("properties") and bool(
+        schema.get("anyOf") or schema.get("oneOf")
+    )
 
 
 def dedupe_union(parts: list[str]) -> str:

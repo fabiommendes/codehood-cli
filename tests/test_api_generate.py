@@ -1062,3 +1062,39 @@ def test_a_subset_of_a_component_it_is_not_named_after_is_not_a_projection(monke
     assert "AtCalendarEvent" not in source
     assert "class PinnedAt(Model):" in source
     assert "pinned_at: PinnedAt" in source
+
+
+def test_a_union_component_is_the_union_of_its_members(monkeypatch):
+    """
+    A component that is a bare `anyOf` has no fields to make a class of.
+    A `$ref` to it maps to the union of its members, the same as that
+    `anyOf` written inline, and never to an empty model that would drop
+    every key of the response.
+    """
+    full = {
+        "type": "object",
+        "properties": {"slug": {"type": "string"}, "answer": {"type": "string"}},
+        "required": ["slug", "answer"],
+    }
+    public = {
+        "type": "object",
+        "properties": {"slug": {"type": "string"}},
+        "required": ["slug"],
+    }
+    spec = _spec_with_component_and_inline({"anyOf": [full, public]}, public)
+    monkeypatch.setattr("codehood.api.generate.ENDPOINTS", {"readTimeslot"})
+    source = Generator(spec).generate()
+
+    assert "class TimeSlot(Model):" not in source
+    signature = source.split("def read_timeslot(")[1].split(":\n")[0]
+    members = signature.split("-> ")[1].split(" | ")
+    assert len(members) == 2
+
+    namespace = _exec_generated(source)
+    for name in members:
+        assert name in namespace
+    fields = {
+        frozenset(namespace[name].model_fields)  # type: ignore[attr-defined]
+        for name in members
+    }
+    assert fields == {frozenset({"slug", "answer"}), frozenset({"slug"})}

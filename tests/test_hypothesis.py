@@ -75,39 +75,42 @@ def _round_trip(model_type: object, document: JSON) -> JSON:
 #
 # 1. The invariant, against the real snapshot.
 #
+@pytest.mark.parametrize("operation_id", _ENDPOINTS_WITH_BODY)
 @settings(max_examples=5)
 @given(data=st.data())
-def test_every_request_body_the_spec_permits_validates(data):
+def test_every_request_body_the_spec_permits_validates(operation_id, data):
     """
-    For every operation with a request body, a document the spec permits
-    must validate against the generated function's `body` annotation, and
+    For an operation with a request body, a document the spec permits must
+    validate against the generated function's `body` annotation, and
     survive the round trip back out with every key intact.
+
+    One case per operation: drawing a document for every operation in a
+    single case outgrows what Hypothesis lets one input hold.
     """
-    for operation_id in _ENDPOINTS_WITH_BODY:
-        func = getattr(generated, snake_case(operation_id))
-        body_type = typing.get_type_hints(func)["body"]
-        document = data.draw(
-            openapi_endpoint_documents(operation_id, REAL_SPEC), label=operation_id
-        )
-        _assert_keys_survive(document, _round_trip(body_type, document))
+    func = getattr(generated, snake_case(operation_id))
+    body_type = typing.get_type_hints(func)["body"]
+    document = data.draw(
+        openapi_endpoint_documents(operation_id, REAL_SPEC), label=operation_id
+    )
+    _assert_keys_survive(document, _round_trip(body_type, document))
 
 
+@pytest.mark.parametrize("operation_id", sorted(ENDPOINTS))
 @settings(max_examples=5)
 @given(data=st.data())
-def test_every_response_body_the_spec_permits_validates(data):
+def test_every_response_body_the_spec_permits_validates(operation_id, data):
     """
-    Same as above, but for each operation's 200 response against the
+    Same as above, but for the operation's 200 response against the
     generated function's return annotation.
     """
-    for operation_id in sorted(ENDPOINTS):
-        func = getattr(generated, snake_case(operation_id))
-        return_type = typing.get_type_hints(func)["return"]
-        if return_type is type(None):
-            continue
-        document = data.draw(
-            openapi_response_documents(operation_id, REAL_SPEC), label=operation_id
-        )
-        _assert_keys_survive(document, _round_trip(return_type, document))
+    func = getattr(generated, snake_case(operation_id))
+    return_type = typing.get_type_hints(func)["return"]
+    if return_type is type(None):
+        return
+    document = data.draw(
+        openapi_response_documents(operation_id, REAL_SPEC), label=operation_id
+    )
+    _assert_keys_survive(document, _round_trip(return_type, document))
 
 
 #
