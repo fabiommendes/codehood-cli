@@ -33,4 +33,4 @@ This document outlines the near future goals of the project.
 - [ ] `codehood pull`:
   - [ ] Pull grades from the server.
 - [ ] `codehood push`:
-  - [ ] Push graded assignments to server.
+  - [x] Push grade columns computed locally (`grades.py`, `grades.csv`).

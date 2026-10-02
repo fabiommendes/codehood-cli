@@ -5,18 +5,22 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Annotated
 
 import httpx
 import typer
+from pydantic import ValidationError
 
 from ..api.base import get_client
 from ..models.repo import RepoConfig
 from ..push.calendar import allocate, parse_calendar
 from ..push.errors import CalendarError, QuestionParseError, SlugCollisionError
+from ..push.grades import GradesError
 from ..push.plan import (
     DeleteCalendarEvent,
+    DeleteGradeColumn,
     DeleteQuestion,
     DeleteResource,
     DeleteTimeSlot,
@@ -24,6 +28,7 @@ from ..push.plan import (
     PushOp,
     UpsertCalendarEvent,
     UpsertCourse,
+    UpsertGradeColumn,
     UpsertQuestion,
     UpsertResource,
     UpsertTimeSlot,
@@ -35,11 +40,18 @@ from ..push.resource import scan_resources
 from ..push.run import OpResult, fetch_server_state, run_plan
 from ..repo import read_course_name
 from .base import app
+from .grades import read_grade_sheet, unmatched_warnings
 
 __all__ = ["push"]
 
 #: Ops a `--no-prune` run reports instead of running.
-PRUNE_OPS = (DeleteResource, DeleteQuestion, DeleteTimeSlot, DeleteCalendarEvent)
+PRUNE_OPS = (
+    DeleteResource,
+    DeleteQuestion,
+    DeleteTimeSlot,
+    DeleteCalendarEvent,
+    DeleteGradeColumn,
+)
 
 
 @app.command()
@@ -63,12 +75,15 @@ def push(
     ] = True,
 ) -> None:
     """
-    Sync the repository's course row, calendar, resources and questions.
+    Sync the repository's course row, calendar, resources, questions and
+    grade columns.
     """
     try:
+        config = RepoConfig.open(path)
         local = read_local_state(path)
     except (
         FileNotFoundError,
+        ValidationError,
         CalendarError,
         SlugCollisionError,
         QuestionParseError,
@@ -76,12 +91,31 @@ def push(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
 
-    client = get_client(RepoConfig.open(path).server.url)
+    client = get_client(config.server.url)
     try:
         server = fetch_server_state(local.discipline, local.course, client)
     except httpx.HTTPStatusError as exc:
         typer.echo(f"error: could not read the server's current state: {exc}", err=True)
         raise typer.Exit(code=1) from exc
+
+    grades_failed = False
+    try:
+        sheet = read_grade_sheet(path, config, client=client)
+    except GradesError as exc:
+        for problem in exc.problems:
+            typer.echo(f"error: grades: {problem}", err=True)
+        grades_failed = True
+        local = replace(local, grade_columns=None)
+    except httpx.HTTPStatusError as exc:
+        typer.echo(
+            f"error: grades: could not read the course's grades: {exc}", err=True
+        )
+        grades_failed = True
+        local = replace(local, grade_columns=None)
+    else:
+        for warning in unmatched_warnings(sheet.roster):
+            typer.echo(f"warning  {warning}", err=True)
+        local = replace(local, grade_columns=sheet.columns)
 
     ops = list(plan_push(local, server))
 
@@ -89,6 +123,8 @@ def push(
         for op in ops:
             typer.echo(f"planned  {describe(op)}")
         typer.echo(f"summary: {len(ops)} operation(s) planned, 0 executed (--dry-run)")
+        if grades_failed:
+            raise typer.Exit(code=1)
         return
 
     to_run: list[PushOp] = []
@@ -118,6 +154,9 @@ def push(
         typer.echo("failures:")
         for result in failures:
             typer.echo(f"  {describe(result.op)}: {result.message}")
+    if grades_failed:
+        typer.echo("grade columns were not pushed, see the errors above")
+    if failures or grades_failed:
         raise typer.Exit(code=1)
 
 
@@ -194,3 +233,7 @@ def describe(op: PushOp) -> str:
             return f"delete event {op.week}/{op.time_slot}"
         case WarnTimeSlotPinned():
             return f"time slot {op.slug} kept (event {op.week}/{op.slug} is CANCELLED)"
+        case UpsertGradeColumn():
+            return f"grade column {op.column.slug} ({len(op.column.values)} values)"
+        case DeleteGradeColumn():
+            return f"delete grade column {op.slug}"

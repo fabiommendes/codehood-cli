@@ -57,6 +57,57 @@ codehood push
 ```
 
 
+### Final grades
+
+Codehood does not compute a course's final grade. You compute it on your
+machine and push the result as grade columns, which the Grades tab shows
+beside the exams. Declare the columns in `codehood.toml`, in the order they
+should appear:
+
+```toml
+[[grades.column]]
+slug = "assignments"
+title = "Assignments"
+
+[[grades.column]]
+slug = "final"
+title = "Final grade"
+kind = "label"        # "number" is the default
+```
+
+Scores you keep outside Codehood go in `grades.csv`, one row per student.
+The header of the first column says how students are identified:
+`school_id`, `username`, `github` or `email`.
+
+```csv
+school_id,assignments
+190012345,82.5
+190054321,60
+```
+
+A column whose slug is a header of `grades.csv` needs nothing else. To
+compute one, write a `grade` function in `grades.py`. It is called once per
+enrolled student and returns that student's value for each column it
+computes:
+
+```python
+from codehood.grades import Student
+
+def grade(student: Student) -> dict[str, float | str | None]:
+    midterm = student.exams["midterm"].score or 0.0   # 0 to 100, or None
+    total = 0.6 * midterm + 0.4 * (student.scores["assignments"] or 0.0)
+    return {"final": "pass" if total >= 50 else "fail"}
+```
+
+`codehood grades` prints the resulting table without sending anything, and
+`codehood push` sends it. A pushed column stays hidden from students until
+you release it on the Grades tab.
+
+`grades.py` runs inside the CLI, so it can import the standard library and
+whatever is installed beside the CLI. To use another package, install the
+CLI with it: `uv tool install --editable codehood/cli --with pandas`.
+
+
 ## For students
 
 TBD!

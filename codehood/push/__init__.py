@@ -1,6 +1,6 @@
 """
-`codehood push`: sync a course repository's course row, `calendar.md` and
-`resources/` to the server. See `dev/specs/to-do/push.md` and
+`codehood push`: sync a course repository's course row, `calendar.md`,
+`resources/` and grade columns to the server. See `dev/specs/to-do/push.md` and
 `docs/design/mapping-local-filesystem.md`.
 
 Functional core, imperative shell: `plan.plan_push` is a pure generator
@@ -25,8 +25,21 @@ from .calendar import (
     parse_calendar,
 )
 from .errors import CalendarError, QuestionParseError, SlugCollisionError
+from .grades import (
+    ColumnSpec,
+    GradeColumn,
+    GradesCsv,
+    GradesError,
+    Roster,
+    ServerStudent,
+    build_roster,
+    compute_columns,
+    parse_grades_csv,
+)
+from .hook import load_grade_function
 from .plan import (
     DeleteCalendarEvent,
+    DeleteGradeColumn,
     DeleteQuestion,
     DeleteResource,
     DeleteTimeSlot,
@@ -36,6 +49,7 @@ from .plan import (
     ServerState,
     UpsertCalendarEvent,
     UpsertCourse,
+    UpsertGradeColumn,
     UpsertQuestion,
     UpsertResource,
     UpsertTimeSlot,
@@ -53,7 +67,7 @@ from .resource import (
     scan_resources,
     slugify,
 )
-from .run import OpResult, fetch_server_state, run_plan
+from .run import OpResult, fetch_server_state, fetch_students, run_plan
 
 __all__ = [
     #: Plan
@@ -70,6 +84,8 @@ __all__ = [
     "UpsertCalendarEvent",
     "DeleteCalendarEvent",
     "WarnTimeSlotPinned",
+    "UpsertGradeColumn",
+    "DeleteGradeColumn",
     "PushOp",
     "plan_push",
     #: Calendar
@@ -99,6 +115,17 @@ __all__ = [
     "question_version",
     "scan_questions",
     "scan_resources",
+    #: Grade columns
+    "ColumnSpec",
+    "GradeColumn",
+    "GradesCsv",
+    "GradesError",
+    "Roster",
+    "ServerStudent",
+    "build_roster",
+    "compute_columns",
+    "parse_grades_csv",
+    "load_grade_function",
     #: Errors
     "SlugCollisionError",
     "QuestionParseError",
@@ -106,5 +133,6 @@ __all__ = [
     #: Shell
     "OpResult",
     "fetch_server_state",
+    "fetch_students",
     "run_plan",
 ]

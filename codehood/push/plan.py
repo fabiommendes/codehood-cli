@@ -21,11 +21,13 @@ from pathlib import Path
 from typing import Literal
 
 from .calendar import Event, TimeSlot
+from .grades import GradeColumn
 from .question import AnyQuestion, QuestionFile
 from .resource import ResourceData, ResourceFile
 
 __all__ = [
     "DeleteCalendarEvent",
+    "DeleteGradeColumn",
     "DeleteQuestion",
     "DeleteResource",
     "DeleteTimeSlot",
@@ -35,6 +37,7 @@ __all__ = [
     "ServerState",
     "UpsertCalendarEvent",
     "UpsertCourse",
+    "UpsertGradeColumn",
     "UpsertQuestion",
     "UpsertResource",
     "UpsertTimeSlot",
@@ -54,6 +57,10 @@ class LocalState:
     `start` and `end` come from `calendar.md`, not from the edition: the
     edition is an institutional term shared across courses, and a course's
     own span is the instructor's to set -- see the mapping's "Course".
+
+    `grade_columns` is `None` when the columns could not be computed, which
+    leaves the server's columns alone. An empty tuple is a course that
+    declares none, and prunes whatever the server holds.
     """
 
     discipline: str
@@ -65,6 +72,7 @@ class LocalState:
     events: tuple[Event, ...] = ()
     resources: tuple[ResourceFile, ...] = ()
     questions: tuple[QuestionFile, ...] = ()
+    grade_columns: tuple[GradeColumn, ...] | None = ()
 
 
 @dataclass(frozen=True)
@@ -92,6 +100,7 @@ class ServerState:
     questions: Mapping[str, str] = field(default_factory=dict)
     time_slots: Mapping[str, str] = field(default_factory=dict)
     calendar_events: Mapping[tuple[int, str], ServerEvent] = field(default_factory=dict)
+    grade_columns: Mapping[str, str] = field(default_factory=dict)
 
 
 #
@@ -220,6 +229,25 @@ class WarnTimeSlotPinned:
     week: int
 
 
+@dataclass(frozen=True)
+class UpsertGradeColumn:
+    """
+    One grade column to `PUT`, whole: the server replaces its values with
+    the ones carried here.
+    """
+
+    column: GradeColumn
+
+
+@dataclass(frozen=True)
+class DeleteGradeColumn:
+    """
+    A grade column to delete by slug: `codehood.toml` no longer declares it.
+    """
+
+    slug: str
+
+
 PushOp = (
     UpsertCourse
     | UpsertResource
@@ -231,6 +259,8 @@ PushOp = (
     | UpsertCalendarEvent
     | DeleteCalendarEvent
     | WarnTimeSlotPinned
+    | UpsertGradeColumn
+    | DeleteGradeColumn
 )
 
 
@@ -248,8 +278,9 @@ def plan_push(local: LocalState, server: ServerState) -> Iterator[PushOp]:
     `server.resources`; a server slug absent locally is planned for
     deletion. Questions follow the same rule on `version`.
 
-    Calendar slots and events come last, and in that order: a slot an
-    event needs has to exist before the event is written.
+    Calendar slots and events follow, in that order: a slot an event
+    needs has to exist before the event is written. Grade columns come
+    last.
     """
     yield UpsertCourse(
         discipline=local.discipline,
@@ -294,6 +325,7 @@ def plan_push(local: LocalState, server: ServerState) -> Iterator[PushOp]:
             yield DeleteQuestion(slug=slug)
 
     yield from plan_calendar(local, server)
+    yield from plan_grades(local, server)
 
 
 def plan_calendar(local: LocalState, server: ServerState) -> Iterator[PushOp]:
@@ -351,6 +383,29 @@ def plan_calendar(local: LocalState, server: ServerState) -> Iterator[PushOp]:
         ) == (event.ref, event.kind):
             continue
         yield UpsertCalendarEvent(event=event)
+
+
+def plan_grades(local: LocalState, server: ServerState) -> Iterator[PushOp]:
+    """
+    The grade column half of a plan: upsert what changed, delete what
+    `codehood.toml` no longer declares.
+
+    A column is planned when its `rev` differs from, or is absent from,
+    `server.grade_columns`. Nothing is planned when `local.grade_columns`
+    is `None`: columns that could not be computed are not evidence that
+    the server's should go.
+    """
+    if local.grade_columns is None:
+        return
+
+    for column in local.grade_columns:
+        if server.grade_columns.get(column.slug) != column.rev:
+            yield UpsertGradeColumn(column=column)
+
+    declared = {column.slug for column in local.grade_columns}
+    for slug in server.grade_columns:
+        if slug not in declared:
+            yield DeleteGradeColumn(slug=slug)
 
 
 #

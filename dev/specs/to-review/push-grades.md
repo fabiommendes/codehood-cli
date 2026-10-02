@@ -1,6 +1,6 @@
 ---
 type: spec
-status: to-do
+status: implemented
 tags: [push, grades, grade-column, python-hook, instructor]
 relatedTo: [course-grade, push, codehood-toml]
 ---
@@ -242,7 +242,7 @@ with its values. `--no-prune` reports the deletion and does not execute it.
 Two new operations join `PushOp`:
 
 ```python
-UpsertGradeColumn(slug, title, kind, position, rev, values)
+UpsertGradeColumn(column)   # slug, title, kind, position, values, rev
 DeleteGradeColumn(slug)
 ```
 
@@ -258,9 +258,10 @@ the server and the instructor's `grade` in, a table or a list of errors out.
 The shell reads the files, fetches `GET .../grades` and
 `GET .../grade-column`, and imports `grades.py`.
 
-New module `codehood/grades.py` holds `Student` and `ExamResult`, which is
-what the instructor's script imports. The planning code lives in
-`codehood/push/grades.py`.
+`codehood/grades.py` holds `Student` and `ExamResult`, which is what the
+instructor's script imports. `codehood/push/grades.py` is the pure core,
+`codehood/push/hook.py` imports `grades.py`, and `codehood/cli/grades.py`
+gathers the inputs for both commands.
 
 ## CLI surface
 

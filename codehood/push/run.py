@@ -20,9 +20,12 @@ import httpx
 
 from ..api import generated
 from ..api.base import CodehoodAPIError
+from ..grades import ExamResult, ExamState
 from .calendar import Duration, TimeOfDay, TimeSlot
+from .grades import ServerStudent
 from .plan import (
     DeleteCalendarEvent,
+    DeleteGradeColumn,
     DeleteQuestion,
     DeleteResource,
     DeleteTimeSlot,
@@ -31,6 +34,7 @@ from .plan import (
     ServerState,
     UpsertCalendarEvent,
     UpsertCourse,
+    UpsertGradeColumn,
     UpsertQuestion,
     UpsertResource,
     UpsertTimeSlot,
@@ -38,7 +42,7 @@ from .plan import (
 )
 from .resource import CodeData, FileData, MdData, ResourceData
 
-__all__ = ["OpResult", "fetch_server_state", "run_plan"]
+__all__ = ["OpResult", "fetch_server_state", "fetch_students", "run_plan"]
 
 #: The generated request-side members of `Resource.data`. The `FILE` member
 #: exists twice in the spec -- the upload shape (`filename` plus `buffer`)
@@ -54,6 +58,15 @@ type RequestData = (
 #: "`weight` and `grading` are dropped on the wire". A server gap, not a CLI
 #: preference; recorded in `ROADBLOCKS.md`.
 DROPPED_QUESTION_KEYS = ("weight", "grading")
+
+#: What each cell of the server's grades table is called in `ExamResult`.
+EXAM_STATES: dict[str, ExamState] = {
+    "total": "graded",
+    "pending": "pending",
+    "in-progress": "in_progress",
+    "missed": "missed",
+    "empty": "not_held",
+}
 
 
 @dataclass(frozen=True)
@@ -78,8 +91,9 @@ def fetch_server_state(
     projects each one down to the markers `plan_push` compares: `GET
     /api/course/{discipline}/{course}` to check the course exists,
     `.../resource` to `slug -> ref`, `.../question` to `slug -> version`,
-    `.../time-slot` to `slug -> ref`, and `.../calendar-event` to
-    `(week, timeSlot) -> ServerEvent`.
+    `.../time-slot` to `slug -> ref`, `.../calendar-event` to
+    `(week, timeSlot) -> ServerEvent`, and `.../grade-column` to
+    `slug -> rev`.
 
     A time slot carries no `ref` column server-side, so its ref is
     recomputed here from the fields the listing did return -- which is
@@ -117,6 +131,9 @@ def fetch_server_state(
     calendar_events = generated.list_calendar_event(
         discipline=discipline, course=course, client=client
     )
+    grade_columns = generated.list_grade_column(
+        discipline=discipline, course=course, client=client
+    )
     return ServerState(
         course_exists=True,
         resources={resource.slug: resource.rev or "" for resource in resources},
@@ -126,7 +143,29 @@ def fetch_server_state(
             (event.week, event.time_slot.slug): _server_event(event)
             for event in calendar_events
         },
+        grade_columns={column.slug: column.rev or "" for column in grade_columns},
     )
+
+
+def fetch_students(
+    discipline: str, course: str, client: httpx.Client
+) -> tuple[ServerStudent, ...]:
+    """
+    Read every enrolled student with their result at every exam.
+
+    Returns:
+        Nothing for a course the server does not have yet: it has no
+        student to grade, and the columns are pushed empty.
+    """
+    try:
+        report = generated.course_grades(
+            discipline=discipline, course=course, client=client
+        )
+    except httpx.HTTPStatusError as exc:
+        if exc.response.status_code != 404:
+            raise
+        return ()
+    return tuple(_server_student(item) for item in report.students)
 
 
 def run_plan(
@@ -189,6 +228,14 @@ def _run_op(
             )
         case WarnTimeSlotPinned():
             return _run_warn_time_slot_pinned(op)
+        case UpsertGradeColumn():
+            return _run_upsert_grade_column(
+                op, discipline=discipline, course=course, client=client
+            )
+        case DeleteGradeColumn():
+            return _run_delete_grade_column(
+                op, discipline=discipline, course=course, client=client
+            )
 
 
 def _run_upsert_course(op: UpsertCourse, *, client: httpx.Client) -> OpResult:
@@ -395,6 +442,67 @@ def _run_warn_time_slot_pinned(op: WarnTimeSlotPinned) -> OpResult:
         op=op,
         ok=True,
         message=(f"kept: calendar event {op.week}/{op.slug} is CANCELLED and pins it"),
+    )
+
+
+def _run_upsert_grade_column(
+    op: UpsertGradeColumn, *, discipline: str, course: str, client: httpx.Client
+) -> OpResult:
+    column = op.column
+    body = generated.GradeColumnCreate(
+        slug=column.slug,
+        title=column.title,
+        kind="NUMBER" if column.kind == "number" else "LABEL",
+        position=column.position,
+        rev=column.rev,
+        values=[
+            generated.ValuesItem(username=username, value=value)
+            for username, value in column.values
+        ],
+    )
+    try:
+        generated.upsert_grade_column(
+            discipline=discipline, course=course, body=body, client=client
+        )
+    except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
+        return OpResult(op=op, ok=False, message=f"failed: {exc}")
+    return OpResult(
+        op=op, ok=True, message=f"upserted {column.slug} ({len(column.values)} values)"
+    )
+
+
+def _run_delete_grade_column(
+    op: DeleteGradeColumn, *, discipline: str, course: str, client: httpx.Client
+) -> OpResult:
+    try:
+        generated.delete_grade_column(
+            discipline=discipline, course=course, slug=op.slug, client=client
+        )
+    except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
+        return OpResult(op=op, ok=False, message=f"failed: {exc}")
+    return OpResult(op=op, ok=True, message=f"deleted {op.slug}")
+
+
+def _server_student(item: generated.StudentsItem) -> ServerStudent:
+    """
+    Project one student of the grades report into what the core computes
+    from, with each exam total turned into the percentage the web shows.
+    """
+    exams: dict[str, ExamResult] = {}
+    for slug, cell in item.results.items():
+        total = getattr(cell, "total", None)
+        exams[slug] = ExamResult(
+            score=None if total is None else round(total * 100, 2),
+            state=EXAM_STATES[cell.kind],
+        )
+    return ServerStudent(
+        username=item.username,
+        name=item.name,
+        email=item.email,
+        school_id=item.school_id,
+        github=item.github_id,
+        status="active" if item.status == "ACTIVE" else "dropped",
+        exams=exams,
     )
 
 

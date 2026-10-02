@@ -20,22 +20,26 @@ import mdq
 import pytest
 
 from codehood.api import base as base_module
+from codehood.grades import ExamResult
 from codehood.push.calendar import Duration, Event, TimeOfDay, TimeSlot
+from codehood.push.grades import GradeColumn
 from codehood.push.plan import (
     DeleteCalendarEvent,
+    DeleteGradeColumn,
     DeleteQuestion,
     DeleteResource,
     DeleteTimeSlot,
     ServerEvent,
     UpsertCalendarEvent,
     UpsertCourse,
+    UpsertGradeColumn,
     UpsertQuestion,
     UpsertResource,
     UpsertTimeSlot,
     WarnTimeSlotPinned,
 )
 from codehood.push.resource import CodeData, FileData, MdData
-from codehood.push.run import fetch_server_state, run_plan
+from codehood.push.run import fetch_server_state, fetch_students, run_plan
 
 EXAMPLE_MDQ = """---
 title: Example question
@@ -232,6 +236,8 @@ def test_fetch_server_state_reports_course_and_resource_refs():
             return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/calendar-event":
             return httpx.Response(200, json=[])
+        if request.method == "GET" and request.url.path == f"{BASE}/grade-column":
+            return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.url}")
 
     state = fetch_server_state(DISCIPLINE, COURSE, _client(handler))
@@ -257,6 +263,8 @@ def test_fetch_server_state_reports_question_versions():
             return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/calendar-event":
             return httpx.Response(200, json=[])
+        if request.method == "GET" and request.url.path == f"{BASE}/grade-column":
+            return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.url}")
 
     state = fetch_server_state(DISCIPLINE, COURSE, _client(handler))
@@ -276,6 +284,8 @@ def test_fetch_server_state_course_missing_skips_the_question_listing():
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == BASE:
             return httpx.Response(404, json={"message": "not found"})
+        if request.method == "GET" and request.url.path == f"{BASE}/grade-column":
+            return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.url}")
 
     state = fetch_server_state(DISCIPLINE, COURSE, _client(handler))
@@ -292,6 +302,8 @@ def test_fetch_server_state_course_missing_skips_the_calendar_listings():
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == BASE:
             return httpx.Response(404, json={"message": "not found"})
+        if request.method == "GET" and request.url.path == f"{BASE}/grade-column":
+            return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.url}")
 
     state = fetch_server_state(DISCIPLINE, COURSE, _client(handler))
@@ -320,6 +332,8 @@ def test_fetch_server_state_recomputes_time_slot_refs_locally():
                 json=[_timeslot_json("mon", "MONDAY", 14, 0, 2, 0, title="Lecture")],
             )
         if request.url.path == f"{BASE}/calendar-event":
+            return httpx.Response(200, json=[])
+        if request.method == "GET" and request.url.path == f"{BASE}/grade-column":
             return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.url}")
 
@@ -376,6 +390,8 @@ def test_fetch_server_state_reports_calendar_events_as_markers():
                     ),
                 ],
             )
+        if request.method == "GET" and request.url.path == f"{BASE}/grade-column":
+            return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.url}")
 
     state = fetch_server_state(DISCIPLINE, COURSE, _client(handler))
@@ -906,3 +922,108 @@ def test_run_plan_warn_time_slot_pinned_makes_no_request_and_succeeds():
         run_plan([op], discipline=DISCIPLINE, course=COURSE, client=_client(handler))
     )
     assert result.ok is True
+
+
+#
+# Grade columns
+#
+def test_fetch_students_turns_totals_into_percentages_and_names_each_state():
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.url.path == f"{BASE}/grades"
+        student = {
+            "username": "hopper",
+            "name": "Grace Hopper",
+            "email": "hopper@example.com",
+            "schoolId": "190",
+            "githubId": None,
+            "status": "DROPPED",
+            "results": {
+                "p1": {"kind": "total", "total": 0.8333},
+                "p2": {"kind": "pending"},
+                "p3": {"kind": "in-progress"},
+                "p4": {"kind": "missed"},
+                "p5": {"kind": "empty"},
+            },
+        }
+        return httpx.Response(200, json={"exams": [], "students": [student]})
+
+    [student] = fetch_students(DISCIPLINE, COURSE, _client(handler))
+    assert (student.username, student.school_id, student.github, student.status) == (
+        "hopper",
+        "190",
+        None,
+        "dropped",
+    )
+    assert student.exams == {
+        "p1": ExamResult(score=83.33, state="graded"),
+        "p2": ExamResult(score=None, state="pending"),
+        "p3": ExamResult(score=None, state="in_progress"),
+        "p4": ExamResult(score=None, state="missed"),
+        "p5": ExamResult(score=None, state="not_held"),
+    }
+
+
+def test_fetch_students_reports_nobody_for_a_course_the_server_lacks():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, json={"message": "not found"})
+
+    assert fetch_students(DISCIPLINE, COURSE, _client(handler)) == ()
+
+
+def test_run_plan_upsert_grade_column_puts_the_column_whole():
+    sent: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert (request.method, request.url.path) == ("PUT", f"{BASE}/grade-column")
+        sent.update(json.loads(request.content))
+        body = {**sent, "releasedAt": None, "createdAt": "x", "updatedAt": "x"}
+        return httpx.Response(200, json=body)
+
+    column = GradeColumn(
+        slug="final",
+        title="Final grade",
+        kind="label",
+        position=1,
+        values=(("ana", "MS"), ("bia", "SS")),
+    )
+    [result] = list(
+        run_plan(
+            [UpsertGradeColumn(column=column)],
+            discipline=DISCIPLINE,
+            course=COURSE,
+            client=_client(handler),
+        )
+    )
+    assert result.ok is True
+    assert sent == {
+        "slug": "final",
+        "title": "Final grade",
+        "kind": "LABEL",
+        "position": 1,
+        "rev": column.rev,
+        "values": [
+            {"username": "ana", "value": "MS"},
+            {"username": "bia", "value": "SS"},
+        ],
+    }
+
+
+def test_run_plan_delete_grade_column_addresses_it_by_slug():
+    calls: list[tuple[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append((request.method, request.url.path))
+        return httpx.Response(
+            200, json={"success": True, "message": "deleted", "deleted": True}
+        )
+
+    [result] = list(
+        run_plan(
+            [DeleteGradeColumn(slug="final")],
+            discipline=DISCIPLINE,
+            course=COURSE,
+            client=_client(handler),
+        )
+    )
+    assert result.ok is True
+    assert calls == [("DELETE", f"{BASE}/grade-column/final")]

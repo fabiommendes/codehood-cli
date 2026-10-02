@@ -253,6 +253,8 @@ def _fresh_server_handler(calls: list[tuple[str, str]]):
             return httpx.Response(200, json=_resource_json(slug, "whatever"))
         if (response := _calendar_defaults(request)) is not None:
             return response
+        if request.method == "GET" and request.url.path == f"{BASE}/grade-column":
+            return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.method} {request.url}")
 
     return handler
@@ -275,6 +277,8 @@ def test_dry_run_performs_zero_writes(repo, monkeypatch):
         if request.url.path == BASE:
             return httpx.Response(404, json={"message": "not found"})
         if request.url.path == f"{BASE}/resource":
+            return httpx.Response(200, json=[])
+        if request.method == "GET" and request.url.path == f"{BASE}/grade-column":
             return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.url}")
 
@@ -333,6 +337,8 @@ def test_dry_run_prints_a_warning_for_a_cancelled_events_pinned_slot(repo, monke
                     ),
                 ],
             )
+        if request.method == "GET" and request.url.path == f"{BASE}/grade-column":
+            return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.method} {request.url}")
 
     _install_transport(monkeypatch, handler)
@@ -383,6 +389,8 @@ def test_no_prune_reports_deletion_without_executing_it(repo, monkeypatch):
             raise AssertionError("--no-prune must not execute a deletion")
         if (response := _calendar_defaults(request)) is not None:
             return response
+        if request.method == "GET" and request.url.path == f"{BASE}/grade-column":
+            return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.method} {request.url}")
 
     _install_transport(monkeypatch, handler)
@@ -418,6 +426,8 @@ def test_a_failed_operation_exits_nonzero_but_still_runs_the_rest(repo, monkeypa
             return httpx.Response(200, json=_resource_json(slug, "whatever"))
         if (response := _calendar_defaults(request)) is not None:
             return response
+        if request.method == "GET" and request.url.path == f"{BASE}/grade-column":
+            return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.method} {request.url}")
 
     _install_transport(monkeypatch, handler)
@@ -448,6 +458,8 @@ def test_dry_run_prints_question_ops(repo_with_question, monkeypatch):
         if request.url.path == BASE:
             return httpx.Response(404, json={"message": "not found"})
         if request.url.path == f"{BASE}/resource":
+            return httpx.Response(200, json=[])
+        if request.method == "GET" and request.url.path == f"{BASE}/grade-column":
             return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.url}")
 
@@ -493,6 +505,8 @@ def test_no_prune_skips_question_deletions(repo_with_question, monkeypatch):
             raise AssertionError("--no-prune must not execute a question deletion")
         if (response := _calendar_defaults(request)) is not None:
             return response
+        if request.method == "GET" and request.url.path == f"{BASE}/grade-column":
+            return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.method} {request.url}")
 
     _install_transport(monkeypatch, handler)
@@ -531,6 +545,8 @@ def test_a_failed_question_operation_exits_nonzero_but_still_runs_the_rest(
             return httpx.Response(500, json={"message": "server error"})
         if (response := _calendar_defaults(request)) is not None:
             return response
+        if request.method == "GET" and request.url.path == f"{BASE}/grade-column":
+            return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.method} {request.url}")
 
     _install_transport(monkeypatch, handler)

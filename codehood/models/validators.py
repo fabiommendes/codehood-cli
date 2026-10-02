@@ -20,6 +20,7 @@ __all__ = [
     "DisciplineSlug",
     "InstructorUsername",
     "EditionSlug",
+    "GradeColumnSlug",
     "ServerUrl",
     #: Validator composition
     "string_validator",
@@ -27,6 +28,7 @@ __all__ = [
     "validate_discipline",
     "validate_instructor",
     "validate_edition",
+    "validate_slug",
     "url_validator",
 ]
 
@@ -40,6 +42,10 @@ type Validator[T] = Callable[[Any], T]
 DISCIPLINE_RE = re.compile(r"^[a-z][a-z0-9-]{1,30}[a-z0-9]$")
 INSTRUCTOR_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,30}$")
 EDITION_RE = re.compile(r"^[0-9]{4}(-([1-9][0-9]*|0))?$")
+
+# The server's rule for a flat slug (`slug` in `src/core/schemas/base.ts`):
+# exactly one URL segment.
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 
 # Copied from `codehood-server/src/utils/course-url.ts`'s `RESERVED_SLUGS`.
 # Top-level names a discipline slug must not equal, because the root
@@ -126,6 +132,13 @@ def validate_edition(value: str) -> str:
 
 
 @string_validator
+def validate_slug(value: str) -> str:
+    if not SLUG_RE.fullmatch(value):
+        raise ValueError(f"slug {value!r} must match {SLUG_RE.pattern!r}")
+    return value
+
+
+@string_validator
 def url_validator(value: str) -> str:
     # TODO: validate that the URL has a valid structure.
     return value.removesuffix("/")
@@ -137,4 +150,5 @@ def url_validator(value: str) -> str:
 DisciplineSlug = Annotated[str, AfterValidator(validate_discipline)]
 InstructorUsername = Annotated[str, AfterValidator(validate_instructor)]
 EditionSlug = Annotated[str, AfterValidator(validate_edition)]
+GradeColumnSlug = Annotated[str, AfterValidator(validate_slug)]
 ServerUrl = Annotated[str, AfterValidator(url_validator)]

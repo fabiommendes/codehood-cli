@@ -4,6 +4,24 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- `codehood push` syncs grade columns. `codehood.toml` declares them in
+  `[[grades.column]]` tables (`slug`, `title`, `kind` of `number` or `label`),
+  in the order the Grades tab shows them. A column's values come from
+  `grades.py`, whose `grade(student)` is called once per enrolled student
+  with their exam results and `grades.csv` scores, and otherwise from the
+  `grades.csv` column with the same header. `grades.csv` identifies students
+  by `school_id`, `username`, `github` or `email`, takes `;` as delimiter and
+  `,` as decimal separator, and a row for nobody enrolled is reported and
+  skipped. A column is sent whole and only when it changed, and one the file
+  no longer declares is deleted. A mistake in `grades.py`, `grades.csv` or
+  the declared columns refuses the grade columns, leaves the server's alone
+  and still pushes the rest, with exit code 1.
+- `codehood grades` prints the table a push would send and writes nothing.
+- `codehood.grades` exports `Student` and `ExamResult`, the types a
+  `grades.py` is written against.
+- The OpenAPI snapshot follows the server again: `ref` became `rev`, a
+  resource has an `event`, and a question is a union. The generator maps a
+  component that is a bare union to the union of its members.
 - The Textual apps (`chill`, `show`, `api`) use Codehood's themes: Forest
   (dark, the default) and Cerrado (light), switchable from the command
   palette. Rich output uses role styles (`error`, `success`, `primary`,
