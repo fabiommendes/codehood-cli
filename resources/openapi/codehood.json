@@ -942,166 +942,6 @@
           "values"
         ]
       },
-      "CourseGrades": {
-        "type": "object",
-        "properties": {
-          "exams": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "slug": {
-                  "type": "string",
-                  "pattern": "^[a-z0-9][a-z0-9._-]*$",
-                  "example": "intro-to-recursion"
-                },
-                "title": {
-                  "type": "string"
-                },
-                "scheduledAt": {
-                  "type": "string",
-                  "nullable": true,
-                  "format": "date-time"
-                }
-              },
-              "required": [
-                "slug",
-                "title",
-                "scheduledAt"
-              ]
-            }
-          },
-          "students": {
-            "type": "array",
-            "items": {
-              "type": "object",
-              "properties": {
-                "username": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "name": {
-                  "type": "string",
-                  "minLength": 1
-                },
-                "email": {
-                  "type": "string",
-                  "format": "email"
-                },
-                "schoolId": {
-                  "type": "string",
-                  "nullable": true
-                },
-                "githubId": {
-                  "type": "string",
-                  "nullable": true
-                },
-                "status": {
-                  "type": "string",
-                  "enum": [
-                    "ACTIVE",
-                    "DROPPED"
-                  ]
-                },
-                "results": {
-                  "type": "object",
-                  "additionalProperties": {
-                    "oneOf": [
-                      {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "type": "string",
-                            "enum": [
-                              "total"
-                            ]
-                          },
-                          "total": {
-                            "type": "number"
-                          }
-                        },
-                        "required": [
-                          "kind",
-                          "total"
-                        ]
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "type": "string",
-                            "enum": [
-                              "pending"
-                            ]
-                          }
-                        },
-                        "required": [
-                          "kind"
-                        ]
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "type": "string",
-                            "enum": [
-                              "in-progress"
-                            ]
-                          }
-                        },
-                        "required": [
-                          "kind"
-                        ]
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "type": "string",
-                            "enum": [
-                              "missed"
-                            ]
-                          }
-                        },
-                        "required": [
-                          "kind"
-                        ]
-                      },
-                      {
-                        "type": "object",
-                        "properties": {
-                          "kind": {
-                            "type": "string",
-                            "enum": [
-                              "empty"
-                            ]
-                          }
-                        },
-                        "required": [
-                          "kind"
-                        ]
-                      }
-                    ]
-                  }
-                }
-              },
-              "required": [
-                "username",
-                "name",
-                "email",
-                "schoolId",
-                "githubId",
-                "status",
-                "results"
-              ]
-            }
-          }
-        },
-        "required": [
-          "exams",
-          "students"
-        ]
-      },
       "Invite": {
         "type": "object",
         "properties": {
@@ -1403,15 +1243,11 @@
                 "type": "string",
                 "pattern": "^[a-z0-9][a-z0-9._-]*$",
                 "example": "intro-to-recursion"
-              },
-              "id": {
-                "type": "integer"
               }
             },
             "required": [
               "week",
-              "timeSlot",
-              "id"
+              "timeSlot"
             ]
           },
           "rev": {
@@ -9840,15 +9676,11 @@
                             "type": "string",
                             "pattern": "^[a-z0-9][a-z0-9._-]*$",
                             "example": "intro-to-recursion"
-                          },
-                          "id": {
-                            "type": "integer"
                           }
                         },
                         "required": [
                           "week",
-                          "timeSlot",
-                          "id"
+                          "timeSlot"
                         ]
                       },
                       "rev": {
@@ -10175,15 +10007,11 @@
                           "type": "string",
                           "pattern": "^[a-z0-9][a-z0-9._-]*$",
                           "example": "intro-to-recursion"
-                        },
-                        "id": {
-                          "type": "integer"
                         }
                       },
                       "required": [
                         "week",
-                        "timeSlot",
-                        "id"
+                        "timeSlot"
                       ]
                     },
                     "rev": {
@@ -10377,15 +10205,11 @@
                           "type": "string",
                           "pattern": "^[a-z0-9][a-z0-9._-]*$",
                           "example": "intro-to-recursion"
-                        },
-                        "id": {
-                          "type": "integer"
                         }
                       },
                       "required": [
                         "week",
-                        "timeSlot",
-                        "id"
+                        "timeSlot"
                       ]
                     },
                     "rev": {
@@ -10710,15 +10534,11 @@
                           "type": "string",
                           "pattern": "^[a-z0-9][a-z0-9._-]*$",
                           "example": "intro-to-recursion"
-                        },
-                        "id": {
-                          "type": "integer"
                         }
                       },
                       "required": [
                         "week",
-                        "timeSlot",
-                        "id"
+                        "timeSlot"
                       ]
                     },
                     "rev": {

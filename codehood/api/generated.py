@@ -86,6 +86,12 @@ class EditionCreate(Model):
     start_at: str | None = Field(alias='startAt')
     end_at: str | None = Field(alias='endAt')
 
+class Event(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    week: int
+    time_slot: str = Field(alias='timeSlot')
+
 class ExamCreateQuestionsItem(Model):
     slug: str
     version: str | None = None
@@ -215,12 +221,6 @@ class ResourceCreateDataFile(Model):
     type: Literal['FILE']
     buffer: str
 
-class ResourceCreateEvent(Model):
-    model_config = ConfigDict(populate_by_name=True)
-
-    week: int
-    time_slot: str = Field(alias='timeSlot')
-
 class ResourceDataFile(Model):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -228,13 +228,6 @@ class ResourceDataFile(Model):
     mime_type: str = Field(alias='mimeType')
     filename: str
     type: Literal['FILE']
-
-class ResourceEvent(Model):
-    model_config = ConfigDict(populate_by_name=True)
-
-    week: int
-    time_slot: str = Field(alias='timeSlot')
-    id: int
 
 class Start(Model):
     hour: int
@@ -548,7 +541,7 @@ class Resource(Model):
     title: str
     description: str | None
     data: DataLink | ResourceDataFile | DataCode | DataMd
-    event: ResourceEvent | None
+    event: Event | None
     rev: str | None
     created_at: str = Field(alias='createdAt')
     updated_at: str = Field(alias='updatedAt')
@@ -558,7 +551,7 @@ class ResourceCreate(Model):
     title: str
     rev: str | None = None
     description: str | None = None
-    event: ResourceCreateEvent | None = None
+    event: Event | None = None
     data: DataLink | ResourceCreateDataFile | DataCode | DataMd
 
 class StudentsItem(Model):
@@ -623,7 +616,7 @@ class UpdateResourceRequest(Model):
     title: str | None = None
     rev: str | None = None
     description: str | None = None
-    event: ResourceCreateEvent | None = None
+    event: Event | None = None
     data: DataLink | ResourceCreateDataFile | DataCode | DataMd | None = None
 
 class UpdateTimeslotRequest(Model):
@@ -645,7 +638,7 @@ class CalendarEvent(Model):
     created_at: str = Field(alias='createdAt')
     updated_at: str = Field(alias='updatedAt')
 
-class CourseGrades(Model):
+class CourseGradesResponse(Model):
     exams: list[ExamsItem]
     students: list[StudentsItem]
 
@@ -753,14 +746,14 @@ class InvalidCredentials(CodehoodAPIError):
     def timestamp(self) -> str | None:
         return self.payload.timestamp
 
-def course_grades(*, discipline: str, course: str, client: httpx.Client | None = None) -> CourseGrades:
+def course_grades(*, discipline: str, course: str, client: httpx.Client | None = None) -> CourseGradesResponse:
     """
     View the exam results of every student
     """
     client = client if client is not None else get_client()
     response = client.get('/api/course/{discipline}/{course}/grades'.format(discipline=discipline, course=course), headers=auth_headers(client))
     if response.status_code == 200:
-        return CourseGrades.model_validate(response.json())
+        return CourseGradesResponse.model_validate(response.json())
     response.raise_for_status()
     raise CodehoodAPIError(response.status_code, Model())
 
