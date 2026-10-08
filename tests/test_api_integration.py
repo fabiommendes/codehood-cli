@@ -29,7 +29,7 @@ SERVER_URL = os.environ.get("CODEHOOD_SERVER", "http://localhost:4321")
 
 _ROOT = Path(__file__).parent.parent
 COMMITTED_SPEC_PATH = _ROOT / "resources" / "openapi" / "codehood.json"
-GENERATED_CLIENT_PATH = _ROOT / "src" / "codehood_cli" / "api" / "generated.py"
+GENERATED_CLIENT_PATH = _ROOT / "codehood" / "api" / "generated.py"
 
 
 @pytest.fixture(scope="session")
@@ -42,7 +42,7 @@ def client() -> httpx.Client:
     return live_client
 
 
-def test_get_health_matches_a_generated_shape(client: httpx.Client) -> None:
+def test_health_matches_a_generated_shape(client: httpx.Client) -> None:
     """
     The real response parses into one of the two shapes `generated.py`
     knows about. Proof the generated types haven't drifted from what the
@@ -50,31 +50,33 @@ def test_get_health_matches_a_generated_shape(client: httpx.Client) -> None:
     might legitimately be down.
     """
     try:
-        result = generated.get_health(client=client)
+        result = generated.health(client=client)
     except generated.HealthError as exc:
         assert exc.status == 503
-        assert exc.database
+        assert exc.database == "unreachable"
     else:
         assert result.status == "ok"
+        assert result.database == "ok"
 
 
-def test_cli_login_with_bad_credentials_returns_typed_error(
+def test_login_with_bad_credentials_returns_typed_error(
     client: httpx.Client,
 ) -> None:
     """
     Needs no real account: a nonexistent email deterministically exercises
     the error path, and only a wire-format match with the real server would
-    let this parse into `ApiError` at all.
+    let this parse into `InvalidCredentials` at all.
     """
-    with pytest.raises(generated.ApiError) as excinfo:
-        generated.cli_login(
-            body=generated.CliLoginRequest(
+    with pytest.raises(generated.InvalidCredentials) as excinfo:
+        generated.login(
+            body=generated.LoginRequest(
                 login="does-not-exist@example.invalid", password="wrong"
             ),
             client=client,
         )
-    assert excinfo.value.status in (400, 401)
-    assert excinfo.value.error
+    assert excinfo.value.status == 401
+    assert excinfo.value.code == "not-allowed"
+    assert excinfo.value.message
 
 
 def test_live_spec_matches_committed_snapshot(client: httpx.Client) -> None:
@@ -99,7 +101,7 @@ def test_generated_client_matches_what_codegen_would_produce_now(
     """
     Resolves the spec's open question about a CI drift check between
     `generated.py` and the live spec: if this fails, someone changed an
-    `ENDPOINTS` operation server-side without re-running `task api-codegen`.
+    `ENDPOINTS` operation server-side without regenerating the client.
     """
     response = client.get("/openapi.json")
     response.raise_for_status()
@@ -107,5 +109,5 @@ def test_generated_client_matches_what_codegen_would_produce_now(
     committed_source = GENERATED_CLIENT_PATH.read_text()
     assert fresh_source == committed_source, (
         f"{GENERATED_CLIENT_PATH.relative_to(_ROOT)} is stale -- run "
-        f"`task api-codegen` against {SERVER_URL} and commit the result"
+        f"`uv run python -m codehood.api.generate` against {SERVER_URL} and commit the result"
     )

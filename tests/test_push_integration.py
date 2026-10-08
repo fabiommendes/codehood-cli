@@ -181,8 +181,13 @@ def test_push_writes_the_calendar_and_reconverges_on_a_second_run(
 
     second = runner.invoke(app, ["push", str(course_repo), "--dry-run"])
     assert second.exit_code == 0, second.output
-    assert "time slot" not in second.output
-    assert " event " not in second.output
+    # A seeded CANCELLED event pins its time slot, so the plan may still
+    # carry a "kept" notice for it. That notice is not a write.
+    planned = [
+        line for line in second.output.splitlines() if line.startswith("planned")
+    ]
+    writes = [line for line in planned if " kept " not in line]
+    assert [line for line in writes if "time slot" in line or " event " in line] == []
 
 
 def test_push_then_delete_then_push_converges_on_the_real_server(
