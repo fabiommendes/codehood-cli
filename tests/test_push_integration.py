@@ -228,3 +228,51 @@ def test_push_questions_matches_the_repository_exactly_and_reconverges(
     assert second.exit_code == 0, second.output
     assert "question" not in second.output
     assert "delete question" not in second.output
+
+
+def _planned_writes(output: str) -> list[str]:
+    """The `planned` lines of a dry run that are real writes, not notices."""
+    planned = [line for line in output.splitlines() if line.startswith("planned")]
+    return [line for line in planned if " kept " not in line]
+
+
+def test_push_attaches_a_linked_resource_to_its_lesson_and_reconverges(
+    course_repo: Path, client: httpx.Client
+):
+    """
+    A resource linked from a `calendar.md` lesson comes back from the server
+    carrying that lesson's event key, and a second push plans no event and
+    no resource write.
+    """
+    from codehood.cli.push import read_local_state
+
+    calendar = course_repo / "calendar.md"
+    calendar.write_text(
+        calendar.read_text(encoding="utf-8")
+        + "\nRead the [greeting](resources/hello.md).\n",
+        encoding="utf-8",
+    )
+    expected = {
+        resource.slug: resource.event
+        for resource in read_local_state(course_repo).resources
+    }["hello"]
+    assert expected is not None, "the link in calendar.md did not attach hello.md"
+
+    first = runner.invoke(app, ["push", str(course_repo)])
+    assert first.exit_code == 0, first.output
+
+    server_resources = {
+        resource.slug: resource
+        for resource in generated.list_resource(
+            discipline=DISCIPLINE, course=COURSE, client=client
+        )
+    }
+    event = server_resources["hello"].event
+    assert event is not None
+    assert (event.week, event.time_slot) == (expected.week, expected.time_slot)
+    assert server_resources["greet"].event is None
+
+    second = runner.invoke(app, ["push", str(course_repo), "--dry-run"])
+    assert second.exit_code == 0, second.output
+    writes = _planned_writes(second.output)
+    assert [line for line in writes if " event " in line or "resource" in line] == []

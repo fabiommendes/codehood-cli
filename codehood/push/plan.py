@@ -97,6 +97,7 @@ class ServerState:
 
     course_exists: bool = False
     resources: Mapping[str, str] = field(default_factory=dict)
+    resource_events: Mapping[str, EventKey | None] = field(default_factory=dict)
     questions: Mapping[str, str] = field(default_factory=dict)
     time_slots: Mapping[str, str] = field(default_factory=dict)
     calendar_events: Mapping[tuple[int, str], ServerEvent] = field(default_factory=dict)
@@ -297,7 +298,10 @@ def plan_push(local: LocalState, server: ServerState) -> Iterator[PushOp]:
     seen_slugs: set[str] = set()
     for resource in local.resources:
         seen_slugs.add(resource.slug)
-        if server.resources.get(resource.slug) == resource.ref:
+        if (
+            server.resources.get(resource.slug) == resource.ref
+            and server.resource_events.get(resource.slug) == resource.event
+        ):
             continue
         yield UpsertResource(
             slug=resource.slug,

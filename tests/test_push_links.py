@@ -594,3 +594,391 @@ def test_push_sends_calendar_requests_before_resource_requests(tmp_path, monkeyp
         i for i, path in enumerate(writes) if path.endswith("/resource")
     )
     assert last_calendar < first_resource
+
+
+#
+# Markdown code is not parsed for links
+#
+CODE_SPANS = [
+    pytest.param("```\n[x](resources/a.pdf)\n```", id="backtick-fence"),
+    pytest.param("~~~\n[x](resources/a.pdf)\n~~~", id="tilde-fence"),
+    pytest.param("```md\n[x](resources/a.pdf)\n```", id="fence-with-info-string"),
+    pytest.param("````\n```\n[x](resources/a.pdf)\n```\n````", id="nested-fence"),
+    pytest.param("Use `[x](resources/a.pdf)` here.", id="inline-span"),
+    pytest.param("Use ``[x](resources/a.pdf)`` here.", id="double-backtick-span"),
+]
+
+
+@pytest.mark.parametrize("markdown", CODE_SPANS)
+def test_links_inside_code_are_not_extracted(markdown):
+    assert extract_resource_links(markdown) == ()
+
+
+@pytest.mark.parametrize("markdown", CODE_SPANS)
+def test_links_inside_code_are_neither_attached_nor_an_error(markdown):
+    resource = _resource("resources/a.pdf")
+    other = _resource("resources/b.pdf")
+    [event] = [_event(1, "mon", markdown)]
+    # `resources/a.pdf` is not even among the resources: no error either.
+    assert attach_resources([event], [other], ROOT) == (other,)
+    assert attach_resources([event], [resource], ROOT) == (resource,)
+
+
+@pytest.mark.parametrize("markdown", CODE_SPANS)
+def test_links_inside_code_are_not_rewritten(markdown):
+    targets = {PurePosixPath("resources/a.pdf"): "/d/c/resources/a"}
+    assert rewrite_resource_links(markdown, targets) == markdown
+
+
+def test_a_real_link_next_to_code_is_still_extracted_and_rewritten():
+    markdown = (
+        "```\n[x](resources/code.pdf)\n```\n"
+        "Real [A](resources/a.pdf), code `[x](resources/code.pdf)`.\n"
+        "~~~\n[x](resources/code.pdf)\n~~~\n"
+        "After [B](resources/b.pdf)."
+    )
+    assert extract_resource_links(markdown) == (
+        PurePosixPath("resources/a.pdf"),
+        PurePosixPath("resources/b.pdf"),
+    )
+    targets = {
+        PurePosixPath("resources/a.pdf"): "/d/c/resources/a",
+        PurePosixPath("resources/b.pdf"): "/d/c/resources/b",
+        PurePosixPath("resources/code.pdf"): "/d/c/resources/code",
+    }
+    assert rewrite_resource_links(markdown, targets) == (
+        "```\n[x](resources/code.pdf)\n```\n"
+        "Real [A](/d/c/resources/a), code `[x](resources/code.pdf)`.\n"
+        "~~~\n[x](resources/code.pdf)\n~~~\n"
+        "After [B](/d/c/resources/b)."
+    )
+
+
+def test_target_with_balanced_parentheses_is_one_link():
+    assert extract_resource_links("[x](resources/a(1).pdf)") == (
+        PurePosixPath("resources/a(1).pdf"),
+    )
+
+
+def test_balanced_parentheses_target_attaches_to_that_resource():
+    events = [_event(1, "mon", "See [x](resources/a(1).pdf).")]
+    [result] = attach_resources(events, [_resource("resources/a(1).pdf")], ROOT)
+    assert result.event == EventKey(week=1, time_slot="mon")
+
+
+def test_balanced_parentheses_target_is_rewritten_whole():
+    targets = {PurePosixPath("resources/a(1).pdf"): "/d/c/resources/a-1"}
+    assert (
+        rewrite_resource_links("See [x](resources/a(1).pdf) now.", targets)
+        == "See [x](/d/c/resources/a-1) now."
+    )
+
+
+ESCAPED = r"\[x\](resources/a.pdf)"
+
+
+def test_escaped_brackets_are_not_a_link():
+    assert extract_resource_links(ESCAPED) == ()
+
+
+def test_escaped_brackets_are_not_attached_or_rewritten():
+    resource = _resource("resources/a.pdf")
+    assert attach_resources([_event(1, "mon", ESCAPED)], [resource], ROOT) == (
+        resource,
+    )
+    targets = {PurePosixPath("resources/a.pdf"): "/d/c/resources/a"}
+    assert rewrite_resource_links(ESCAPED, targets) == ESCAPED
+
+
+#
+# Reference-style links
+#
+REFERENCE_FORMS = [
+    pytest.param("[Slides][s]", id="full"),
+    pytest.param("[s][]", id="collapsed"),
+    pytest.param("[s]", id="shortcut"),
+]
+
+
+def _with_definition(use: str, definition: str = "[s]: resources/w03/slides.pdf"):
+    return f"Read {use} today.\n\n{definition}\n"
+
+
+@pytest.mark.parametrize("use", REFERENCE_FORMS)
+def test_reference_link_is_extracted_through_its_definition(use):
+    assert extract_resource_links(_with_definition(use)) == (
+        PurePosixPath("resources/w03/slides.pdf"),
+    )
+
+
+@pytest.mark.parametrize(
+    "definition",
+    [
+        "[s]: <resources/w03/slides.pdf>",
+        '[s]: resources/w03/slides.pdf "Slides"',
+        "[s]: <resources/w03/slides.pdf> 'Slides'",
+        "[s]: ./resources/w03/slides.pdf (Slides)",
+        "[s]: resources/w03/slides.pdf#page=2",
+    ],
+)
+def test_reference_definition_may_use_angle_brackets_title_and_dot_slash(definition):
+    markdown = _with_definition("[Slides][s]", definition)
+    assert extract_resource_links(markdown) == (
+        PurePosixPath("resources/w03/slides.pdf"),
+    )
+
+
+@pytest.mark.parametrize("use", REFERENCE_FORMS)
+def test_reference_link_attaches_the_resource(use):
+    events = [_event(4, "wed", _with_definition(use))]
+    [result] = attach_resources(events, [_resource("resources/w03/slides.pdf")], ROOT)
+    assert result.event == EventKey(week=4, time_slot="wed")
+
+
+def test_reference_link_to_a_missing_resource_is_an_error():
+    events = [_event(1, "mon", _with_definition("[Slides][s]"))]
+    with pytest.raises(ResourceLinkError, match=r"resources/w03/slides\.pdf"):
+        attach_resources(events, [_resource("resources/other.pdf")], ROOT)
+
+
+def test_reference_link_from_two_lessons_is_an_error():
+    events = [
+        _event(1, "mon", _with_definition("[Slides][s]"), title="Intro"),
+        _event(2, "tue", "Again [s].\n\n[s]: resources/w03/slides.pdf\n", "Later"),
+    ]
+    with pytest.raises(ResourceLinkError, match=r"resources/w03/slides\.pdf"):
+        attach_resources(events, [_resource("resources/w03/slides.pdf")], ROOT)
+
+
+def test_reference_and_inline_links_to_one_resource_in_one_lesson_are_fine():
+    description = "[A](resources/a.pdf) and [B][b]\n\n[b]: resources/a.pdf\n"
+    [result] = attach_resources(
+        [_event(1, "mon", description)], [_resource("resources/a.pdf")], ROOT
+    )
+    assert result.event == EventKey(week=1, time_slot="mon")
+
+
+def test_bracketed_text_without_a_definition_is_not_a_link():
+    markdown = "A [Slides][s] and [t] and [u][] with no definitions."
+    assert extract_resource_links(markdown) == ()
+    resource = _resource("resources/a.pdf")
+    assert attach_resources([_event(1, "mon", markdown)], [resource], ROOT) == (
+        resource,
+    )
+
+
+def test_reference_definition_to_something_else_is_ignored():
+    markdown = (
+        "[A][a] [B][b]\n\n[a]: https://example.com/resources/x.pdf\n[b]: docs/x.pdf\n"
+    )
+    assert extract_resource_links(markdown) == ()
+    assert rewrite_resource_links(markdown, URLS) == markdown
+
+
+@pytest.mark.parametrize(
+    "definition, expected",
+    [
+        (
+            "[s]: resources/w03/recursion.md",
+            "[s]: /cs101/ada_2026-1/resources/w03-recursion",
+        ),
+        (
+            "[s]: ./resources/w03/recursion.md",
+            "[s]: /cs101/ada_2026-1/resources/w03-recursion",
+        ),
+        (
+            "[s]: <resources/w03/recursion.md>",
+            "[s]: </cs101/ada_2026-1/resources/w03-recursion>",
+        ),
+        (
+            '[s]: resources/w03/recursion.md "Slides"',
+            '[s]: /cs101/ada_2026-1/resources/w03-recursion "Slides"',
+        ),
+        (
+            "[s]: resources/w03/recursion.md#page=2",
+            "[s]: /cs101/ada_2026-1/resources/w03-recursion#page=2",
+        ),
+    ],
+)
+def test_rewrite_changes_the_definition_target_and_keeps_the_rest(definition, expected):
+    markdown = f"See [Slides][s].\n\n{definition}\n"
+    assert rewrite_resource_links(markdown, URLS) == f"See [Slides][s].\n\n{expected}\n"
+
+
+@pytest.mark.parametrize("use", REFERENCE_FORMS)
+def test_rewrite_leaves_the_reference_in_the_text_alone(use):
+    markdown = _with_definition(use, "[s]: resources/w03/recursion.md")
+    assert rewrite_resource_links(markdown, URLS) == (
+        f"Read {use} today.\n\n[s]: /cs101/ada_2026-1/resources/w03-recursion\n"
+    )
+
+
+def test_rewrite_event_links_rewrites_reference_definitions():
+    events = [_event(1, "mon", "Read [Slides][s].\n\n[s]: resources/a.md\n")]
+    [event] = rewrite_event_links(events, [_resource("resources/a.md")], ROOT, "d", "c")
+    assert event.description == "Read [Slides][s].\n\n[s]: /d/c/resources/a\n"
+
+
+def test_reference_definition_inside_a_fence_is_not_a_definition():
+    markdown = "See [Slides][s].\n\n```\n[s]: resources/a.pdf\n```\n"
+    assert extract_resource_links(markdown) == ()
+    targets = {PurePosixPath("resources/a.pdf"): "/d/c/resources/a"}
+    assert rewrite_resource_links(markdown, targets) == markdown
+
+
+#
+# The skip decision compares the server's event key
+#
+def _plan_resources(resource: ResourceFile, server: ServerState) -> list[PushOp]:
+    local = LocalState(
+        discipline="cs101",
+        course="ada_2026-1",
+        description="d",
+        start=date(2026, 1, 1),
+        end=date(2026, 6, 1),
+        resources=(resource,),
+    )
+    return [op for op in plan_push(local, server) if isinstance(op, UpsertResource)]
+
+
+def _attached(rel: str = "resources/a.md") -> ResourceFile:
+    [resource] = attach_resources(
+        [_event(1, "mon", f"[A]({rel})")], [_resource(rel)], ROOT
+    )
+    return resource
+
+
+KEY = EventKey(week=1, time_slot="mon")
+
+
+def test_resource_with_matching_ref_and_event_is_skipped():
+    resource = _attached()
+    server = ServerState(
+        resources={resource.slug: resource.ref},
+        resource_events={resource.slug: KEY},
+    )
+    assert _plan_resources(resource, server) == []
+
+
+@pytest.mark.parametrize(
+    "server_event",
+    [
+        pytest.param(None, id="fell-back-to-general"),
+        pytest.param(EventKey(week=2, time_slot="mon"), id="other-week"),
+        pytest.param(EventKey(week=1, time_slot="tue"), id="other-slot"),
+    ],
+)
+def test_resource_is_upserted_when_the_server_event_differs_despite_equal_ref(
+    server_event,
+):
+    resource = _attached()
+    server = ServerState(
+        resources={resource.slug: resource.ref},
+        resource_events={resource.slug: server_event},
+    )
+    [op] = _plan_resources(resource, server)
+    assert (op.slug, op.event) == (resource.slug, KEY)
+
+
+def test_resource_missing_from_server_events_counts_as_having_no_event():
+    resource = _attached()
+    server = ServerState(resources={resource.slug: resource.ref})
+    [op] = _plan_resources(resource, server)
+    assert op.event == KEY
+
+
+def test_unattached_resource_is_skipped_when_the_server_has_no_event_either():
+    resource = _resource("resources/a.md")
+    for events in ({}, {resource.slug: None}):
+        server = ServerState(
+            resources={resource.slug: resource.ref}, resource_events=events
+        )
+        assert _plan_resources(resource, server) == []
+
+
+def test_unattached_resource_is_upserted_when_the_server_still_has_an_event():
+    resource = _resource("resources/a.md")
+    server = ServerState(
+        resources={resource.slug: resource.ref},
+        resource_events={resource.slug: KEY},
+    )
+    [op] = _plan_resources(resource, server)
+    assert op.event is None
+
+
+def _server_resource_json(slug: str, rev: str, event: dict | None) -> dict:
+    return {
+        "slug": slug,
+        "title": slug,
+        "description": None,
+        "data": {"type": "MD", "content": "body"},
+        "event": event,
+        "rev": rev,
+        "createdAt": "2026-01-01T00:00:00Z",
+        "updatedAt": "2026-01-01T00:00:00Z",
+    }
+
+
+def test_fetch_server_state_reads_each_resource_s_event_key():
+    from test_cli_push import _course_json
+
+    from codehood.push.run import fetch_server_state
+
+    listing = [
+        _server_resource_json("a", "ra", {"week": 3, "timeSlot": "tue"}),
+        _server_resource_json("b", "rb", None),
+    ]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/resource"):
+            return httpx.Response(200, json=listing)
+        if request.url.path.endswith(("/question", "/time-slot")):
+            return httpx.Response(200, json=[])
+        if request.url.path.endswith(("/calendar-event", "/grade-column")):
+            return httpx.Response(200, json=[])
+        return httpx.Response(200, json=_course_json())
+
+    client = httpx.Client(
+        base_url="http://localhost:4321", transport=httpx.MockTransport(handler)
+    )
+    state = fetch_server_state("cs101", "ada_2026-1", client)
+    assert state.resources == {"a": "ra", "b": "rb"}
+    assert state.resource_events.get("a") == EventKey(week=3, time_slot="tue")
+    assert state.resource_events.get("b") is None
+
+
+def test_dry_run_plans_the_resource_whose_server_event_was_lost(tmp_path, monkeypatch):
+    from test_cli_push import _calendar_defaults, _course_json
+
+    repo = _repo(tmp_path, _calendar("[Slides](resources/w03/recursion.md)"))
+    [local] = push_module.read_local_state(repo).resources
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method != "GET":
+            raise AssertionError(f"--dry-run made a write: {request.url}")
+        path = request.url.path
+        if path.endswith("/resource"):
+            return httpx.Response(
+                200, json=[_server_resource_json(local.slug, local.ref, None)]
+            )
+        if path.endswith(("/question", "/grade-column")):
+            return httpx.Response(200, json=[])
+        if (response := _calendar_defaults(request)) is not None:
+            return response
+        return httpx.Response(200, json=_course_json())
+
+    monkeypatch.setattr(
+        push_module,
+        "get_client",
+        lambda base_url=None: httpx.Client(
+            base_url=base_url or "http://localhost:4321",
+            transport=httpx.MockTransport(handler),
+        ),
+    )
+    result = CliRunner().invoke(app, ["push", str(repo), "--dry-run"])
+
+    assert result.exit_code == 0, result.output
+    planned = [
+        line for line in result.output.splitlines() if line.startswith("planned")
+    ]
+    assert any(local.slug in line and "resource" in line for line in planned), planned

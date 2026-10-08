@@ -21,7 +21,7 @@ import httpx
 from ..api import generated
 from ..api.base import CodehoodAPIError
 from ..grades import ExamResult, ExamState
-from .calendar import Duration, TimeOfDay, TimeSlot
+from .calendar import Duration, EventKey, TimeOfDay, TimeSlot
 from .grades import ServerStudent
 from .plan import (
     DeleteCalendarEvent,
@@ -137,6 +137,14 @@ def fetch_server_state(
     return ServerState(
         course_exists=True,
         resources={resource.slug: resource.rev or "" for resource in resources},
+        resource_events={
+            resource.slug: (
+                EventKey(week=resource.event.week, time_slot=resource.event.time_slot)
+                if resource.event is not None
+                else None
+            )
+            for resource in resources
+        },
         questions={question.slug: question.version for question in questions},
         time_slots={slot.slug: _time_slot_ref(slot) for slot in time_slots},
         calendar_events={
