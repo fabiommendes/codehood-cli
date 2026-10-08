@@ -20,7 +20,7 @@ from datetime import date
 from pathlib import Path
 from typing import Literal
 
-from .calendar import Event, TimeSlot
+from .calendar import Event, EventKey, TimeSlot
 from .grades import GradeColumn
 from .question import AnyQuestion, QuestionFile
 from .resource import ResourceData, ResourceFile
@@ -136,6 +136,7 @@ class UpsertResource:
     data: ResourceData
     ref: str
     path: Path
+    event: EventKey | None = None
 
 
 @dataclass(frozen=True)
@@ -278,9 +279,10 @@ def plan_push(local: LocalState, server: ServerState) -> Iterator[PushOp]:
     `server.resources`; a server slug absent locally is planned for
     deletion. Questions follow the same rule on `version`.
 
-    Calendar slots and events follow, in that order: a slot an event
-    needs has to exist before the event is written. Grade columns come
-    last.
+    Calendar slots and events come right after the course, in that
+    order: a slot an event needs has to exist before the event is
+    written, and a resource attached to an event needs the event to exist
+    first. Resources, questions and grade columns follow.
     """
     yield UpsertCourse(
         discipline=local.discipline,
@@ -289,6 +291,8 @@ def plan_push(local: LocalState, server: ServerState) -> Iterator[PushOp]:
         start_at=_timestamp(local.start),
         end_at=_timestamp(local.end),
     )
+
+    yield from plan_calendar(local, server)
 
     seen_slugs: set[str] = set()
     for resource in local.resources:
@@ -302,6 +306,7 @@ def plan_push(local: LocalState, server: ServerState) -> Iterator[PushOp]:
             data=resource.data,
             ref=resource.ref,
             path=resource.path,
+            event=resource.event,
         )
 
     for slug in server.resources:
@@ -324,7 +329,6 @@ def plan_push(local: LocalState, server: ServerState) -> Iterator[PushOp]:
         if slug not in seen_question_slugs:
             yield DeleteQuestion(slug=slug)
 
-    yield from plan_calendar(local, server)
     yield from plan_grades(local, server)
 
 

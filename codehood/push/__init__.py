@@ -15,6 +15,7 @@ from .calendar import (
     Calendar,
     Duration,
     Event,
+    EventKey,
     EventKind,
     Holiday,
     Section,
@@ -24,7 +25,12 @@ from .calendar import (
     allocate,
     parse_calendar,
 )
-from .errors import CalendarError, QuestionParseError, SlugCollisionError
+from .errors import (
+    CalendarError,
+    QuestionParseError,
+    ResourceLinkError,
+    SlugCollisionError,
+)
 from .grades import (
     ColumnSpec,
     GradeColumn,
@@ -55,6 +61,12 @@ from .plan import (
     UpsertTimeSlot,
     WarnTimeSlotPinned,
     plan_push,
+)
+from .links import (
+    attach_resources,
+    extract_resource_links,
+    rewrite_event_links,
+    rewrite_resource_links,
 )
 from .question import AnyQuestion, QuestionFile, question_version, scan_questions
 from .resource import (
@@ -97,6 +109,7 @@ __all__ = [
     "TimeOfDay",
     "Duration",
     "Event",
+    "EventKey",
     "EventKind",
     "Weekday",
     "parse_calendar",
@@ -109,6 +122,10 @@ __all__ = [
     "FileData",
     "slugify",
     "content_ref",
+    "attach_resources",
+    "extract_resource_links",
+    "rewrite_event_links",
+    "rewrite_resource_links",
     #: Questions
     "AnyQuestion",
     "QuestionFile",
@@ -130,6 +147,7 @@ __all__ = [
     "SlugCollisionError",
     "QuestionParseError",
     "CalendarError",
+    "ResourceLinkError",
     #: Shell
     "OpResult",
     "fetch_server_state",

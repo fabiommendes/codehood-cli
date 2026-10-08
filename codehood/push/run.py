@@ -282,6 +282,11 @@ def _run_upsert_resource(
         title=op.title,
         description=op.description,
         rev=op.ref,
+        event=(
+            generated.Event(week=op.event.week, timeSlot=op.event.time_slot)
+            if op.event is not None
+            else None
+        ),
         data=_request_data(op.data),
     )
     try:

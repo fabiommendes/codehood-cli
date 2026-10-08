@@ -16,8 +16,14 @@ from pydantic import ValidationError
 from ..api.base import get_client
 from ..models.repo import RepoConfig
 from ..push.calendar import allocate, parse_calendar
-from ..push.errors import CalendarError, QuestionParseError, SlugCollisionError
+from ..push.errors import (
+    CalendarError,
+    QuestionParseError,
+    ResourceLinkError,
+    SlugCollisionError,
+)
 from ..push.grades import GradesError
+from ..push.links import attach_resources, rewrite_event_links
 from ..push.plan import (
     DeleteCalendarEvent,
     DeleteGradeColumn,
@@ -86,6 +92,7 @@ def push(
         ValidationError,
         CalendarError,
         SlugCollisionError,
+        ResourceLinkError,
         QuestionParseError,
     ) as exc:
         typer.echo(f"error: {exc}", err=True)
@@ -195,15 +202,21 @@ def read_local_state(path: Path) -> LocalState:
     for warning in allocation.warnings:
         typer.echo(f"warning  {warning}", err=True)
 
+    discipline = config.course.discipline
+    course = f"{config.course.instructor}_{config.course.edition}"
+    resources = attach_resources(allocation.events, tuple(scan_resources(path)), path)
+
     return LocalState(
-        discipline=config.course.discipline,
-        course=f"{config.course.instructor}_{config.course.edition}",
+        discipline=discipline,
+        course=course,
         description=description,
         start=calendar.start,
         end=calendar.end,
         slots=calendar.slots,
-        events=allocation.events,
-        resources=tuple(scan_resources(path)),
+        events=rewrite_event_links(
+            allocation.events, resources, path, discipline, course
+        ),
+        resources=resources,
         questions=tuple(scan_questions(path)),
     )
 

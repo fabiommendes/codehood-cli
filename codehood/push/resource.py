@@ -27,6 +27,7 @@ import yaml
 
 from ..repo.diff import FileType
 from ..repo.file_tracker import scan_files
+from .calendar import EventKey
 from .errors import SlugCollisionError
 
 __all__ = [
@@ -147,6 +148,7 @@ class ResourceFile:
     data: ResourceData
     ref: str
     path: Path
+    event: EventKey | None = None
 
 
 def slugify(rel_path: Path) -> str:
@@ -163,7 +165,12 @@ def slugify(rel_path: Path) -> str:
     return flattened.strip("-")
 
 
-def content_ref(title: str, description: str | None, data: ResourceData) -> str:
+def content_ref(
+    title: str,
+    description: str | None,
+    data: ResourceData,
+    event: EventKey | None = None,
+) -> str:
     """
     Digest a resource's pushable fields into the `ref` the server stores.
 
@@ -175,14 +182,23 @@ def content_ref(title: str, description: str | None, data: ResourceData) -> str:
 
     A `FILE`'s bytes are digested separately and only their hex digest
     enters the rendering, keeping the payload small and JSON-safe.
+
+    The event key the resource is attached to is part of the digest, so
+    moving a resource to another lesson changes its ref. With `event=None`
+    the digest MUST stay byte-identical to the one computed before events
+    existed (existing refs and test vectors stay valid): add the key to the
+    rendering only when it is not `None`.
     """
+    payload: dict[str, object] = {
+        "v": REF_PREFIX,
+        "title": title,
+        "description": description,
+        "data": _data_payload(data),
+    }
+    if event is not None:
+        payload["event"] = {"week": event.week, "timeSlot": event.time_slot}
     canonical = json.dumps(
-        {
-            "v": REF_PREFIX,
-            "title": title,
-            "description": description,
-            "data": _data_payload(data),
-        },
+        payload,
         separators=(",", ":"),
         sort_keys=True,
         ensure_ascii=False,

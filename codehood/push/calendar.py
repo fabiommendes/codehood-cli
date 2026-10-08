@@ -33,6 +33,7 @@ __all__ = [
     "Calendar",
     "Duration",
     "Event",
+    "EventKey",
     "EventKind",
     "Holiday",
     "Section",
@@ -213,6 +214,16 @@ class Calendar:
     slots: tuple[TimeSlot, ...] = ()
     holidays: tuple[Holiday, ...] = ()
     sections: tuple[Section, ...] = ()
+
+
+@dataclass(frozen=True)
+class EventKey:
+    """
+    The `(week, timeSlot)` natural key that names one CalendarEvent.
+    """
+
+    week: int
+    time_slot: str
 
 
 @dataclass(frozen=True)

@@ -7,7 +7,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from pathlib import Path
 
-__all__ = ["CalendarError", "QuestionParseError", "SlugCollisionError"]
+__all__ = [
+    "CalendarError",
+    "QuestionParseError",
+    "ResourceLinkError",
+    "SlugCollisionError",
+]
 
 
 class SlugCollisionError(Exception):
@@ -62,4 +67,17 @@ class CalendarError(Exception):
     Raised by `calendar.parse_calendar` and `calendar.allocate` before any
     network call, refusing the whole push: the calendar sets the course's
     own dates, so there is no partial push that still makes sense.
+    """
+
+
+class ResourceLinkError(Exception):
+    """
+    A `calendar.md` lesson links to `resources/` in a way that cannot be
+    pushed.
+
+    Raised by `links.attach_resources` before any network call, in two
+    cases: a link targets a path under `resources/` that no scanned
+    resource has, or one resource is linked from two different lessons.
+    The message names the offending path and, for the second case, both
+    lessons.
     """

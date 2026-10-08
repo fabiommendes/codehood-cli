@@ -57,6 +57,15 @@ codehood push
 ```
 
 
+### Linking resources from a lesson
+
+A markdown link in a lesson of `calendar.md` to a file under `resources/`, such
+as `[Slides](resources/w03/recursion.pdf)`, attaches that resource to the
+lesson's event. On push, the link in the published lesson points to the
+resource's page on the server; your local `calendar.md` is not changed. A
+resource can belong to at most one lesson, and a link to a file that is not
+under `resources/` is an error. Push writes the calendar before the resources.
+
 ### Final grades
 
 Codehood does not compute a course's final grade. You compute it on your
