@@ -28,6 +28,7 @@ from .plan import (
     DeleteGradeColumn,
     DeleteQuestion,
     DeleteResource,
+    DeleteRollCall,
     DeleteTimeSlot,
     PushOp,
     ServerEvent,
@@ -38,6 +39,7 @@ from .plan import (
     UpsertQuestion,
     UpsertResource,
     UpsertTimeSlot,
+    WarnEventHasRollCall,
     WarnTimeSlotPinned,
 )
 from .resource import CodeData, FileData, MdData, ResourceData
@@ -93,7 +95,7 @@ def fetch_server_state(
     `.../resource` to `slug -> ref`, `.../question` to `slug -> version`,
     `.../time-slot` to `slug -> ref`, `.../calendar-event` to
     `(week, timeSlot) -> ServerEvent`, and `.../grade-column` to
-    `slug -> rev`.
+    `slug -> rev`; `.../roll-call` adds each event's attendance count.
 
     A time slot carries no `ref` column server-side, so its ref is
     recomputed here from the fields the listing did return -- which is
@@ -134,6 +136,17 @@ def fetch_server_state(
     grade_columns = generated.list_grade_column(
         discipline=discipline, course=course, client=client
     )
+    # A roll call hangs off a calendar event, so none can exist without one.
+    roll_calls = (
+        {
+            (roll_call.week, roll_call.time_slot): len(roll_call.attendances)
+            for roll_call in generated.list_roll_call(
+                discipline=discipline, course=course, client=client
+            )
+        }
+        if calendar_events
+        else {}
+    )
     return ServerState(
         course_exists=True,
         resources={resource.slug: resource.rev or "" for resource in resources},
@@ -148,7 +161,9 @@ def fetch_server_state(
         questions={question.slug: question.version for question in questions},
         time_slots={slot.slug: _time_slot_ref(slot) for slot in time_slots},
         calendar_events={
-            (event.week, event.time_slot.slug): _server_event(event)
+            (event.week, event.time_slot.slug): _server_event(
+                event, roll_calls.get((event.week, event.time_slot.slug))
+            )
             for event in calendar_events
         },
         grade_columns={column.slug: column.rev or "" for column in grade_columns},
@@ -236,6 +251,12 @@ def _run_op(
             )
         case WarnTimeSlotPinned():
             return _run_warn_time_slot_pinned(op)
+        case WarnEventHasRollCall():
+            return _run_warn_event_has_roll_call(op)
+        case DeleteRollCall():
+            return _run_delete_roll_call(
+                op, discipline=discipline, course=course, client=client
+            )
         case UpsertGradeColumn():
             return _run_upsert_grade_column(
                 op, discipline=discipline, course=course, client=client
@@ -458,6 +479,37 @@ def _run_warn_time_slot_pinned(op: WarnTimeSlotPinned) -> OpResult:
     )
 
 
+def _run_delete_roll_call(
+    op: DeleteRollCall, *, discipline: str, course: str, client: httpx.Client
+) -> OpResult:
+    try:
+        generated.delete_roll_call(
+            discipline=discipline,
+            course=course,
+            week=str(op.week),
+            time_slot=op.time_slot,
+            client=client,
+        )
+    except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
+        return OpResult(op=op, ok=False, message=f"failed: {exc}")
+    return OpResult(op=op, ok=True, message=f"deleted {op.week}/{op.time_slot}")
+
+
+def _run_warn_event_has_roll_call(op: WarnEventHasRollCall) -> OpResult:
+    """
+    Not a write: `plan_calendar` already decided to keep this event because
+    it has a roll call. Report it like every other op.
+    """
+    return OpResult(
+        op=op,
+        ok=True,
+        message=(
+            f"kept: event {op.week}/{op.time_slot} has a roll call with "
+            f"{op.attendances} attendance(s)"
+        ),
+    )
+
+
 def _run_upsert_grade_column(
     op: UpsertGradeColumn, *, discipline: str, course: str, client: httpx.Client
 ) -> OpResult:
@@ -496,7 +548,7 @@ def _run_delete_grade_column(
     return OpResult(op=op, ok=True, message=f"deleted {op.slug}")
 
 
-def _server_student(item: generated.StudentsItem) -> ServerStudent:
+def _server_student(item: generated.CourseGradesResponseStudentsItem) -> ServerStudent:
     """
     Project one student of the grades report into what the core computes
     from, with each exam total turned into the percentage the web shows.
@@ -519,11 +571,15 @@ def _server_student(item: generated.StudentsItem) -> ServerStudent:
     )
 
 
-def _server_event(item: generated.CalendarEvent) -> ServerEvent:
+def _server_event(
+    item: generated.CalendarEvent, attendances: int | None
+) -> ServerEvent:
     """
     Project one item of the calendar-event listing down to its markers.
+
+    `attendances` is the size of the event's roll call, `None` without one.
     """
-    return ServerEvent(ref=item.rev or "", kind=item.kind)
+    return ServerEvent(ref=item.rev or "", kind=item.kind, attendances=attendances)
 
 
 def _time_slot_ref(item: generated.TimeSlot) -> str:

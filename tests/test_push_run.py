@@ -358,6 +358,8 @@ def test_fetch_server_state_reports_calendar_events_as_markers():
             return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/time-slot":
             return httpx.Response(200, json=[])
+        if request.url.path == f"{BASE}/roll-call":
+            return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/calendar-event":
             return httpx.Response(
                 200,

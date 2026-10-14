@@ -1,4 +1,5 @@
 from .api import api
+from .attendance import attendance
 from .auth import login, logout
 from .base import app as _app
 from .chill import chill
@@ -12,6 +13,7 @@ __all__ = [
     "main",
     #: Subcommands
     "api",
+    "attendance",
     "chill",
     "grades",
     "init",

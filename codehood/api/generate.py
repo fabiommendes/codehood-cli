@@ -55,6 +55,11 @@ ENDPOINTS = {
     *_crud("exam"),
     *_crud("grade-column"),
     "courseGrades",
+    "courseAttendance",
+    "listRoll-call",
+    "readRoll-call",
+    "updateRoll-call",
+    "deleteRoll-call",
     # `file` is absent: `/api/file` is not in the document while the
     # multipart upload is being written (see `ROADBLOCKS.md` item 1).
 }

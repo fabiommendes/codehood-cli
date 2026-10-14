@@ -30,6 +30,7 @@ __all__ = [
     "DeleteGradeColumn",
     "DeleteQuestion",
     "DeleteResource",
+    "DeleteRollCall",
     "DeleteTimeSlot",
     "LocalState",
     "PushOp",
@@ -41,6 +42,7 @@ __all__ = [
     "UpsertQuestion",
     "UpsertResource",
     "UpsertTimeSlot",
+    "WarnEventHasRollCall",
     "WarnTimeSlotPinned",
     "plan_push",
 ]
@@ -87,6 +89,7 @@ class ServerEvent:
 
     ref: str
     kind: Literal["REGULAR", "HOLIDAY", "CANCELLED"]
+    attendances: int | None = None
 
 
 @dataclass(frozen=True)
@@ -232,6 +235,29 @@ class WarnTimeSlotPinned:
 
 
 @dataclass(frozen=True)
+class WarnEventHasRollCall:
+    """
+    A calendar event kept, though gone locally, because it has a roll call.
+
+    Reported even when the roll call holds no attendance.
+    """
+
+    week: int
+    time_slot: str
+    attendances: int
+
+
+@dataclass(frozen=True)
+class DeleteRollCall:
+    """
+    A roll call to delete, by the `(week, timeSlot)` of its event.
+    """
+
+    week: int
+    time_slot: str
+
+
+@dataclass(frozen=True)
 class UpsertGradeColumn:
     """
     One grade column to `PUT`, whole: the server replaces its values with
@@ -261,12 +287,16 @@ PushOp = (
     | UpsertCalendarEvent
     | DeleteCalendarEvent
     | WarnTimeSlotPinned
+    | WarnEventHasRollCall
+    | DeleteRollCall
     | UpsertGradeColumn
     | DeleteGradeColumn
 )
 
 
-def plan_push(local: LocalState, server: ServerState) -> Iterator[PushOp]:
+def plan_push(
+    local: LocalState, server: ServerState, *, drop_roll_calls: bool = False
+) -> Iterator[PushOp]:
     """
     Diff a repository against the server's current state and yield a plan.
 
@@ -293,7 +323,7 @@ def plan_push(local: LocalState, server: ServerState) -> Iterator[PushOp]:
         end_at=_timestamp(local.end),
     )
 
-    yield from plan_calendar(local, server)
+    yield from plan_calendar(local, server, drop_roll_calls=drop_roll_calls)
 
     seen_slugs: set[str] = set()
     for resource in local.resources:
@@ -336,7 +366,9 @@ def plan_push(local: LocalState, server: ServerState) -> Iterator[PushOp]:
     yield from plan_grades(local, server)
 
 
-def plan_calendar(local: LocalState, server: ServerState) -> Iterator[PushOp]:
+def plan_calendar(
+    local: LocalState, server: ServerState, *, drop_roll_calls: bool = False
+) -> Iterator[PushOp]:
     """
     The calendar half of a plan: delete events, delete slots, upsert
     slots, upsert events, in that exact order.
@@ -352,18 +384,35 @@ def plan_calendar(local: LocalState, server: ServerState) -> Iterator[PushOp]:
     time slot: a slot a `CANCELLED` event still points at is left in
     place even when no local `days:` entry accounts for it, with a
     `WarnTimeSlotPinned` naming both.
+
+    An event with a roll call that left the local calendar is kept with a
+    `WarnEventHasRollCall`, and pins its slot the same way. With
+    `drop_roll_calls` its roll call is deleted first, then the event.
     """
     local_slugs = {slot.slug for slot in local.slots}
     local_events = {(event.week, event.time_slot): event for event in local.events}
 
+    kept_for_roll_call: set[tuple[int, str]] = set()
     for key, server_event in server.calendar_events.items():
         if server_event.kind == "CANCELLED":
             continue
-        if key not in local_events:
-            week, time_slot = key
+        if key in local_events:
+            continue
+        week, time_slot = key
+        if server_event.attendances is None:
             yield DeleteCalendarEvent(week=week, time_slot=time_slot)
+        elif drop_roll_calls:
+            yield DeleteRollCall(week=week, time_slot=time_slot)
+            yield DeleteCalendarEvent(week=week, time_slot=time_slot)
+        else:
+            kept_for_roll_call.add(key)
+            yield WarnEventHasRollCall(
+                week=week, time_slot=time_slot, attendances=server_event.attendances
+            )
 
     pinned_slugs: set[str] = set()
+    for week, time_slot in kept_for_roll_call:
+        pinned_slugs.add(time_slot)
     for (week, time_slot), server_event in server.calendar_events.items():
         if server_event.kind == "CANCELLED" and time_slot not in local_slugs:
             pinned_slugs.add(time_slot)

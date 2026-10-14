@@ -135,6 +135,8 @@ def _calendar_defaults(request: httpx.Request) -> httpx.Response | None:
     from `calendar.md`. Returns `None` when `request` isn't a calendar
     call, so callers can fall through to their own branches.
     """
+    if request.url.path == f"{BASE}/roll-call" and request.method == "GET":
+        return httpx.Response(200, json=[])
     if request.url.path == f"{BASE}/time-slot":
         if request.method == "GET":
             return httpx.Response(200, json=[])
@@ -322,6 +324,8 @@ def test_dry_run_prints_a_warning_for_a_cancelled_events_pinned_slot(repo, monke
                     ),
                 ],
             )
+        if request.url.path == f"{BASE}/roll-call":
+            return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/calendar-event":
             return httpx.Response(
                 200,
@@ -557,3 +561,112 @@ def test_a_failed_question_operation_exits_nonzero_but_still_runs_the_rest(
     # The question upsert failed, but the resource upsert still ran.
     assert "week1-slides" in result.output
     assert "big-o" in result.output
+
+
+#
+# Roll calls -- an event removed from `calendar.md` that has a roll call is
+# kept with a warning; `--drop-roll-calls` deletes the roll call and then the
+# event, and `--no-prune` skips both deletions.
+#
+def _roll_call_json(week: int, time_slot: str, attendances: int) -> dict:
+    return {
+        "week": week,
+        "timeSlot": time_slot,
+        "actsAsInvite": False,
+        "closesAt": "2026-02-02T15:00:00Z",
+        "attendances": {
+            f"student{number}": {
+                "source": "CODE",
+                "joined": "ENROLLMENT",
+                "note": None,
+                "sharedWith": [],
+                "createdAt": "2026-02-02T14:30:00Z",
+            }
+            for number in range(attendances)
+        },
+        "createdAt": "2026-02-02T14:00:00Z",
+        "updatedAt": "2026-02-02T14:00:00Z",
+    }
+
+
+def _roll_call_server_handler(repo, calls: list[tuple[str, str]]):
+    """
+    A course whose server still has event `(5, mon)`, with a roll call of 32
+    presences, that the local `calendar.md` no longer declares.
+    """
+    deleted = {"success": True, "message": "deleted", "deleted": True}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append((request.method, request.url.path))
+        path, method = request.url.path, request.method
+        if path == BASE and method == "GET":
+            return httpx.Response(200, json=_course_json())
+        if path == f"{BASE}/resource" and method == "GET":
+            return httpx.Response(
+                200, json=[_resource_json("week1-slides", _local_ref(repo))]
+            )
+        if path == f"{BASE}/question" and method == "GET":
+            return httpx.Response(200, json=[])
+        if path == f"{BASE}/time-slot" and method == "GET":
+            return httpx.Response(200, json=[_timeslot_json("mon")])
+        if path == f"{BASE}/calendar-event" and method == "GET":
+            return httpx.Response(200, json=[_calendar_event_json(week=5)])
+        if path == f"{BASE}/roll-call" and method == "GET":
+            return httpx.Response(200, json=[_roll_call_json(5, "mon", 32)])
+        if path == f"{BASE}/grade-column" and method == "GET":
+            return httpx.Response(200, json=[])
+        if method == "DELETE" and path in (
+            f"{BASE}/roll-call/5/mon",
+            f"{BASE}/calendar-event/5/mon",
+        ):
+            return httpx.Response(200, json=deleted)
+        if path == COURSE_COLLECTION and method == "PUT":
+            return httpx.Response(200, json=_course_json())
+        if (response := _calendar_defaults(request)) is not None:
+            return response
+        raise AssertionError(f"unexpected request: {method} {request.url}")
+
+    return handler
+
+
+def _deletes(calls: list[tuple[str, str]]) -> list[str]:
+    return [path for method, path in calls if method == "DELETE"]
+
+
+def test_push_reports_an_event_kept_for_its_roll_call_and_deletes_nothing(
+    repo, monkeypatch
+):
+    calls: list[tuple[str, str]] = []
+    _install_transport(monkeypatch, _roll_call_server_handler(repo, calls))
+
+    result = runner.invoke(app, ["push", str(repo)])
+
+    assert result.exit_code == 0, result.output
+    assert "5/mon" in result.output
+    assert "32" in result.output
+    assert "--drop-roll-calls" in result.output
+    assert _deletes(calls) == []
+
+
+def test_drop_roll_calls_deletes_the_roll_call_before_its_event(repo, monkeypatch):
+    calls: list[tuple[str, str]] = []
+    _install_transport(monkeypatch, _roll_call_server_handler(repo, calls))
+
+    result = runner.invoke(app, ["push", str(repo), "--drop-roll-calls"])
+
+    assert result.exit_code == 0, result.output
+    assert _deletes(calls) == [
+        f"{BASE}/roll-call/5/mon",
+        f"{BASE}/calendar-event/5/mon",
+    ]
+
+
+def test_drop_roll_calls_with_no_prune_skips_both_deletions(repo, monkeypatch):
+    calls: list[tuple[str, str]] = []
+    _install_transport(monkeypatch, _roll_call_server_handler(repo, calls))
+
+    result = runner.invoke(app, ["push", str(repo), "--drop-roll-calls", "--no-prune"])
+
+    assert result.exit_code == 0, result.output
+    assert _deletes(calls) == []
+    assert result.output.count("(--no-prune)") == 2

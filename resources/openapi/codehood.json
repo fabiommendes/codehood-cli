@@ -9087,6 +9087,614 @@
         }
       }
     },
+    "/api/course/{discipline}/{course}/roll-call/{week}/{timeSlot}": {
+      "get": {
+        "operationId": "readRoll-call",
+        "summary": "Find a single Roll Call.",
+        "tags": [
+          "Roll Calls"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "week",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "timeSlot",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "week": {
+                      "type": "integer"
+                    },
+                    "timeSlot": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "example": "intro-to-recursion"
+                    },
+                    "actsAsInvite": {
+                      "type": "boolean"
+                    },
+                    "closesAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "attendances": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "CODE",
+                              "MANUAL"
+                            ]
+                          },
+                          "joined": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "ENROLLMENT",
+                              "ACCOUNT",
+                              null
+                            ]
+                          },
+                          "note": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "sharedWith": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                              "example": "ada"
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "source",
+                          "joined",
+                          "note",
+                          "sharedWith",
+                          "createdAt"
+                        ]
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "week",
+                    "timeSlot",
+                    "actsAsInvite",
+                    "closesAt",
+                    "attendances",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateRoll-call",
+        "summary": "Update a single Roll Call.",
+        "tags": [
+          "Roll Calls"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "week",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "timeSlot",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "actsAsInvite": {
+                    "type": "boolean"
+                  },
+                  "attendances": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "note": {
+                          "type": "string",
+                          "nullable": true,
+                          "maxLength": 200
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "week": {
+                      "type": "integer"
+                    },
+                    "timeSlot": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "example": "intro-to-recursion"
+                    },
+                    "actsAsInvite": {
+                      "type": "boolean"
+                    },
+                    "closesAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "attendances": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "source": {
+                            "type": "string",
+                            "enum": [
+                              "CODE",
+                              "MANUAL"
+                            ]
+                          },
+                          "joined": {
+                            "type": "string",
+                            "nullable": true,
+                            "enum": [
+                              "ENROLLMENT",
+                              "ACCOUNT",
+                              null
+                            ]
+                          },
+                          "note": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "sharedWith": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                              "example": "ada"
+                            }
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "source",
+                          "joined",
+                          "note",
+                          "sharedWith",
+                          "createdAt"
+                        ]
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "week",
+                    "timeSlot",
+                    "actsAsInvite",
+                    "closesAt",
+                    "attendances",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteRoll-call",
+        "summary": "Delete a single Roll Call by primary key.",
+        "tags": [
+          "Roll Calls"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "week",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "timeSlot",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Deleted"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/roll-call": {
+      "get": {
+        "operationId": "listRoll-call",
+        "summary": "Find multiple Roll Calls.",
+        "tags": [
+          "Roll Calls"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "week": {
+                        "type": "integer"
+                      },
+                      "timeSlot": {
+                        "type": "string",
+                        "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                        "example": "intro-to-recursion"
+                      },
+                      "actsAsInvite": {
+                        "type": "boolean"
+                      },
+                      "closesAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "attendances": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "type": "object",
+                          "properties": {
+                            "source": {
+                              "type": "string",
+                              "enum": [
+                                "CODE",
+                                "MANUAL"
+                              ]
+                            },
+                            "joined": {
+                              "type": "string",
+                              "nullable": true,
+                              "enum": [
+                                "ENROLLMENT",
+                                "ACCOUNT",
+                                null
+                              ]
+                            },
+                            "note": {
+                              "type": "string",
+                              "nullable": true
+                            },
+                            "sharedWith": {
+                              "type": "array",
+                              "items": {
+                                "type": "string",
+                                "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                                "example": "ada"
+                              }
+                            },
+                            "createdAt": {
+                              "type": "string",
+                              "format": "date-time"
+                            }
+                          },
+                          "required": [
+                            "source",
+                            "joined",
+                            "note",
+                            "sharedWith",
+                            "createdAt"
+                          ]
+                        }
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "week",
+                      "timeSlot",
+                      "actsAsInvite",
+                      "closesAt",
+                      "attendances",
+                      "createdAt",
+                      "updatedAt"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/attendance": {
+      "get": {
+        "operationId": "courseAttendance",
+        "summary": "View the attendance of every student",
+        "description": "Lists the events that had a roll call and, for every enrolled student, dropped ones included, whether they were present at each. An instructor reads every student; a student reads only their own row.",
+        "tags": [
+          "Roll Calls"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "events": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "week": {
+                            "type": "integer"
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "startAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          },
+                          "timeSlot": {
+                            "type": "string",
+                            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                            "example": "intro-to-recursion"
+                          }
+                        },
+                        "required": [
+                          "week",
+                          "title",
+                          "startAt",
+                          "timeSlot"
+                        ]
+                      }
+                    },
+                    "students": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "username": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "name": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "email": {
+                            "type": "string",
+                            "format": "email"
+                          },
+                          "schoolId": {
+                            "type": "string",
+                            "nullable": true
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "ACTIVE",
+                              "DROPPED"
+                            ]
+                          },
+                          "cells": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "type": "string",
+                              "enum": [
+                                "present",
+                                "absent",
+                                "before-enrollment"
+                              ]
+                            }
+                          },
+                          "present": {
+                            "type": "integer"
+                          },
+                          "total": {
+                            "type": "integer"
+                          }
+                        },
+                        "required": [
+                          "username",
+                          "name",
+                          "email",
+                          "schoolId",
+                          "status",
+                          "cells",
+                          "present",
+                          "total"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "events",
+                    "students"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/invite": {
       "post": {
         "operationId": "createInvite",

@@ -32,6 +32,7 @@ from codehood.push.plan import (
     DeleteCalendarEvent,
     DeleteQuestion,
     DeleteResource,
+    DeleteRollCall,
     DeleteTimeSlot,
     LocalState,
     ServerEvent,
@@ -41,6 +42,7 @@ from codehood.push.plan import (
     UpsertQuestion,
     UpsertResource,
     UpsertTimeSlot,
+    WarnEventHasRollCall,
     WarnTimeSlotPinned,
     plan_calendar,
     plan_push,
@@ -787,3 +789,76 @@ def test_plan_push_after_applying_its_own_plan_yields_only_upsert_course():
         )
     )
     assert [type(op).__name__ for op in second_plan] == ["UpsertCourse"]
+
+
+#
+# An event with a roll call is not pruned silently: it is kept with a warning
+# unless the caller asks to drop the roll calls too.
+#
+def _server_with_roll_call(attendances: int | None) -> ServerState:
+    """
+    A server holding the `mon` slot and event `(5, mon)`, with a roll call of
+    `attendances` presences (`None` for an event without a roll call).
+    """
+    return _server(
+        time_slots={"mon": MON.ref},
+        calendar_events={
+            (5, "mon"): ServerEvent(ref="ref", kind="REGULAR", attendances=attendances)
+        },
+    )
+
+
+def test_event_with_a_roll_call_removed_locally_is_kept_with_a_warning():
+    plan = list(plan_push(_local(slots=[MON]), _server_with_roll_call(32)))
+
+    assert not any(isinstance(op, DeleteCalendarEvent) for op in plan)
+    assert WarnEventHasRollCall(5, "mon", 32) in plan
+
+
+def test_event_with_an_empty_roll_call_removed_locally_is_still_kept_with_a_warning():
+    plan = list(plan_push(_local(slots=[MON]), _server_with_roll_call(0)))
+
+    assert not any(isinstance(op, DeleteCalendarEvent) for op in plan)
+    assert WarnEventHasRollCall(5, "mon", 0) in plan
+
+
+def test_slot_of_an_event_kept_for_its_roll_call_is_not_deleted():
+    plan = list(plan_push(_local(slots=[]), _server_with_roll_call(32)))
+
+    assert DeleteTimeSlot("mon") not in plan
+
+
+def test_event_without_a_roll_call_removed_locally_is_deleted_without_a_warning():
+    plan = list(
+        plan_push(
+            _local(slots=[MON]), _server_with_roll_call(None), drop_roll_calls=True
+        )
+    )
+
+    assert DeleteCalendarEvent(5, "mon") in plan
+    assert not any(isinstance(op, WarnEventHasRollCall | DeleteRollCall) for op in plan)
+
+
+def test_dropping_roll_calls_deletes_roll_call_then_event_then_slot():
+    plan = list(
+        plan_push(_local(slots=[]), _server_with_roll_call(32), drop_roll_calls=True)
+    )
+
+    assert not any(isinstance(op, WarnEventHasRollCall) for op in plan)
+    roll_call = plan.index(DeleteRollCall(5, "mon"))
+    event = plan.index(DeleteCalendarEvent(5, "mon"))
+    slot = plan.index(DeleteTimeSlot("mon"))
+    assert roll_call < event < slot
+
+
+def test_event_with_a_roll_call_still_local_with_new_content_is_upserted_without_a_warning():
+    server = _server(
+        time_slots={"mon": MON.ref},
+        calendar_events={
+            (0, "mon"): ServerEvent(ref="stale", kind="REGULAR", attendances=32)
+        },
+    )
+    plan = list(plan_push(_local(slots=[MON], events=[REGULAR_EVENT]), server))
+
+    assert UpsertCalendarEvent(event=REGULAR_EVENT) in plan
+    assert not any(isinstance(op, WarnEventHasRollCall | DeleteRollCall) for op in plan)

@@ -29,6 +29,7 @@ from ..push.plan import (
     DeleteGradeColumn,
     DeleteQuestion,
     DeleteResource,
+    DeleteRollCall,
     DeleteTimeSlot,
     LocalState,
     PushOp,
@@ -38,6 +39,7 @@ from ..push.plan import (
     UpsertQuestion,
     UpsertResource,
     UpsertTimeSlot,
+    WarnEventHasRollCall,
     WarnTimeSlotPinned,
     plan_push,
 )
@@ -56,6 +58,7 @@ PRUNE_OPS = (
     DeleteQuestion,
     DeleteTimeSlot,
     DeleteCalendarEvent,
+    DeleteRollCall,
     DeleteGradeColumn,
 )
 
@@ -79,6 +82,13 @@ def push(
             help="Delete server entities whose local source is gone (default: on).",
         ),
     ] = True,
+    drop_roll_calls: Annotated[
+        bool,
+        typer.Option(
+            "--drop-roll-calls",
+            help="Also delete the roll call of an event removed from the calendar.",
+        ),
+    ] = False,
 ) -> None:
     """
     Sync the repository's course row, calendar, resources, questions and
@@ -124,7 +134,7 @@ def push(
             typer.echo(f"warning  {warning}", err=True)
         local = replace(local, grade_columns=sheet.columns)
 
-    ops = list(plan_push(local, server))
+    ops = list(plan_push(local, server, drop_roll_calls=drop_roll_calls))
 
     if dry_run:
         for op in ops:
@@ -250,3 +260,10 @@ def describe(op: PushOp) -> str:
             return f"grade column {op.column.slug} ({len(op.column.values)} values)"
         case DeleteGradeColumn():
             return f"delete grade column {op.slug}"
+        case WarnEventHasRollCall():
+            return (
+                f"event {op.week}/{op.time_slot} kept: it has a roll call with "
+                f"{op.attendances} attendance(s); use --drop-roll-calls to delete it"
+            )
+        case DeleteRollCall():
+            return f"delete roll call {op.week}/{op.time_slot}"
