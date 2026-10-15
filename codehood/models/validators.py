@@ -10,6 +10,7 @@ existence is not".
 from __future__ import annotations
 
 import re
+from urllib.parse import urlsplit
 from functools import wraps
 from typing import Annotated, Any, Callable
 
@@ -46,6 +47,9 @@ EDITION_RE = re.compile(r"^[0-9]{4}(-([1-9][0-9]*|0))?$")
 # The server's rule for a flat slug (`slug` in `src/core/schemas/base.ts`):
 # exactly one URL segment.
 SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
+
+# Hosts a server URL may reach over plain `http://`.
+LOCAL_HOSTS: frozenset[str] = frozenset({"localhost", "127.0.0.1", "::1"})
 
 # Copied from `codehood-server/src/utils/course-url.ts`'s `RESERVED_SLUGS`.
 # Top-level names a discipline slug must not equal, because the root
@@ -140,7 +144,25 @@ def validate_slug(value: str) -> str:
 
 @string_validator
 def url_validator(value: str) -> str:
-    # TODO: validate that the URL has a valid structure.
+    """
+    Normalize a server URL, defaulting to `https://` and dropping a trailing slash.
+
+    Plain `http://` is only accepted for local servers, since the CLI sends
+    passwords and API keys to it.
+
+    Raises:
+        ValueError: If the URL has no host, another scheme, or `http://` on a
+            remote host.
+    """
+    if "://" not in value:
+        value = f"https://{value}"
+    parts = urlsplit(value)
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        raise ValueError(f"server {value!r} must be a URL like 'https://codehood.dev'")
+    if parts.scheme == "http" and parts.hostname not in LOCAL_HOSTS:
+        raise ValueError(
+            f"server {value!r} must use https:// (http is only for local servers)"
+        )
     return value.removesuffix("/")
 
 

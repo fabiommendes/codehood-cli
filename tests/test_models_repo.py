@@ -9,7 +9,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from codehood.models.repo import CourseIdentity
+from codehood.models.repo import CourseIdentity, ServerConfig
 
 VALID = {"discipline": "cs101", "instructor": "ada", "edition": "2026-1"}
 
@@ -39,3 +39,24 @@ def test_accepts_valid_identity() -> None:
     assert identity.discipline == "cs101"
     assert identity.instructor == "ada"
     assert identity.edition == "2026-1"
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        ("https://codehood.dev/", "https://codehood.dev"),
+        ("codehood.dev", "https://codehood.dev"),
+        ("http://localhost:4321", "http://localhost:4321"),
+        ("http://127.0.0.1:4321", "http://127.0.0.1:4321"),
+    ],
+)
+def test_server_url_is_normalized(value: str, expected: str) -> None:
+    assert ServerConfig(url=value).url == expected
+
+
+@pytest.mark.parametrize(
+    "value", ["http://codehood.dev", "ftp://codehood.dev", "https://"]
+)
+def test_server_url_rejects_plain_http_and_other_schemes(value: str) -> None:
+    with pytest.raises(ValidationError):
+        ServerConfig(url=value)

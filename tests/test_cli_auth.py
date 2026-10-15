@@ -66,6 +66,20 @@ def test_login_happy_path_stores_token_and_never_prints_it(repo, monkeypatch):
     )
 
 
+def test_login_defaults_to_the_course_instructor(repo, monkeypatch):
+    sent = {}
+
+    def _login(**kwargs):
+        sent["login"] = kwargs["body"].login
+        return generated_module.LoginResponse(token="t")
+
+    monkeypatch.setattr(generated_module, "login", _login)
+    result = runner.invoke(app, ["login"], input="\npassword123\n")
+    assert result.exit_code == 0
+    assert "Login [ada]" in result.output
+    assert sent["login"] == "ada"
+
+
 def test_login_bad_credentials_exits_nonzero_and_stores_nothing(repo, monkeypatch):
     def _raise(**kwargs):
         # The server documents no error response for `login`, so there is no

@@ -4,6 +4,10 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- `[server].url` in `codehood.toml` defaults to `https://` when it has no
+  scheme, and plain `http://` is refused except for `localhost`, so a login
+  never sends the password unencrypted. `codehood login` offers the course's
+  instructor as the default login.
 - `codehood push` syncs grade columns. `codehood.toml` declares them in
   `[[grades.column]]` tables (`slug`, `title`, `kind` of `number` or `label`),
   in the order the Grades tab shows them. A column's values come from
