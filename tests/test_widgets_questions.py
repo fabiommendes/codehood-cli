@@ -243,7 +243,7 @@ def test_essay_records_typed_text() -> None:
 
 def test_fill_in_produces_one_typed_response_per_blank() -> None:
     document = parse_question(
-        "The capital of Brazil is [^capital/short-answer] and 2 + 2 is [^sum/numeric].\n\n"
+        "The capital of Brazil is [^capital] and 2 + 2 is [^sum].\n\n"
         "[^capital/short-answer]: Brasília\n\n[^sum/numeric]: 4\n"
     )
     responses: list[FillInResponse] = []
@@ -313,3 +313,24 @@ def test_shuffle_false_keeps_document_order() -> None:
     choices = [{"id": str(i), "text": str(i)} for i in range(6)]
     for _ in range(10):
         assert _ordered(choices, shuffle=False) == choices
+
+
+def test_inherited_shuffle_keeps_document_order() -> None:
+    """
+    `shuffle` defaults to the string `"inherit"`, which is truthy: reading it
+    as a flag shuffled every choice, so a click on the second one picked
+    a random id.
+    """
+
+    document = parse_question("What is 2 + 2?\n\n* [ ] 3\n* [*] 4\n* [ ] 5\n")
+    assert document["shuffle"] == "inherit"
+    for _ in range(20):
+        widget = MultipleChoiceQuestion(document)
+        assert widget.shuffle is False
+
+
+def test_explicit_shuffle_is_honoured() -> None:
+    document = parse_question(
+        "---\nshuffle: true\n---\n\nWhat is 2 + 2?\n\n* [ ] 3\n* [*] 4\n* [ ] 5\n"
+    )
+    assert MultipleChoiceQuestion(document).shuffle is True

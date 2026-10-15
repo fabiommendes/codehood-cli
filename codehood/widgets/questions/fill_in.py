@@ -45,7 +45,7 @@ class FillInQuestion(QuestionWidget):
         )
 
     def compose_body(self) -> ComposeResult:
-        shuffle = self.document.get("shuffle", False)
+        shuffle = self.shuffle
         with Vertical(id="control"):
             for blank in self.document["blanks"]:
                 yield Label(f"[[{blank['id']}]]")

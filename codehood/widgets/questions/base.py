@@ -82,6 +82,17 @@ class QuestionWidget(Widget):
                 yield Markdown(epilogue, classes="epilogue")
             yield Button("Submit", id="submit", variant="primary")
 
+    @property
+    def shuffle(self) -> bool:
+        """
+        Whether the choices may be shuffled.
+
+        `shuffle` is `true`, `false` or `"inherit"` (the default), which
+        resolves to `false` outside an exam, where this widget always runs.
+        """
+
+        return self.document.get("shuffle") is True
+
     def render_stem(self) -> str:
         """The stem's Markdown source. Overridden by `FillInQuestion`."""
 

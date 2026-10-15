@@ -41,7 +41,7 @@ class MultipleChoiceQuestion(QuestionWidget):
     def compose_body(self) -> ComposeResult:
         yield ChoiceControl(
             self.document["choices"],
-            shuffle=self.document.get("shuffle", False),
+            shuffle=self.shuffle,
             id="control",
         )
 
@@ -54,7 +54,7 @@ class MultipleSelectionQuestion(QuestionWidget):
     def compose_body(self) -> ComposeResult:
         yield MultiChoiceControl(
             self.document["choices"],
-            shuffle=self.document.get("shuffle", False),
+            shuffle=self.shuffle,
             id="control",
         )
 
@@ -67,7 +67,7 @@ class TrueFalseQuestion(QuestionWidget):
     def compose_body(self) -> ComposeResult:
         yield TrueFalseControl(
             self.document["choices"],
-            shuffle=self.document.get("shuffle", False),
+            shuffle=self.shuffle,
             id="control",
         )
 
