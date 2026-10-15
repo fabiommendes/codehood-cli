@@ -43,8 +43,15 @@ from .plan import (
     WarnTimeSlotPinned,
 )
 from .resource import CodeData, FileData, MdData, ResourceData
+from .wire import wire_question
 
-__all__ = ["OpResult", "fetch_server_state", "fetch_students", "run_plan"]
+__all__ = [
+    "OpResult",
+    "describe_failure",
+    "fetch_server_state",
+    "fetch_students",
+    "run_plan",
+]
 
 #: The generated request-side members of `Resource.data`. The `FILE` member
 #: exists twice in the spec -- the upload shape (`filename` plus `buffer`)
@@ -54,12 +61,6 @@ __all__ = ["OpResult", "fetch_server_state", "fetch_students", "run_plan"]
 type RequestData = (
     generated.DataMd | generated.DataCode | generated.ResourceCreateDataFile
 )
-
-#: Fields `mdq`'s models carry that the server's `additionalProperties:
-#: false` question schema rejects -- see `dev/specs/to-do/push-questions.md`,
-#: "`weight` and `grading` are dropped on the wire". A server gap, not a CLI
-#: preference; recorded in `ROADBLOCKS.md`.
-DROPPED_QUESTION_KEYS = ("weight", "grading")
 
 #: What each cell of the server's grades table is called in `ExamResult`.
 EXAM_STATES: dict[str, ExamState] = {
@@ -211,6 +212,26 @@ def run_plan(
 #
 # Utilities
 #
+def describe_failure(exc: CodehoodAPIError | httpx.HTTPStatusError) -> str:
+    """
+    One line saying why a request failed, with the server's own message.
+
+    An undocumented error status (`400` on a question the server refuses)
+    reaches here as a bare `httpx.HTTPStatusError`, whose text only repeats
+    the URL; the reason is in the response body.
+    """
+    if not isinstance(exc, httpx.HTTPStatusError):
+        return str(exc)
+    status = exc.response.status_code
+    try:
+        message = exc.response.json()["message"]
+    except (ValueError, KeyError, TypeError):
+        message = exc.response.text.strip()
+    return (
+        f"{status} {message}" if message else f"{status} {exc.response.reason_phrase}"
+    )
+
+
 def _run_op(
     op: PushOp, *, discipline: str, course: str, client: httpx.Client
 ) -> OpResult:
@@ -287,7 +308,7 @@ def _run_upsert_course(op: UpsertCourse, *, client: httpx.Client) -> OpResult:
     try:
         generated.upsert_course(body=body, client=client)
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
-        return OpResult(op=op, ok=False, message=f"failed: {exc}")
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
     return OpResult(
         op=op, ok=True, message=f"upserted course {op.discipline}/{op.course}"
     )
@@ -323,7 +344,7 @@ def _run_upsert_resource(
             discipline=discipline, course=course, body=body, client=client
         )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
-        return OpResult(op=op, ok=False, message=f"failed: {exc}")
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
     return OpResult(op=op, ok=True, message=f"upserted {op.slug}")
 
 
@@ -335,7 +356,7 @@ def _run_delete_resource(
             discipline=discipline, course=course, slug=op.slug, client=client
         )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
-        return OpResult(op=op, ok=False, message=f"failed: {exc}")
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
     return OpResult(op=op, ok=True, message=f"deleted {op.slug}")
 
 
@@ -354,9 +375,7 @@ def _run_upsert_question(
             ),
         )
 
-    payload = op.question.model_dump(mode="json", by_alias=True, exclude_none=True)
-    for key in DROPPED_QUESTION_KEYS:
-        payload.pop(key, None)
+    payload = wire_question(op.question)
 
     # `model_validate` would round-trip `payload` through one of the
     # generated union members, and that member fills every absent optional
@@ -379,7 +398,7 @@ def _run_upsert_question(
                 discipline=discipline, course=course, body=body, client=client
             )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
-        return OpResult(op=op, ok=False, message=f"failed: {exc}")
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
     return OpResult(op=op, ok=True, message=f"upserted {op.slug}")
 
 
@@ -391,7 +410,7 @@ def _run_delete_question(
             discipline=discipline, course=course, slug=op.slug, client=client
         )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
-        return OpResult(op=op, ok=False, message=f"failed: {exc}")
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
     return OpResult(op=op, ok=True, message=f"deleted {op.slug}")
 
 
@@ -412,7 +431,7 @@ def _run_upsert_time_slot(
             discipline=discipline, course=course, body=body, client=client
         )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
-        return OpResult(op=op, ok=False, message=f"failed: {exc}")
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
     return OpResult(op=op, ok=True, message=f"upserted {op.slot.slug}")
 
 
@@ -424,7 +443,7 @@ def _run_delete_time_slot(
             discipline=discipline, course=course, slug=op.slug, client=client
         )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
-        return OpResult(op=op, ok=False, message=f"failed: {exc}")
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
     return OpResult(op=op, ok=True, message=f"deleted {op.slug}")
 
 
@@ -444,7 +463,7 @@ def _run_upsert_calendar_event(
             discipline=discipline, course=course, body=body, client=client
         )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
-        return OpResult(op=op, ok=False, message=f"failed: {exc}")
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
     return OpResult(
         op=op, ok=True, message=f"upserted {op.event.week}/{op.event.time_slot}"
     )
@@ -462,7 +481,7 @@ def _run_delete_calendar_event(
             client=client,
         )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
-        return OpResult(op=op, ok=False, message=f"failed: {exc}")
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
     return OpResult(op=op, ok=True, message=f"deleted {op.week}/{op.time_slot}")
 
 
@@ -491,7 +510,7 @@ def _run_delete_roll_call(
             client=client,
         )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
-        return OpResult(op=op, ok=False, message=f"failed: {exc}")
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
     return OpResult(op=op, ok=True, message=f"deleted {op.week}/{op.time_slot}")
 
 
@@ -530,7 +549,7 @@ def _run_upsert_grade_column(
             discipline=discipline, course=course, body=body, client=client
         )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
-        return OpResult(op=op, ok=False, message=f"failed: {exc}")
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
     return OpResult(
         op=op, ok=True, message=f"upserted {column.slug} ({len(column.values)} values)"
     )
@@ -544,7 +563,7 @@ def _run_delete_grade_column(
             discipline=discipline, course=course, slug=op.slug, client=client
         )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
-        return OpResult(op=op, ok=False, message=f"failed: {exc}")
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
     return OpResult(op=op, ok=True, message=f"deleted {op.slug}")
 
 

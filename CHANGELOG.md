@@ -4,6 +4,17 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- `codehood push` works again with the current `mdq-py`. A new `push/wire.py`
+  translates each question to what the server stores: `shuffle: "inherit"` is
+  omitted, fields the server does not know (`diacritics`, `unmatched`,
+  `incorrectFeedback`, `weight`, `grading`) are dropped and a fill-in's
+  short-answer `accept` patterns become `oneOf`. Before, every question
+  without an explicit `shuffle` was refused with `400`. `ordering` questions
+  are still refused: the server has no such type.
+- A failed push line shows the server's reason (`400 question.shuffle: ...`)
+  instead of the bare URL.
+- Question widgets no longer shuffle the choices when `shuffle` is the default
+  `"inherit"`, which fixes the flaky widget tests.
 - `[server].url` in `codehood.toml` defaults to `https://` when it has no
   scheme, and plain `http://` is refused except for `localhost`, so a login
   never sends the password unencrypted. `codehood login` offers the course's

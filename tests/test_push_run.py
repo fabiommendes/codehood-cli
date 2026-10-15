@@ -646,7 +646,7 @@ def test_run_plan_upsert_question_drops_weight_and_grading_but_keeps_the_rest():
 
 def test_run_plan_upsert_question_short_answer_keeps_camel_case_aliases():
     """
-    `mdq` sets a camelCase alias generator: `openEnded` must survive the
+    `mdq` sets a camelCase alias generator: `preAccept` must survive the
     round trip through `run.py`'s translation, not get dropped or
     renamed.
     """
@@ -661,12 +661,13 @@ def test_run_plan_upsert_question_short_answer_keeps_camel_case_aliases():
     short_answer = """---
 title: Open answer
 type: short-answer
-openEnded: true
+preAccept: ["/^[A-Za-z ]+$/"]
 ---
 
 Describe your reasoning.
 
 [short-answer]:
+* because
 """
     question = mdq.parse(short_answer, kind="question", ids="fill")
     op = UpsertQuestion(
@@ -679,7 +680,35 @@ Describe your reasoning.
         run_plan([op], discipline=DISCIPLINE, course=COURSE, client=_client(handler))
     )
     assert result.ok is True
-    assert sent["question"]["openEnded"] is True
+    assert sent["question"]["preAccept"] == [{"pattern": "/^[A-Za-z ]+$/"}]
+
+
+def test_run_plan_reports_the_servers_reason_for_a_rejected_question():
+    """
+    A `400` carries the reason in its body; the failure line must show it,
+    not only the URL `httpx` puts in its own message.
+    """
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            400,
+            json={
+                "type": "error",
+                "code": "invalid-data",
+                "status": 400,
+                "message": 'question: Unrecognized key: "diacritics"',
+            },
+        )
+
+    question = mdq.parse("What is 2 + 2?\n\n* [ ] 3\n* [*] 4\n", kind="question")
+    op = UpsertQuestion(
+        slug="q", version="md5:a", question=question, path=Path("questions/q.md")
+    )
+    [result] = list(
+        run_plan([op], discipline=DISCIPLINE, course=COURSE, client=_client(handler))
+    )
+    assert result.ok is False
+    assert result.message == 'failed: 400 question: Unrecognized key: "diacritics"'
 
 
 def test_run_plan_upsert_ordering_question_is_blocked_without_any_http_call():

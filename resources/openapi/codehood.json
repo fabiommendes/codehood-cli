@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "info": {
     "title": "Codehood API",
-    "version": "0.0.2",
+    "version": "0.1.0",
     "description": "REST API for the Codehood CLI and grading bots. Authenticated with `Authorization: Bearer <key>`, except where noted — see src/urls/README.md."
   },
   "servers": [

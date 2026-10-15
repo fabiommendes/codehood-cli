@@ -76,11 +76,13 @@ matters.
   `contentHash` field, hashed the same way across every content type,
   would let push drop this special case.
 
-- [ ] The question schema is `additionalProperties: false` and rejects
-  `mdq`'s `weight` and `grading` fields with `400 Unrecognized keys`.
-  `codehood push` drops both, by name, before sending a question. Per
-  -question weight and grading policy have nowhere to live server-side
-  until the schema grows fields for them.
+- [ ] The question schema is `additionalProperties: false` and the server keeps
+  an old copy of the MDQ schema, so it rejects fields `mdq` now emits (`weight`,
+  `grading`, `diacritics`, `unmatched`, `incorrectFeedback`, a short-answer
+  blank's `accept`/`reject`) and has no `ordering` type. `codehood push`
+  translates each question in `codehood/push/wire.py`: it drops what the server
+  cannot store and refuses `ordering`. See
+  `dev/issues/server-mdq-atrasado-em-relacao-ao-mdq-py.md` in the server.
 
 - [ ] `DELETE .../question/{slug}` soft-deletes: the row survives with
   `status: ARCHIVED` and is still returned by `GET .../question` with no
