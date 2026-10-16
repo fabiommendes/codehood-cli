@@ -25,6 +25,7 @@ not decided unilaterally here.
 from __future__ import annotations
 
 import os
+import re
 from pathlib import Path
 
 import httpx
@@ -181,12 +182,10 @@ def test_push_writes_the_calendar_and_reconverges_on_a_second_run(
 
     second = runner.invoke(app, ["push", str(course_repo), "--dry-run"])
     assert second.exit_code == 0, second.output
-    # A seeded CANCELLED event pins its time slot, so the plan may still
-    # carry a "kept" notice for it. That notice is not a write.
-    planned = [
-        line for line in second.output.splitlines() if line.startswith("planned")
-    ]
-    writes = [line for line in planned if " kept " not in line]
+    # A seeded CANCELLED event pins its time slot and a seeded roll call
+    # pins its meeting, so the plan may still carry "kept" notices for them.
+    # Those notices are not writes.
+    writes = _planned_writes(second.output)
     assert [line for line in writes if "time slot" in line or " event " in line] == []
 
 
@@ -233,7 +232,7 @@ def test_push_questions_matches_the_repository_exactly_and_reconverges(
 def _planned_writes(output: str) -> list[str]:
     """The `planned` lines of a dry run that are real writes, not notices."""
     planned = [line for line in output.splitlines() if line.startswith("planned")]
-    return [line for line in planned if " kept " not in line]
+    return [line for line in planned if not re.search(r" kept\b", line)]
 
 
 def test_push_attaches_a_linked_resource_to_its_lesson_and_reconverges(
