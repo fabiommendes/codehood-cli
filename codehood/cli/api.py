@@ -166,7 +166,8 @@ class ApiBrowser(CodehoodApp[None]):
             Text.assemble(
                 (
                     endpoint.method,
-                    role_style(METHOD_ROLE.get(endpoint.method, "muted")) + Style(bold=True),
+                    role_style(METHOD_ROLE.get(endpoint.method, "muted"))
+                    + Style(bold=True),
                 ),
                 (f" {endpoint.path}", "bold"),
             )

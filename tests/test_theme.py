@@ -44,7 +44,16 @@ def test_theme_colors_are_hex(theme):
         assert re.fullmatch(r"#[0-9a-f]{6}", value)
 
 
-ROLES = ["error", "success", "warning", "secondary", "primary", "accent", "info", "muted"]
+ROLES = [
+    "error",
+    "success",
+    "warning",
+    "secondary",
+    "primary",
+    "accent",
+    "info",
+    "muted",
+]
 
 
 @pytest.mark.parametrize("name", ROLES)
