@@ -4,6 +4,9 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- An unreachable server, a connection lost mid-push, or a command run before
+  `codehood login` ends with one `error:` line and exit code 1 instead of a
+  traceback.
 - `codehood login` stores the login name beside the key and says when it
   replaces the stored login of another user for the same server (there is one
   credential per server); `codehood logout` says which login it forgot.

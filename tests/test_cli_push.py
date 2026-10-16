@@ -448,6 +448,37 @@ def test_a_failed_operation_exits_nonzero_but_still_runs_the_rest(repo, monkeypa
     assert "ok  resource week1-slides" in result.output
 
 
+def test_an_unreachable_server_is_a_one_line_error(repo, monkeypatch):
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("[Errno 111] Connection refused", request=request)
+
+    _install_transport(monkeypatch, handler)
+    result = runner.invoke(app, ["push", str(repo)])
+
+    assert result.exit_code == 1, result.output
+    assert f"error: could not reach {SERVER}" in result.output
+    assert "Traceback" not in result.output
+    assert not isinstance(result.exception, httpx.TransportError)
+
+
+def test_a_connection_lost_mid_push_is_a_one_line_error(repo, monkeypatch):
+    calls: list[tuple[str, str]] = []
+    fresh = _fresh_server_handler(calls)
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.method == "PUT" and request.url.path == f"{BASE}/resource":
+            raise httpx.ReadTimeout("timed out", request=request)
+        return fresh(request)
+
+    _install_transport(monkeypatch, handler)
+    result = runner.invoke(app, ["push", str(repo)])
+
+    assert result.exit_code == 1, result.output
+    assert "ok  course" in result.output
+    assert f"error: could not reach {SERVER}" in result.output
+    assert not isinstance(result.exception, httpx.TransportError)
+
+
 def test_a_failed_course_upsert_stops_the_push_without_a_cascade_of_errors(
     repo_with_question, monkeypatch
 ):

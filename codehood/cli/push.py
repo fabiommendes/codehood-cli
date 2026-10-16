@@ -109,6 +109,36 @@ def push(
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
 
+    try:
+        sync(
+            path,
+            config,
+            local,
+            dry_run=dry_run,
+            prune=prune,
+            drop_roll_calls=drop_roll_calls,
+        )
+    except httpx.TransportError as exc:
+        typer.echo(f"error: could not reach {config.server.url}: {exc}", err=True)
+        raise typer.Exit(code=1) from exc
+
+
+def sync(
+    path: Path,
+    config: RepoConfig,
+    local: LocalState,
+    *,
+    dry_run: bool,
+    prune: bool,
+    drop_roll_calls: bool,
+) -> None:
+    """
+    Read the server's state, plan the push, and run it or print it.
+
+    Raises:
+        typer.Exit: With code 1 when an operation or the grade columns failed.
+        httpx.TransportError: When the server cannot be reached.
+    """
     client = get_client(config.server.url)
     try:
         server = fetch_server_state(local.discipline, local.course, client)
