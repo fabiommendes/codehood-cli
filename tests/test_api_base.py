@@ -17,6 +17,7 @@ from codehood.api.base import (
     auth_headers,
     delete_token,
     get_client,
+    load_login,
     load_token,
     query_params,
     save_token,
@@ -153,3 +154,46 @@ def test_get_client_declares_json_so_astro_allows_a_bodyless_delete():
     """
     client = get_client("http://localhost:4321")
     assert client.headers["Content-Type"] == "application/json"
+
+
+def test_save_token_records_the_login_beside_the_token():
+    save_token("https://a.example", "tok", login="ada")
+    assert load_token("https://a.example") == "tok"
+    assert load_login("https://a.example") == "ada"
+
+
+def test_a_token_saved_without_a_login_has_none():
+    save_token("https://a.example", "tok")
+    assert load_login("https://a.example") is None
+
+
+def test_saving_a_token_without_a_login_forgets_the_previous_login():
+    save_token("https://a.example", "one", login="ada")
+    save_token("https://a.example", "two")
+    assert load_login("https://a.example") is None
+
+
+def test_delete_token_forgets_the_login_too():
+    save_token("https://a.example", "tok", login="ada")
+    save_token("https://b.example", "tok", login="bob")
+    delete_token("https://a.example")
+    assert load_login("https://a.example") is None
+    assert load_login("https://b.example") == "bob"
+
+
+def test_a_credentials_file_from_before_logins_still_loads(credentials_path):
+    credentials_path.write_text('[servers]\n"https://a.example" = "legacy"\n')
+    assert load_token("https://a.example") == "legacy"
+    assert load_login("https://a.example") is None
+    assert stored_servers() == ["https://a.example"]
+    save_token("https://b.example", "new", login="bob")
+    assert load_token("https://a.example") == "legacy"
+
+
+def test_the_servers_table_keeps_plain_token_strings(credentials_path):
+    """An older CLI reading the same file must still find its tokens."""
+    import tomllib
+
+    save_token("https://a.example", "tok", login="ada")
+    data = tomllib.loads(credentials_path.read_text())
+    assert data["servers"]["https://a.example"] == "tok"

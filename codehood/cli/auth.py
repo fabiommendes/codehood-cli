@@ -11,7 +11,14 @@ import typer
 
 from .. import repo
 from ..api import generated
-from ..api.base import CodehoodAPIError, delete_token, get_client, save_token
+from ..api.base import (
+    CodehoodAPIError,
+    delete_token,
+    get_client,
+    load_login,
+    load_token,
+    save_token,
+)
 from ..models.repo import RepoConfig
 from .base import app
 
@@ -24,6 +31,8 @@ def login() -> None:
     Exchange a login and password for a CLI API key, and store it.
 
     The login prompt defaults to the course's instructor in `codehood.toml`.
+    There is one stored login per server, so logging in as someone else
+    replaces the previous one, and says so.
     """
     config = _repo_config()
     server_url = config.server.url
@@ -43,8 +52,13 @@ def login() -> None:
         typer.echo(f"error: could not reach {server_url}: {exc}", err=True)
         raise typer.Exit(code=1) from exc
 
-    save_token(str(client.base_url), result.token)
-    typer.echo(f"logged in to {server_url}")
+    key = str(client.base_url)
+    if load_token(key) is not None and load_login(key) != login_name:
+        previous = load_login(key)
+        was = f" (was {previous})" if previous else ""
+        typer.echo(f"replacing the stored login for {server_url}{was}")
+    save_token(key, result.token, login=login_name)
+    typer.echo(f"logged in to {server_url} as {login_name}")
 
 
 @app.command()
@@ -54,8 +68,11 @@ def logout() -> None:
     """
     server_url = _repo_config().server.url
     client = get_client(server_url)
-    if delete_token(str(client.base_url)):
-        typer.echo(f"logged out of {server_url}")
+    key = str(client.base_url)
+    previous = load_login(key)
+    if delete_token(key):
+        was = f" (forgot the login of {previous})" if previous else ""
+        typer.echo(f"logged out of {server_url}{was}")
     else:
         typer.echo(f"not logged in to {server_url}")
     typer.echo(

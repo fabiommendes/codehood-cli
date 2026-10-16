@@ -4,6 +4,10 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- `codehood login` stores the login name beside the key and says when it
+  replaces the stored login of another user for the same server (there is one
+  credential per server); `codehood logout` says which login it forgot.
+  Existing `credentials.toml` files keep working.
 - When the course row cannot be written (for example, the edition does not
   accept new courses), `codehood push` stops there: the remaining operations
   are listed as not attempted instead of failing one by one with `404`.

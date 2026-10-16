@@ -138,9 +138,27 @@ def load_token(base_url: str) -> str | None:
     return servers.get(base_url)
 
 
-def save_token(base_url: str, token: str) -> None:
+def load_login(base_url: str) -> str | None:
+    """
+    The login name `base_url`'s stored token was issued to, or `None` when
+    unknown (no token, or one stored before logins were recorded).
+    """
+    if not CREDENTIALS_PATH.exists():
+        return None
+    logins = tomllib.loads(CREDENTIALS_PATH.read_text(encoding="utf-8")).get(
+        "logins", {}
+    )
+    return logins.get(base_url)
+
+
+def save_token(base_url: str, token: str, login: str | None = None) -> None:
     """
     Store `token` for `base_url`, overwriting whatever was there.
+
+    There is one credential per server: the CLI acts as one person on each.
+    `login` goes in a separate `[logins]` table, so `[servers]` keeps plain
+    token strings that older CLI versions read. A token saved without a
+    `login` forgets the previous one, which belonged to the old token.
 
     `CREDENTIALS_PATH` is `chmod 600` after every write -- it holds a raw
     bearer token, unlike `codehood.toml`, which is committed and never
@@ -149,6 +167,11 @@ def save_token(base_url: str, token: str) -> None:
     doc = read_credentials_doc()
     servers = doc.setdefault("servers", tomlkit.table())
     servers[base_url] = token
+    logins = doc.setdefault("logins", tomlkit.table())
+    if login is None:
+        logins.pop(base_url, None)
+    else:
+        logins[base_url] = login
     write_credentials_doc(doc)
 
 
@@ -166,6 +189,7 @@ def delete_token(base_url: str) -> bool:
     if base_url not in servers:
         return False
     del servers[base_url]
+    doc.get("logins", {}).pop(base_url, None)
     write_credentials_doc(doc)
     return True
 

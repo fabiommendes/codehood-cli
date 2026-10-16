@@ -135,8 +135,15 @@ existing prompt style.
   but no endpoint in `ENDPOINTS` requires auth yet, so nothing observable
   changes; revisiting that screen's gate is follow-up work for whichever
   spec first adds an authenticated operationId to `ENDPOINTS`.
-- **Multiple accounts per server.** One token per server URL; a second
-  `codehood login` to the same server overwrites the first.
+- **Multiple accounts per server.** One credential per server URL: the CLI
+  acts as one person per server, and a second `codehood login` replaces the
+  first. It is no longer silent: `login` records the login name beside the
+  token (a `[logins]` table, so `[servers]` keeps plain token strings that
+  older CLI versions read), prints `replacing the stored login for <url>
+  (was <login>)` when a different login, or one stored before names were
+  recorded, is overwritten, and `logout` says which login it forgot. Several
+  logins per server would need `codehood.toml`'s instructor to select one,
+  which also breaks for a student, so it was not worth it.
 
 ## Open questions
 
