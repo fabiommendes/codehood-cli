@@ -208,7 +208,10 @@ summary.
 
 Exit codes: 0 when every operation succeeded, 1 when any failed. A failure
 does not stop the push (FR-SYNC-005): remaining operations still run, and
-the failures are listed at the end.
+the failures are listed at the end. The exception is the course row: every
+other operation hangs off it, so when its `PUT` fails (say, the edition does
+not accept new courses) the rest are reported as `skipped ... not attempted`,
+none is sent, and the summary counts them apart from the failures.
 
 ## Proof
 

@@ -464,6 +464,54 @@ def test_run_plan_upsert_course_404_yields_a_failed_result_not_a_raise():
     assert results[0].message
 
 
+def test_run_plan_after_a_failed_upsert_course_attempts_nothing_else():
+    """
+    Every other operation needs the course row: after its `PUT` fails they
+    come back as skipped results, and no request is made for them.
+    """
+    seen: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(f"{request.method} {request.url.path}")
+        return httpx.Response(400, json={"message": "no new courses"})
+
+    ops = [
+        UpsertCourse(
+            discipline=DISCIPLINE,
+            course=COURSE,
+            description="A course.",
+            start_at="2026-01-01T00:00:00Z",
+            end_at="2026-06-01T00:00:00Z",
+        ),
+        DeleteResource(slug="a"),
+        DeleteResource(slug="b"),
+    ]
+    results = list(
+        run_plan(ops, discipline=DISCIPLINE, course=COURSE, client=_client(handler))
+    )
+
+    assert seen == ["PUT /api/course"]
+    assert [(r.ok, r.skipped) for r in results] == [
+        (False, False),
+        (False, True),
+        (False, True),
+    ]
+    assert [r.op for r in results] == ops
+    assert "not attempted" in results[1].message
+
+
+def test_run_plan_keeps_going_after_a_failure_that_is_not_the_course():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, json={"message": "boom"})
+
+    ops = [DeleteResource(slug="a"), DeleteResource(slug="b")]
+    results = list(
+        run_plan(ops, discipline=DISCIPLINE, course=COURSE, client=_client(handler))
+    )
+
+    assert [(r.ok, r.skipped) for r in results] == [(False, False), (False, False)]
+
+
 #
 # run_plan: UpsertResource / DeleteResource
 #

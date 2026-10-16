@@ -4,6 +4,9 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- When the course row cannot be written (for example, the edition does not
+  accept new courses), `codehood push` stops there: the remaining operations
+  are listed as not attempted instead of failing one by one with `404`.
 - `[push] exclude` in `codehood.toml` keeps questions and resources out of a
   push, with gitignore-like patterns. Excluded files are not parsed, are
   listed by `codehood push`, and what the server holds for them is never

@@ -81,6 +81,9 @@ class OpResult:
     op: PushOp
     ok: bool
     message: str
+    #: The operation was never attempted because an earlier one it depends
+    #: on failed. Always paired with `ok=False`.
+    skipped: bool = False
 
 
 def fetch_server_state(
@@ -198,15 +201,25 @@ def run_plan(
     """
     Execute a plan, yielding one result per operation.
 
-    A failure executing any operation, including the course row's own
-    `PUT`, is caught and reported as a failed `OpResult`; the remaining
-    operations still run -- see `push.md`, "FR-SYNC-005", "a sync is not
-    atomic", and the CLI surface's "a failure does not stop the push".
-    A missing discipline or edition therefore surfaces as one failed
-    `OpResult` for the `UpsertCourse` op, not a raise.
+    A failure executing an operation is caught and reported as a failed
+    `OpResult`; the remaining operations still run -- see `push.md`,
+    "FR-SYNC-005", "a sync is not atomic". The exception is the course
+    row's own `PUT`: every other operation hangs off the course, so after
+    it fails the rest come back as skipped results, never attempted.
     """
+    course_failed = False
     for op in ops:
-        yield _run_op(op, discipline=discipline, course=course, client=client)
+        if course_failed:
+            yield OpResult(
+                op=op,
+                ok=False,
+                skipped=True,
+                message="not attempted: the course could not be written",
+            )
+            continue
+        result = _run_op(op, discipline=discipline, course=course, client=client)
+        yield result
+        course_failed = isinstance(op, UpsertCourse) and not result.ok
 
 
 #

@@ -420,10 +420,14 @@ def _local_ref(repo, exclude=()) -> str:
 def test_a_failed_operation_exits_nonzero_but_still_runs_the_rest(repo, monkeypatch):
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == BASE and request.method == "GET":
-            return httpx.Response(404, json={"message": "not found"})
+            return httpx.Response(200, json=_course_json())
         if request.url.path == f"{BASE}/resource" and request.method == "GET":
             return httpx.Response(200, json=[])
         if request.url.path == COURSE_COLLECTION and request.method == "PUT":
+            return httpx.Response(200, json=_course_json())
+        if request.url.path == f"{BASE}/question" and request.method == "GET":
+            return httpx.Response(200, json=[])
+        if request.url.path == f"{BASE}/time-slot" and request.method == "PUT":
             return httpx.Response(500, json={"message": "server error"})
         if request.url.path == f"{BASE}/resource" and request.method == "PUT":
             slug = json.loads(request.content)["slug"]
@@ -439,8 +443,45 @@ def test_a_failed_operation_exits_nonzero_but_still_runs_the_rest(repo, monkeypa
 
     assert result.exit_code == 1, result.output
     assert "Traceback" not in result.output
-    # The course upsert failed, but the resource upsert still ran.
-    assert "week1-slides" in result.output
+    # The time slot upsert failed, but the resource after it still ran.
+    assert "1 failed" in result.output
+    assert "ok  resource week1-slides" in result.output
+
+
+def test_a_failed_course_upsert_stops_the_push_without_a_cascade_of_errors(
+    repo_with_question, monkeypatch
+):
+    """
+    Nothing hangs off a course that could not be written: the dependent
+    operations are reported as not attempted, never sent, and the one
+    real failure is what the instructor reads.
+    """
+    calls: list[tuple[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append((request.method, request.url.path))
+        if request.url.path == BASE and request.method == "GET":
+            return httpx.Response(404, json={"message": "not found"})
+        if request.url.path == COURSE_COLLECTION and request.method == "PUT":
+            return httpx.Response(
+                400, json={"message": "the edition does not accept new courses"}
+            )
+        if request.method == "GET":
+            return httpx.Response(200, json=[])
+        raise AssertionError(
+            f"sent after the course failed: {request.method} {request.url}"
+        )
+
+    _install_transport(monkeypatch, handler)
+    result = runner.invoke(app, ["push", str(repo_with_question)])
+
+    assert result.exit_code == 1, result.output
+    assert "Traceback" not in result.output
+    assert "the edition does not accept new courses" in result.output
+    assert "1 failed" in result.output
+    assert "not attempted" in result.output
+    assert "404" not in result.output
+    assert [call for call in calls if call[0] != "GET"] == [("PUT", COURSE_COLLECTION)]
 
 
 #

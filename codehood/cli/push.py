@@ -162,9 +162,14 @@ def push(
 
     failures: list[OpResult] = []
     executed = 0
+    not_attempted = 0
     for result in run_plan(
         to_run, discipline=local.discipline, course=local.course, client=client
     ):
+        if result.skipped:
+            not_attempted += 1
+            typer.echo(f"skipped  {describe(result.op)} ({result.message})")
+            continue
         executed += 1
         status = "ok" if result.ok else "failed"
         typer.echo(f"{status:>6}  {describe(result.op)}: {result.message}")
@@ -173,7 +178,9 @@ def push(
 
     typer.echo(
         f"summary: {executed} operation(s) executed, {len(failures)} failed, "
-        f"{len(skipped)} skipped{excluded_note}"
+        f"{len(skipped)} skipped"
+        f"{f', {not_attempted} not attempted' if not_attempted else ''}"
+        f"{excluded_note}"
     )
     if failures:
         typer.echo("failures:")
