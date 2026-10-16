@@ -18,7 +18,7 @@ import hashlib
 import json
 import re
 from collections import defaultdict
-from collections.abc import Iterator
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
@@ -207,12 +207,13 @@ def content_ref(
     return f"{REF_PREFIX}:{digest}"
 
 
-def scan_resources(root: Path) -> Iterator[ResourceFile]:
+def scan_resources(root: Path, exclude: Sequence[str] = ()) -> Iterator[ResourceFile]:
     """
     Walk `resources/` and yield one `ResourceFile` per file.
 
     Reuses the (fixed) `repo.file_tracker.scan_files` for the walk, so a
-    subdirectory never becomes a resource of its own.
+    subdirectory never becomes a resource of its own. Files matching an
+    `exclude` pattern are skipped without being read.
 
     Raises:
         SlugCollisionError: two or more files flatten to the same slug.
@@ -223,8 +224,8 @@ def scan_resources(root: Path) -> Iterator[ResourceFile]:
     by_slug: dict[str, list[Path]] = defaultdict(list)
     entries: list[tuple[str, Path]] = []
 
-    for file in scan_files(root):
-        if file.type is not FileType.RESOURCE:
+    for file in scan_files(root, exclude):
+        if file.type is not FileType.RESOURCE or file.excluded:
             continue
         rel_path = Path(file.name)
         slug = slugify(rel_path)

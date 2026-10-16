@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Literal, NamedTuple, Protocol
 
 from ..functional import curry
+from ..globs import is_excluded
 from .diff import AddFile, Diff, FileType
 
 MDQ_SUFFIXES = (".md", ".mdq")
@@ -23,12 +24,18 @@ class ScanFiles(Protocol):
 
 
 @curry(1)
-def scan_files(root: Path) -> Iterable[File]:
+def scan_files(root: Path, exclude: Sequence[str] = ()) -> Iterable[File]:
     """
     Yield all files codehood tracks in the repository.
 
-    Files outside a Codehood tree are ignored.
+    Files outside a Codehood tree are ignored. Files under `resources/` and
+    `questions/` that match an `exclude` pattern (see `codehood.globs`) are
+    still yielded, flagged `excluded`, so a caller can report them and
+    protect what the server holds for them.
     """
+
+    def skipped(path: Path) -> bool:
+        return is_excluded(path.relative_to(root).as_posix(), exclude)
 
     def if_exists(path: str | Path, typ: FileType):
         if (path := root / path).exists():
@@ -48,7 +55,7 @@ def scan_files(root: Path) -> Iterable[File]:
         if resource.is_dir():
             continue
         name = str(resource.relative_to(base))
-        yield File(name, FileType.RESOURCE)
+        yield File(name, FileType.RESOURCE, excluded=skipped(resource))
 
     # Questions -- recurses, and only files become questions (same fix as
     # `resources/`, see `dev/specs/to-do/push-questions.md`).
@@ -57,13 +64,15 @@ def scan_files(root: Path) -> Iterable[File]:
         if question.is_dir():
             continue
         name = str(question.relative_to(base))
+        excluded = skipped(question)
         if question.suffix in MDQ_SUFFIXES:
-            yield File(name, FileType.QUESTION)
+            yield File(name, FileType.QUESTION, excluded=excluded)
         else:
             yield File(
                 name,
                 FileType.WARNING,
                 f"not a question file: {question.name}",
+                excluded=excluded,
             )
 
     # Exams
@@ -111,6 +120,7 @@ class File(NamedTuple):
     name: str
     type: FileType
     message: str | None = None
+    excluded: bool = False
 
     @property
     def path(self) -> Path:

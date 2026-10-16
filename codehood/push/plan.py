@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Literal
 
 from .calendar import Event, EventKey, TimeSlot
+from .exclude import ExcludedFile
 from .grades import GradeColumn
 from .question import AnyQuestion, QuestionFile
 from .resource import ResourceData, ResourceFile
@@ -75,6 +76,8 @@ class LocalState:
     resources: tuple[ResourceFile, ...] = ()
     questions: tuple[QuestionFile, ...] = ()
     grade_columns: tuple[GradeColumn, ...] | None = ()
+    #: Files left out by `[push] exclude`: never written, never pruned.
+    excluded: tuple[ExcludedFile, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -308,7 +311,8 @@ def plan_push(
 
     A resource is planned when its `ref` differs from (or is absent from)
     `server.resources`; a server slug absent locally is planned for
-    deletion. Questions follow the same rule on `version`.
+    deletion, unless an `exclude` pattern leaves its local file out.
+    Questions follow the same rule on `version`.
 
     Calendar slots and events come right after the course, in that
     order: a slot an event needs has to exist before the event is
@@ -343,8 +347,10 @@ def plan_push(
             event=resource.event,
         )
 
+    excluded = {(file.kind, file.slug) for file in local.excluded}
+
     for slug in server.resources:
-        if slug not in seen_slugs:
+        if slug not in seen_slugs and ("resource", slug) not in excluded:
             yield DeleteResource(slug=slug)
 
     seen_question_slugs: set[str] = set()
@@ -360,7 +366,7 @@ def plan_push(
         )
 
     for slug in server.questions:
-        if slug not in seen_question_slugs:
+        if slug not in seen_question_slugs and ("question", slug) not in excluded:
             yield DeleteQuestion(slug=slug)
 
     yield from plan_grades(local, server)

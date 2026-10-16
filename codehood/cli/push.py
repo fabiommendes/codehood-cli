@@ -22,6 +22,7 @@ from ..push.errors import (
     ResourceLinkError,
     SlugCollisionError,
 )
+from ..push.exclude import scan_excluded
 from ..push.grades import GradesError
 from ..push.links import attach_resources, rewrite_event_links
 from ..push.plan import (
@@ -136,10 +137,17 @@ def push(
 
     ops = list(plan_push(local, server, drop_roll_calls=drop_roll_calls))
 
+    for file in local.excluded:
+        typer.echo(f"excluded  {file.path}")
+    excluded_note = f", {len(local.excluded)} excluded" if local.excluded else ""
+
     if dry_run:
         for op in ops:
             typer.echo(f"planned  {describe(op)}")
-        typer.echo(f"summary: {len(ops)} operation(s) planned, 0 executed (--dry-run)")
+        typer.echo(
+            f"summary: {len(ops)} operation(s) planned, 0 executed (--dry-run)"
+            f"{excluded_note}"
+        )
         if grades_failed:
             raise typer.Exit(code=1)
         return
@@ -165,7 +173,7 @@ def push(
 
     typer.echo(
         f"summary: {executed} operation(s) executed, {len(failures)} failed, "
-        f"{len(skipped)} skipped"
+        f"{len(skipped)} skipped{excluded_note}"
     )
     if failures:
         typer.echo("failures:")
@@ -214,7 +222,10 @@ def read_local_state(path: Path) -> LocalState:
 
     discipline = config.course.discipline
     course = f"{config.course.instructor}_{config.course.edition}"
-    resources = attach_resources(allocation.events, tuple(scan_resources(path)), path)
+    exclude = config.push.exclude
+    resources = attach_resources(
+        allocation.events, tuple(scan_resources(path, exclude)), path
+    )
 
     return LocalState(
         discipline=discipline,
@@ -227,7 +238,8 @@ def read_local_state(path: Path) -> LocalState:
             allocation.events, resources, path, discipline, course
         ),
         resources=resources,
-        questions=tuple(scan_questions(path)),
+        questions=tuple(scan_questions(path, exclude)),
+        excluded=tuple(scan_excluded(path, exclude)),
     )
 
 

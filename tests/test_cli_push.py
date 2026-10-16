@@ -405,7 +405,7 @@ def test_no_prune_reports_deletion_without_executing_it(repo, monkeypatch):
     assert "stale-handout" in result.output
 
 
-def _local_ref(repo) -> str:
+def _local_ref(repo, exclude=()) -> str:
     """
     The `ref` the local `week1/slides.md` fixture would produce, so the
     no-prune scenario's unrelated resource genuinely matches and only
@@ -413,7 +413,7 @@ def _local_ref(repo) -> str:
     """
     from codehood.push.resource import scan_resources
 
-    [resource] = list(scan_resources(repo))
+    [resource] = list(scan_resources(repo, exclude))
     return resource.ref
 
 
@@ -524,11 +524,11 @@ def test_no_prune_skips_question_deletions(repo_with_question, monkeypatch):
     assert "stale-warmup" in result.output
 
 
-def _local_question_version(repo) -> str:
+def _local_question_version(repo, exclude=()) -> str:
     """The `version` the local `questions/big-o.md` fixture would produce."""
     from codehood.push.question import scan_questions
 
-    [question] = list(scan_questions(repo))
+    [question] = list(scan_questions(repo, exclude))
     return question.version
 
 
@@ -670,3 +670,223 @@ def test_drop_roll_calls_with_no_prune_skips_both_deletions(repo, monkeypatch):
     assert result.exit_code == 0, result.output
     assert _deletes(calls) == []
     assert result.output.count("(--no-prune)") == 2
+
+
+#
+# `[push] exclude` -- files matching a pattern are neither parsed nor
+# pushed, and what the server already holds for them is left alone.
+#
+ORDERING_MDQ = """---
+title: Order the steps
+type: ordering
+---
+
+Put these steps in order.
+
+[ordering]
+```
+first
+second
+third
+```
+"""
+
+
+def _exclude_toml(*patterns: str) -> str:
+    listed = ", ".join(json.dumps(pattern) for pattern in patterns)
+    return TOML + f"\n[push]\nexclude = [{listed}]\n"
+
+
+def _add_question(repo, name: str, text: str = EXAMPLE_MDQ) -> None:
+    path = repo / "questions" / name
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def _server_with(
+    calls: list[tuple[str, str]],
+    *,
+    questions: list[dict] | None = None,
+    resources: list[dict] | None = None,
+):
+    """A course that exists and already holds the given questions/resources."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append((request.method, request.url.path))
+        path, method = request.url.path, request.method
+        if path == BASE and method == "GET":
+            return httpx.Response(200, json=_course_json())
+        if path == f"{BASE}/resource" and method == "GET":
+            return httpx.Response(200, json=resources or [])
+        if path == f"{BASE}/question" and method == "GET":
+            return httpx.Response(200, json=questions or [])
+        if path == COURSE_COLLECTION and method == "PUT":
+            return httpx.Response(200, json=_course_json())
+        if path == f"{BASE}/resource" and method == "PUT":
+            slug = json.loads(request.content)["slug"]
+            return httpx.Response(200, json=_resource_json(slug, "whatever"))
+        if path == f"{BASE}/question" and method == "PUT":
+            slug = json.loads(request.content)["slug"]
+            return httpx.Response(200, json=_question_json(slug, "whatever"))
+        if (response := _calendar_defaults(request)) is not None:
+            return response
+        if method == "GET" and path == f"{BASE}/grade-column":
+            return httpx.Response(200, json=[])
+        raise AssertionError(f"unexpected request: {method} {request.url}")
+
+    return handler
+
+
+def _writes_to(calls: list[tuple[str, str]], kind: str) -> list[tuple[str, str]]:
+    return [
+        (method, path)
+        for method, path in calls
+        if method in ("PUT", "DELETE") and path.startswith(f"{BASE}/{kind}")
+    ]
+
+
+def test_an_unsupported_question_blocks_the_push_unless_excluded(
+    repo_with_question, monkeypatch
+):
+    _add_question(repo_with_question, "order.mdq", ORDERING_MDQ)
+    calls: list[tuple[str, str]] = []
+    _install_transport(monkeypatch, _server_with(calls))
+
+    blocked = runner.invoke(app, ["push", str(repo_with_question)])
+    assert blocked.exit_code == 1, blocked.output
+
+    (repo_with_question / "codehood.toml").write_text(
+        _exclude_toml("questions/order.mdq"), encoding="utf-8"
+    )
+    calls.clear()
+    result = runner.invoke(app, ["push", str(repo_with_question)])
+
+    assert result.exit_code == 0, result.output
+    assert "blocked" not in result.output
+    assert "questions/order.mdq" in result.output
+    assert "1 excluded" in result.output
+    # The question that is not excluded still goes out.
+    assert _writes_to(calls, "question") == [("PUT", f"{BASE}/question")]
+
+
+@pytest.mark.parametrize(
+    "pattern",
+    [
+        "questions/wip",
+        "questions/wip/",
+        "questions/wip/**",
+        "questions/**/draft-*.mdq",
+        "questions/wip/draft-?.mdq",
+        "**/draft-1.mdq",
+    ],
+)
+def test_exclude_patterns_reach_nested_questions(
+    repo_with_question, monkeypatch, pattern
+):
+    _add_question(repo_with_question, "wip/draft-1.mdq", "not a valid question {{")
+    (repo_with_question / "codehood.toml").write_text(
+        _exclude_toml(pattern), encoding="utf-8"
+    )
+    calls: list[tuple[str, str]] = []
+    _install_transport(monkeypatch, _server_with(calls))
+
+    result = runner.invoke(app, ["push", str(repo_with_question)])
+
+    # The excluded file is not even parsed: it would be a parse error.
+    assert result.exit_code == 0, result.output
+    assert "wip/draft-1.mdq" in result.output
+    assert len(_writes_to(calls, "question")) == 1
+
+
+def test_a_pattern_that_matches_nothing_excludes_nothing(
+    repo_with_question, monkeypatch
+):
+    (repo_with_question / "codehood.toml").write_text(
+        _exclude_toml("questions/other.mdq", "questions/*.txt"), encoding="utf-8"
+    )
+    calls: list[tuple[str, str]] = []
+    _install_transport(monkeypatch, _server_with(calls))
+
+    result = runner.invoke(app, ["push", str(repo_with_question)])
+
+    assert result.exit_code == 0, result.output
+    assert "excluded" not in result.output
+    assert ("PUT", f"{BASE}/question") in calls
+
+
+def test_an_excluded_question_that_is_on_the_server_is_left_alone(
+    repo_with_question, monkeypatch
+):
+    _add_question(repo_with_question, "order.mdq", ORDERING_MDQ)
+    (repo_with_question / "codehood.toml").write_text(
+        _exclude_toml("questions/order.mdq"), encoding="utf-8"
+    )
+    calls: list[tuple[str, str]] = []
+    server = _server_with(
+        calls,
+        resources=[_resource_json("week1-slides", _local_ref(repo_with_question))],
+        questions=[
+            _question_json(
+                "big-o",
+                _local_question_version(repo_with_question, ["questions/order.mdq"]),
+            ),
+            _question_json("order", "md5:old-version-from-the-server"),
+        ],
+    )
+    _install_transport(monkeypatch, server)
+
+    result = runner.invoke(app, ["push", str(repo_with_question)])
+
+    assert result.exit_code == 0, result.output
+    assert _writes_to(calls, "question") == []
+
+
+def test_an_excluded_resource_is_neither_pushed_nor_deleted(repo, monkeypatch):
+    (repo / "resources" / "week1" / "private.md").write_text(
+        "# Private\n", encoding="utf-8"
+    )
+    (repo / "codehood.toml").write_text(
+        _exclude_toml("resources/week1/private.md"), encoding="utf-8"
+    )
+    calls: list[tuple[str, str]] = []
+    server = _server_with(
+        calls,
+        resources=[
+            _resource_json(
+                "week1-slides", _local_ref(repo, ["resources/week1/private.md"])
+            ),
+            _resource_json("week1-private", "server-ref"),
+        ],
+    )
+    _install_transport(monkeypatch, server)
+
+    result = runner.invoke(app, ["push", str(repo)])
+
+    assert result.exit_code == 0, result.output
+    assert _writes_to(calls, "resource") == []
+    assert "resources/week1/private.md" in result.output
+
+
+def test_dry_run_reports_excluded_files(repo_with_question, monkeypatch):
+    _add_question(repo_with_question, "order.mdq", ORDERING_MDQ)
+    (repo_with_question / "codehood.toml").write_text(
+        _exclude_toml("questions/order.mdq"), encoding="utf-8"
+    )
+    calls: list[tuple[str, str]] = []
+    _install_transport(monkeypatch, _server_with(calls))
+
+    result = runner.invoke(app, ["push", str(repo_with_question), "--dry-run"])
+
+    assert result.exit_code == 0, result.output
+    assert "questions/order.mdq" in result.output
+    assert "1 excluded" in result.output
+
+
+def test_a_malformed_exclude_table_is_a_config_error(repo, monkeypatch):
+    (repo / "codehood.toml").write_text(TOML + '\n[push]\nexclude = "x"\n')
+    _install_transport(monkeypatch, _server_with([]))
+
+    result = runner.invoke(app, ["push", str(repo)])
+
+    assert result.exit_code == 1, result.output
+    assert "exclude" in result.output

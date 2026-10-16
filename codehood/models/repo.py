@@ -13,8 +13,9 @@ import tomllib
 from pathlib import Path
 from typing import Literal, Self
 
-from pydantic import Field, model_validator
+from pydantic import ConfigDict, Field, field_validator, model_validator
 
+from ..globs import pattern_error
 from .base import Model
 from .validators import (
     DisciplineSlug,
@@ -29,6 +30,7 @@ __all__ = [
     "ServerConfig",
     "GradeColumnConfig",
     "GradesConfig",
+    "PushConfig",
     "RepoConfig",
 ]
 
@@ -84,15 +86,36 @@ class GradesConfig(Model):
         return self
 
 
+class PushConfig(Model):
+    """
+    The `[push]` table: what `codehood push` leaves out.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    #: Gitignore-like patterns, relative to the repository root. See
+    #: `codehood.globs`.
+    exclude: list[str] = Field(default_factory=list)
+
+    @field_validator("exclude")
+    @classmethod
+    def patterns_are_valid(cls, patterns: list[str]) -> list[str]:
+        for pattern in patterns:
+            if (error := pattern_error(pattern)) is not None:
+                raise ValueError(f"{pattern!r}: {error}")
+        return patterns
+
+
 class RepoConfig(Model):
     """
-    The full contents of `codehood.toml`: course identity, server, and the
-    grade columns the course pushes.
+    The full contents of `codehood.toml`: course identity, server, the
+    grade columns the course pushes and what it leaves out of a push.
     """
 
     course: CourseIdentity
     server: ServerConfig
     grades: GradesConfig = Field(default_factory=GradesConfig)
+    push: PushConfig = Field(default_factory=PushConfig)
 
     @classmethod
     def open(cls, path: Path | None = None) -> RepoConfig:

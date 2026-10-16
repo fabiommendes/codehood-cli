@@ -4,6 +4,10 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- `[push] exclude` in `codehood.toml` keeps questions and resources out of a
+  push, with gitignore-like patterns. Excluded files are not parsed, are
+  listed by `codehood push`, and what the server holds for them is never
+  updated or pruned.
 - `codehood push` works again with the current `mdq-py`. A new `push/wire.py`
   translates each question to what the server stores: `shuffle: "inherit"` is
   omitted, fields the server does not know (`diacritics`, `unmatched`,

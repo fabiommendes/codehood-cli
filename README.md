@@ -57,6 +57,28 @@ codehood push
 ```
 
 
+### Keeping files out of a push
+
+Files you do not want on the server (drafts, questions of a type the server
+does not support yet) can be excluded in `codehood.toml`:
+
+```toml
+[push]
+exclude = [
+    "questions/wip",            # a directory: everything under it
+    "questions/**/draft-*.md",  # ** crosses directories
+    "resources/private.md",
+]
+```
+
+Patterns are relative to the repository root and gitignore-like: `*` and `?`
+stay inside one path segment, `**` matches any number of directories, and
+there is no `!` negation. They apply to files under `questions/` and
+`resources/`. An excluded file is not read, so it may even be invalid. What
+the server already holds for it is neither updated nor deleted. `codehood
+push` lists excluded files and does not fail because of them.
+
+
 ### Linking resources from a lesson
 
 A markdown link in a lesson of `calendar.md` to a file under `resources/`, such

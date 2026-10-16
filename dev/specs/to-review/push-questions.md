@@ -117,6 +117,27 @@ repository has no vocabulary for it yet, so every pushed question is
 unless its content changed. Promoting a question is a server-side action
 until the repository grows a way to say so.
 
+### `[push] exclude` keeps files out of a push
+
+`codehood.toml` takes an optional `[push]` table with `exclude`, a list of
+gitignore-like patterns relative to the repository root (`codehood/globs.py`):
+`*` and `?` stay inside one path segment, `**` crosses directories, a pattern
+naming a directory covers everything under it, no negation. Patterns are
+anchored at the root, not matched at any depth.
+
+- Applies to files under `questions/` and `resources/`, the two trees pushed
+  file by file. `exams/` is not pushed yet.
+- An excluded file is never read or parsed, so a draft that does not parse or
+  an `ordering` question (still refused, see "Out, and why") no longer blocks
+  the push.
+- The server is left alone: the plan skips the delete of a slug whose local
+  file is excluded, so `--prune` never removes it, and nothing is upserted.
+  Dropping a pattern later makes the file an ordinary local file again.
+- Push prints one `excluded  <path>` line per file and `, N excluded` at the
+  end of the summary. Excluded files never make the exit code non-zero.
+- An excluded resource cannot be linked from `calendar.md`: the link is an
+  error, as for any file not pushed.
+
 ## Architecture
 
 Unchanged from `push.md`: functional core, imperative shell.
