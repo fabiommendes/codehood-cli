@@ -50,7 +50,7 @@ dev = [
 ]
 
 [tool.taskipy.tasks]
-api-codegen = "python -m codehood_cli.api.generate"
+api-codegen = "python -m codehood.api.generate"
 test-integration = "pytest --run-integration -m integration"
 
 [tool.pytest.ini_options]

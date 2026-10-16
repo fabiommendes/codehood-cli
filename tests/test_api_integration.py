@@ -21,7 +21,7 @@ import httpx
 import pytest
 
 from codehood.api import generated
-from codehood.api.generate import Generator
+from codehood.api.generate import Generator, format_source
 
 pytestmark = pytest.mark.integration
 
@@ -105,7 +105,7 @@ def test_generated_client_matches_what_codegen_would_produce_now(
     """
     response = client.get("/openapi.json")
     response.raise_for_status()
-    fresh_source = Generator(response.json()).generate()
+    fresh_source = format_source(Generator(response.json()).generate())
     committed_source = GENERATED_CLIENT_PATH.read_text()
     assert fresh_source == committed_source, (
         f"{GENERATED_CLIENT_PATH.relative_to(_ROOT)} is stale -- run "

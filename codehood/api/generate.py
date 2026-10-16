@@ -13,6 +13,8 @@ from __future__ import annotations
 import json
 import keyword
 import re
+import shutil
+import subprocess
 from collections import Counter
 from collections.abc import Callable, Iterable
 from pathlib import Path
@@ -1247,12 +1249,36 @@ def render_function(
     return "\n".join(lines) + "\n"
 
 
+def format_source(source: str) -> str:
+    """
+    Format generated source with `ruff format`, using the project's settings.
+
+    The committed `generated.py` is ruff-formatted, so regeneration output
+    must go through here to be committable as is.
+
+    @throws RuntimeError: `ruff` is not on the `PATH` or fails.
+    """
+    ruff = shutil.which("ruff")
+    if ruff is None:
+        raise RuntimeError("`ruff` is required to format the generated client")
+    result = subprocess.run(
+        [ruff, "format", "--stdin-filename", "generated.py", "-"],
+        input=source,
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).parent,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"ruff format failed: {result.stderr.strip()}")
+    return result.stdout
+
+
 #
 # CLI
 #
 def main() -> None:
     """
-    Entry point for `python -m codehood_cli.api.generate`.
+    Entry point for `python -m codehood.api.generate`.
     """
     app = typer.Typer(
         name="api-codegen",
@@ -1290,7 +1316,7 @@ def main() -> None:
             spec = json.loads(Path(path).read_text(encoding="utf-8"))
 
         output = output or Path(__file__).parent / "generated.py"
-        source = Generator(spec).generate()
+        source = format_source(Generator(spec).generate())
         output.write_text(source, encoding="utf-8")
         typer.echo(f"wrote {output}")
 
