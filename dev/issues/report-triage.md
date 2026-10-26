@@ -8,7 +8,7 @@ relatedTo: [reports]
 # Pull and triage user reports
 
 The server collects reports from its users (bugs, suggestions, errors in a
-course's material) at `/api/report`; see `dev/specs/to-do/reports.md` in the
+course's material) at `/api/report`; see `dev/specs/to-review/reports.md` in the
 server repository. Triage happens locally, and the status on the server is the
 checkpoint: a report leaves the `OPEN` queue once someone patches its status.
 
