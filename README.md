@@ -40,6 +40,7 @@ It will create the following folder structure in your current working directory:
 │   │   └── example.md
 │   └── published/
 ├── resources/
+├── repositories/
 ├── codehood.toml
 ├── calendar.md
 ├── roster.csv
@@ -87,6 +88,37 @@ lesson's event. On push, the link in the published lesson points to the
 resource's page on the server; your local `calendar.md` is not changed. A
 resource can belong to at most one lesson, and a link to a file that is not
 under `resources/` is an error. Push writes the calendar before the resources.
+
+### Repositories
+
+Each folder directly under `repositories/` is a git repository of the course,
+and the folder name is its slug (lowercase letters, digits, `.`, `_` and `-`).
+`codehood push` uploads the files and makes one commit per change, and
+students clone it from the course page:
+
+```bash
+codehood push -m "Fix the lab 1 test"   # -m sets the commit message
+```
+
+- `.gitignore` files inside a repository folder apply at every level, `!`
+  included, and are published with the repository. The `.gitignore` at the
+  course root does not apply. `.git` directories are never published.
+- Symlinks, files loose in `repositories/`, files over 16 MB and folders with
+  no file to publish are errors. The executable bit is kept (`100755`); on
+  Windows every file is `100644`.
+- `[push] exclude` patterns also work under `repositories/<slug>/`.
+- A repository whose folder is gone stays on the server, because deleting it
+  breaks its clone URL and history. `codehood push --drop-repositories`
+  deletes it.
+- A link in a lesson of `calendar.md` to `repositories/<slug>` or
+  `repositories/<slug>/<path>` ties the repository to that lesson. The link
+  in the published lesson points to the repository page on the server. A link
+  to a repository or path that does not exist is an error.
+
+A student who commits in their clone should update with `git pull
+--no-rebase`: recent git versions refuse a plain `git pull` when the local
+and the server's branches diverge.
+
 
 ### Final grades
 

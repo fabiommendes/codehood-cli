@@ -131,8 +131,8 @@ class UpsertCourse:
     discipline: str
     course: str
     description: str
-    start_at: str | None
-    end_at: str | None
+    start_at: str
+    end_at: str
 
 
 @dataclass(frozen=True)

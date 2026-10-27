@@ -17,6 +17,14 @@ class AcceptItem(Model):
     comment: str | None = None
 
 
+class BlobMissingInput(Model):
+    hashes: list[str]
+
+
+class BlobMissingResult(Model):
+    missing: list[str]
+
+
 class CalendarEventCreate(Model):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -25,6 +33,7 @@ class CalendarEventCreate(Model):
     description: str | None = None
     week: int
     rev: str | None = None
+    repositories: list[str] | None = None
     time_slot: str = Field(alias="timeSlot")
 
 
@@ -49,8 +58,8 @@ class CourseCreate(Model):
     edition: str
     instructor: str | None = None
     rev: str | None = None
-    start_at: str | None = Field(alias="startAt")
-    end_at: str | None = Field(alias="endAt")
+    start_at: str = Field(alias="startAt")
+    end_at: str = Field(alias="endAt")
 
 
 class CourseGradesResponseStudentsItemShape(Model):
@@ -119,9 +128,9 @@ class Edition(Model):
 
     slug: str
     name: str
-    start_at: str | None = Field(alias="startAt")
-    end_at: str | None = Field(alias="endAt")
-    created_at: str | None = Field(alias="createdAt")
+    start_at: str = Field(alias="startAt")
+    end_at: str = Field(alias="endAt")
+    created_at: str = Field(alias="createdAt")
 
 
 class EditionCreate(Model):
@@ -129,8 +138,8 @@ class EditionCreate(Model):
 
     slug: str
     name: str
-    start_at: str | None = Field(alias="startAt")
-    end_at: str | None = Field(alias="endAt")
+    start_at: str = Field(alias="startAt")
+    end_at: str = Field(alias="endAt")
 
 
 class Event(Model):
@@ -291,6 +300,33 @@ class Question3QuestionNumeric(Model):
     domain: Literal["integer", "decimal", "fraction"]
 
 
+class RepositoriesItem(Model):
+    slug: str
+    title: str
+
+
+class Repository(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    slug: str
+    title: str
+    head: str | None
+    tree: str | None
+    message: str | None
+    committed_at: str | None = Field(alias="committedAt")
+    clone_url: str = Field(alias="cloneUrl")
+    created_at: str = Field(alias="createdAt")
+    updated_at: str = Field(alias="updatedAt")
+
+
+class RepositoryCreate(Model):
+    slug: str
+
+
+class RepositoryDeleted(Model):
+    deleted: bool
+
+
 class ResourceCreateDataFile(Model):
     filename: str
     type: Literal["FILE"]
@@ -331,6 +367,7 @@ class UpdateCalendarEventRequest(Model):
     title: str | None = None
     description: str | None = None
     rev: str | None = None
+    repositories: list[str] | None = None
 
 
 class UpdateCourseRequest(Model):
@@ -793,6 +830,7 @@ class CalendarEvent(Model):
     week: int
     time_slot: TimeSlotAtCalendarEvent = Field(alias="timeSlot")
     rev: str | None
+    repositories: list[RepositoriesItem]
     created_at: str = Field(alias="createdAt")
     updated_at: str = Field(alias="updatedAt")
 
@@ -953,6 +991,24 @@ class InvalidCredentials(CodehoodAPIError):
     @property
     def timestamp(self) -> str | None:
         return self.payload.timestamp
+
+
+def blob_missing(
+    *, body: BlobMissingInput, client: httpx.Client | None = None
+) -> BlobMissingResult:
+    """
+    List the hashes the server has no blob for.
+    """
+    client = client if client is not None else get_client()
+    response = client.post(
+        "/api/blob/missing",
+        json=body.model_dump(mode="json", by_alias=True),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return BlobMissingResult.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
 
 
 def course_attendance(
@@ -1942,6 +1998,68 @@ def read_user(*, username: str, client: httpx.Client | None = None) -> User:
     )
     if response.status_code == 200:
         return User.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def repository_delete(
+    *, discipline: str, course: str, slug: str, client: httpx.Client | None = None
+) -> RepositoryDeleted:
+    """
+    Delete a single Repository.
+    """
+    client = client if client is not None else get_client()
+    response = client.delete(
+        "/api/course/{discipline}/{course}/repository/{slug}".format(
+            discipline=discipline, course=course, slug=slug
+        ),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return RepositoryDeleted.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def repository_list(
+    *, discipline: str, course: str, client: httpx.Client | None = None
+) -> list[Repository]:
+    """
+    Find multiple Repositories.
+    """
+    client = client if client is not None else get_client()
+    response = client.get(
+        "/api/course/{discipline}/{course}/repository".format(
+            discipline=discipline, course=course
+        ),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return TypeAdapter(list[Repository]).validate_python(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def repository_upsert(
+    *,
+    discipline: str,
+    course: str,
+    body: RepositoryCreate,
+    client: httpx.Client | None = None,
+) -> Repository:
+    """
+    Upsert a single Repository.
+    """
+    client = client if client is not None else get_client()
+    response = client.put(
+        "/api/course/{discipline}/{course}/repository".format(
+            discipline=discipline, course=course
+        ),
+        json=body.model_dump(mode="json", by_alias=True),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return Repository.model_validate(response.json())
     response.raise_for_status()
     raise CodehoodAPIError(response.status_code, Model())
 

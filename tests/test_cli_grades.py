@@ -189,6 +189,7 @@ def _calendar_event_json() -> dict:
             "duration": {"hours": 2, "minutes": 0},
         },
         "rev": "ref-event",
+        "repositories": [],
         "createdAt": STAMP,
         "updatedAt": STAMP,
     }

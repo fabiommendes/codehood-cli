@@ -119,6 +119,7 @@ def _calendar_event_json(
             "duration": {"hours": 2, "minutes": 0},
         },
         "rev": "ref-event",
+        "repositories": [],
         "createdAt": "2026-01-01T00:00:00Z",
         "updatedAt": "2026-01-01T00:00:00Z",
     }

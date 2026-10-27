@@ -305,6 +305,15 @@ One immutable revision of a question's content — title, stem, and a
 type-specific JSON payload — identified by a hash. Editing appends a version
 and repoints `QuestionRef.latest`; exams and courses may pin an older one.
 
+## Repository
+
+Type: domain
+Code: `Repository`, `RepositoryService`
+
+A git repository of a [Course](#course), pushed by the [CLI](#cli) from a
+folder under `repositories/` (the folder name is the slug). The server keeps
+one commit per push and serves it to `git clone` over HTTP.
+
 ## Reserved slug
 
 Type: platform 

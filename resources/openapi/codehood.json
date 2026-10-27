@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "info": {
     "title": "Codehood API",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "description": "REST API for the Codehood CLI and grading bots. Authenticated with `Authorization: Bearer <key>`, except where noted — see src/urls/README.md."
   },
   "servers": [
@@ -30,7 +30,8 @@
         "properties": {
           "publicId": {
             "type": "string",
-            "pattern": "^[A-Za-z0-9_-]+$",
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9_\\-]+$",
             "example": "k3Vx9QpL2a"
           },
           "name": {
@@ -171,7 +172,8 @@
             "properties": {
               "slug": {
                 "type": "string",
-                "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                "maxLength": 200,
+                "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                 "example": "intro-to-recursion"
               },
               "day": {
@@ -231,6 +233,28 @@
             "nullable": true,
             "minLength": 1
           },
+          "repositories": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "slug": {
+                  "type": "string",
+                  "maxLength": 200,
+                  "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                  "example": "intro-to-recursion"
+                },
+                "title": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "slug",
+                "title"
+              ]
+            }
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -248,6 +272,7 @@
           "week",
           "timeSlot",
           "rev",
+          "repositories",
           "createdAt",
           "updatedAt"
         ]
@@ -279,9 +304,20 @@
             "nullable": true,
             "minLength": 1
           },
+          "repositories": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string",
+              "maxLength": 200,
+              "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+              "example": "intro-to-recursion"
+            }
+          },
           "timeSlot": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
             "example": "intro-to-recursion"
           }
         },
@@ -320,7 +356,7 @@
             "properties": {
               "slug": {
                 "type": "string",
-                "pattern": "^[0-9]{4}(-([1-9][0-9]*|0))?$",
+                "pattern": "^[0-9]{4}(-([1-9][0-9]?|0))?$",
                 "example": "2026-1"
               },
               "name": {
@@ -422,12 +458,10 @@
           },
           "startAt": {
             "type": "string",
-            "nullable": true,
             "format": "date-time"
           },
           "endAt": {
             "type": "string",
-            "nullable": true,
             "format": "date-time"
           }
         },
@@ -465,7 +499,8 @@
         "properties": {
           "slug": {
             "type": "string",
-            "minLength": 1
+            "pattern": "^[a-z][a-z0-9\\-]{1,30}[a-z0-9]$",
+            "example": "calculus-1"
           },
           "name": {
             "type": "string",
@@ -482,7 +517,7 @@
         "properties": {
           "slug": {
             "type": "string",
-            "pattern": "^[0-9]{4}(-([1-9][0-9]*|0))?$",
+            "pattern": "^[0-9]{4}(-([1-9][0-9]?|0))?$",
             "example": "2026-1"
           },
           "name": {
@@ -491,17 +526,14 @@
           },
           "startAt": {
             "type": "string",
-            "nullable": true,
             "format": "date-time"
           },
           "endAt": {
             "type": "string",
-            "nullable": true,
             "format": "date-time"
           },
           "createdAt": {
             "type": "string",
-            "nullable": true,
             "format": "date-time"
           }
         },
@@ -518,7 +550,7 @@
         "properties": {
           "slug": {
             "type": "string",
-            "pattern": "^[0-9]{4}(-([1-9][0-9]*|0))?$",
+            "pattern": "^[0-9]{4}(-([1-9][0-9]?|0))?$",
             "example": "2026-1"
           },
           "name": {
@@ -527,12 +559,10 @@
           },
           "startAt": {
             "type": "string",
-            "nullable": true,
             "format": "date-time"
           },
           "endAt": {
             "type": "string",
-            "nullable": true,
             "format": "date-time"
           }
         },
@@ -548,7 +578,8 @@
         "properties": {
           "slug": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
             "example": "intro-to-recursion"
           },
           "type": {
@@ -649,7 +680,8 @@
               "properties": {
                 "slug": {
                   "type": "string",
-                  "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                  "maxLength": 200,
+                  "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                   "example": "intro-to-recursion"
                 },
                 "version": {
@@ -698,7 +730,8 @@
         "properties": {
           "slug": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
             "example": "intro-to-recursion"
           },
           "type": {
@@ -741,7 +774,6 @@
           },
           "scheduledAt": {
             "type": "string",
-            "nullable": true,
             "format": "date-time"
           },
           "duration": {
@@ -777,7 +809,8 @@
               "properties": {
                 "slug": {
                   "type": "string",
-                  "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                  "maxLength": 200,
+                  "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                   "example": "intro-to-recursion"
                 },
                 "version": {
@@ -797,12 +830,103 @@
           "title"
         ]
       },
+      "Exam Exception": {
+        "type": "object",
+        "properties": {
+          "exam": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+            "example": "intro-to-recursion"
+          },
+          "username": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+            "example": "ada"
+          },
+          "extraTime": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "hours": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "minutes": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          },
+          "scheduledAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "exam",
+          "username",
+          "extraTime",
+          "scheduledAt",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "Exam ExceptionCreate": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+            "example": "ada"
+          },
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "extraTime": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "hours": {
+                "type": "integer",
+                "minimum": 0
+              },
+              "minutes": {
+                "type": "integer",
+                "minimum": 0
+              }
+            }
+          }
+        },
+        "required": [
+          "username"
+        ]
+      },
       "Grade Column": {
         "type": "object",
         "properties": {
           "slug": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
             "example": "intro-to-recursion"
           },
           "title": {
@@ -835,7 +959,7 @@
               "properties": {
                 "username": {
                   "type": "string",
-                  "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                   "example": "ada"
                 },
                 "value": {
@@ -881,7 +1005,8 @@
         "properties": {
           "slug": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
             "example": "intro-to-recursion"
           },
           "title": {
@@ -911,7 +1036,7 @@
               "properties": {
                 "username": {
                   "type": "string",
-                  "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                  "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                   "example": "ada"
                 },
                 "value": {
@@ -947,7 +1072,8 @@
         "properties": {
           "publicId": {
             "type": "string",
-            "pattern": "^[A-Za-z0-9_-]+$",
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9_\\-]+$",
             "example": "k3Vx9QpL2a"
           },
           "kind": {
@@ -1121,6 +1247,396 @@
           "maxUses"
         ]
       },
+      "Report": {
+        "type": "object",
+        "properties": {
+          "publicId": {
+            "type": "string",
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9_\\-]+$",
+            "example": "k3Vx9QpL2a"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "BUG",
+              "SUGGESTION",
+              "CONTENT",
+              "OTHER"
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "TRIAGED",
+              "RESOLVED",
+              "DISMISSED"
+            ]
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "url": {
+            "type": "string",
+            "nullable": true
+          },
+          "userAgent": {
+            "type": "string",
+            "nullable": true
+          },
+          "viewport": {
+            "type": "string",
+            "nullable": true
+          },
+          "author": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+            "example": "ada"
+          },
+          "course": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "discipline": {
+                "type": "string"
+              },
+              "instructor": {
+                "type": "string"
+              },
+              "edition": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "discipline",
+              "instructor",
+              "edition"
+            ]
+          },
+          "attachments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "filename": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "mimeType": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "size": {
+                  "type": "integer"
+                },
+                "url": {
+                  "type": "string",
+                  "minLength": 1
+                }
+              },
+              "required": [
+                "filename",
+                "mimeType",
+                "size",
+                "url"
+              ]
+            }
+          },
+          "triagedBy": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+            "example": "ada"
+          },
+          "triagedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "publicId",
+          "kind",
+          "message",
+          "status",
+          "url",
+          "userAgent",
+          "viewport",
+          "author",
+          "course",
+          "attachments",
+          "triagedBy",
+          "triagedAt",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "ReportCreate": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "BUG",
+              "SUGGESTION",
+              "CONTENT",
+              "OTHER"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 10,
+            "maxLength": 4000
+          },
+          "url": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 2000
+          },
+          "userAgent": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 500
+          },
+          "viewport": {
+            "type": "string",
+            "nullable": true,
+            "maxLength": 50
+          },
+          "course": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "discipline": {
+                    "type": "string"
+                  },
+                  "instructor": {
+                    "type": "string"
+                  },
+                  "edition": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "discipline",
+                  "instructor",
+                  "edition"
+                ]
+              },
+              {
+                "nullable": true
+              }
+            ]
+          }
+        },
+        "required": [
+          "kind",
+          "message"
+        ]
+      },
+      "Repository": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+            "example": "intro-to-recursion"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1
+          },
+          "head": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^[0-9a-f]{40}$",
+            "example": "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+          },
+          "tree": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^[0-9a-f]{40}$",
+            "example": "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+          },
+          "message": {
+            "type": "string",
+            "nullable": true
+          },
+          "committedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "cloneUrl": {
+            "type": "string",
+            "format": "uri"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "slug",
+          "title",
+          "head",
+          "tree",
+          "message",
+          "committedAt",
+          "cloneUrl",
+          "createdAt",
+          "updatedAt"
+        ]
+      },
+      "RepositoryCreate": {
+        "type": "object",
+        "properties": {
+          "slug": {
+            "type": "string",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+            "example": "intro-to-recursion"
+          }
+        },
+        "required": [
+          "slug"
+        ]
+      },
+      "RepositoryDeleted": {
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "deleted"
+        ]
+      },
+      "RepositoryFilesResult": {
+        "type": "object",
+        "properties": {
+          "added": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+            }
+          }
+        },
+        "required": [
+          "added"
+        ]
+      },
+      "RepositoryFiles": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string",
+          "format": "binary"
+        }
+      },
+      "RepositoryCommit": {
+        "type": "object",
+        "properties": {
+          "tree": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 255,
+                  "example": "src/main.py"
+                },
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "100644",
+                    "100755"
+                  ]
+                },
+                "hash": {
+                  "type": "string",
+                  "pattern": "^[0-9a-f]{64}$",
+                  "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+                }
+              },
+              "required": [
+                "path",
+                "mode",
+                "hash"
+              ]
+            },
+            "minItems": 1,
+            "maxItems": 2000
+          },
+          "message": {
+            "type": "string",
+            "nullable": true,
+            "minLength": 1
+          }
+        },
+        "required": [
+          "tree"
+        ]
+      },
+      "BlobMissingResult": {
+        "type": "object",
+        "properties": {
+          "missing": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+            }
+          }
+        },
+        "required": [
+          "missing"
+        ]
+      },
+      "BlobMissingInput": {
+        "type": "object",
+        "properties": {
+          "hashes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$",
+              "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+            },
+            "maxItems": 2000
+          }
+        },
+        "required": [
+          "hashes"
+        ]
+      },
       "Resource": {
         "type": "object",
         "properties": {
@@ -1241,7 +1757,8 @@
               },
               "timeSlot": {
                 "type": "string",
-                "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                "maxLength": 200,
+                "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                 "example": "intro-to-recursion"
               }
             },
@@ -1305,7 +1822,8 @@
               },
               "timeSlot": {
                 "type": "string",
-                "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                "maxLength": 200,
+                "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                 "example": "intro-to-recursion"
               }
             },
@@ -1418,7 +1936,8 @@
             "properties": {
               "slug": {
                 "type": "string",
-                "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                "maxLength": 200,
+                "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                 "example": "intro-to-recursion"
               },
               "status": {
@@ -2376,7 +2895,8 @@
             "properties": {
               "slug": {
                 "type": "string",
-                "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                "maxLength": 200,
+                "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                 "example": "intro-to-recursion"
               },
               "status": {
@@ -2984,7 +3504,8 @@
         "properties": {
           "slug": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
             "example": "intro-to-recursion"
           },
           "status": {
@@ -3931,17 +4452,19 @@
         "properties": {
           "publicId": {
             "type": "string",
-            "pattern": "^[A-Za-z0-9_-]+$",
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9_\\-]+$",
             "example": "k3Vx9QpL2a"
           },
           "exam": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
             "example": "intro-to-recursion"
           },
           "author": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
             "example": "ada"
           },
           "practiceSession": {
@@ -3959,17 +4482,20 @@
               "properties": {
                 "publicId": {
                   "type": "string",
-                  "pattern": "^[A-Za-z0-9_-]+$",
+                  "maxLength": 64,
+                  "pattern": "^[A-Za-z0-9_\\-]+$",
                   "example": "k3Vx9QpL2a"
                 },
                 "response": {
                   "type": "string",
-                  "pattern": "^[A-Za-z0-9_-]+$",
+                  "maxLength": 64,
+                  "pattern": "^[A-Za-z0-9_\\-]+$",
                   "example": "k3Vx9QpL2a"
                 },
                 "question": {
                   "type": "string",
-                  "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                  "maxLength": 200,
+                  "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                   "example": "intro-to-recursion"
                 },
                 "status": {
@@ -4040,17 +4566,17 @@
           },
           "exam": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
             "example": "intro-to-recursion"
           },
           "author": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
             "example": "ada"
           },
           "practiceSession": {
             "type": "string",
-            "nullable": true,
             "format": "date-time"
           }
         },
@@ -4063,17 +4589,20 @@
         "properties": {
           "publicId": {
             "type": "string",
-            "pattern": "^[A-Za-z0-9_-]+$",
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9_\\-]+$",
             "example": "k3Vx9QpL2a"
           },
           "response": {
             "type": "string",
-            "pattern": "^[A-Za-z0-9_-]+$",
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9_\\-]+$",
             "example": "k3Vx9QpL2a"
           },
           "question": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
             "example": "intro-to-recursion"
           },
           "status": {
@@ -4138,7 +4667,6 @@
           },
           "startedAt": {
             "type": "string",
-            "nullable": true,
             "format": "date-time"
           },
           "response": {
@@ -4146,7 +4674,8 @@
             "properties": {
               "publicId": {
                 "type": "string",
-                "pattern": "^[A-Za-z0-9_-]+$",
+                "maxLength": 64,
+                "pattern": "^[A-Za-z0-9_\\-]+$",
                 "example": "k3Vx9QpL2a"
               }
             },
@@ -4156,7 +4685,8 @@
           },
           "question": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
             "example": "intro-to-recursion"
           }
         },
@@ -4171,12 +4701,14 @@
         "properties": {
           "ref": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
             "example": "intro-to-recursion"
           },
           "submission": {
             "type": "string",
-            "pattern": "^[A-Za-z0-9_-]+$",
+            "maxLength": 64,
+            "pattern": "^[A-Za-z0-9_\\-]+$",
             "example": "k3Vx9QpL2a"
           },
           "score": {
@@ -4187,7 +4719,7 @@
           "grader": {
             "type": "string",
             "nullable": true,
-            "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
             "example": "ada"
           },
           "bot": {
@@ -4223,7 +4755,8 @@
         "properties": {
           "ref": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
             "example": "intro-to-recursion"
           },
           "score": {
@@ -4234,7 +4767,7 @@
           "grader": {
             "type": "string",
             "nullable": true,
-            "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
             "example": "ada"
           },
           "bot": {
@@ -4256,7 +4789,8 @@
         "properties": {
           "slug": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
             "example": "intro-to-recursion"
           },
           "title": {
@@ -4331,7 +4865,8 @@
         "properties": {
           "slug": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
             "example": "intro-to-recursion"
           },
           "title": {
@@ -4448,7 +4983,7 @@
           },
           "username": {
             "type": "string",
-            "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
             "example": "ada"
           },
           "role": {
@@ -4461,11 +4996,15 @@
           },
           "githubId": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "pattern": "^@?[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$",
+            "example": "ada-lovelace"
           },
           "schoolId": {
             "type": "string",
-            "nullable": true
+            "nullable": true,
+            "pattern": "^[A-Za-z0-9._\\-]{1,32}$",
+            "example": "231012345"
           },
           "password": {
             "type": "string",
@@ -4556,7 +5095,7 @@
               },
               {
                 "type": "string",
-                "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                 "example": "ada"
               }
             ],
@@ -4657,7 +5196,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
               "example": "ada"
             },
             "required": true,
@@ -4677,7 +5216,8 @@
                     "properties": {
                       "publicId": {
                         "type": "string",
-                        "pattern": "^[A-Za-z0-9_-]+$",
+                        "maxLength": 64,
+                        "pattern": "^[A-Za-z0-9_\\-]+$",
                         "example": "k3Vx9QpL2a"
                       },
                       "name": {
@@ -4764,7 +5304,8 @@
                   "properties": {
                     "publicId": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
                       "example": "k3Vx9QpL2a"
                     },
                     "name": {
@@ -5016,7 +5557,8 @@
                         "properties": {
                           "slug": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                             "example": "intro-to-recursion"
                           },
                           "day": {
@@ -5076,6 +5618,28 @@
                         "nullable": true,
                         "minLength": 1
                       },
+                      "repositories": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "slug": {
+                              "type": "string",
+                              "maxLength": 200,
+                              "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                              "example": "intro-to-recursion"
+                            },
+                            "title": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "slug",
+                            "title"
+                          ]
+                        }
+                      },
                       "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -5093,6 +5657,7 @@
                       "week",
                       "timeSlot",
                       "rev",
+                      "repositories",
                       "createdAt",
                       "updatedAt"
                     ]
@@ -5157,9 +5722,20 @@
                     "nullable": true,
                     "minLength": 1
                   },
+                  "repositories": {
+                    "type": "array",
+                    "nullable": true,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                      "example": "intro-to-recursion"
+                    }
+                  },
                   "timeSlot": {
                     "type": "string",
-                    "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                    "maxLength": 200,
+                    "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                     "example": "intro-to-recursion"
                   }
                 },
@@ -5208,7 +5784,8 @@
                       "properties": {
                         "slug": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                          "maxLength": 200,
+                          "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                           "example": "intro-to-recursion"
                         },
                         "day": {
@@ -5268,6 +5845,28 @@
                       "nullable": true,
                       "minLength": 1
                     },
+                    "repositories": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                            "example": "intro-to-recursion"
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "title"
+                        ]
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -5285,6 +5884,7 @@
                     "week",
                     "timeSlot",
                     "rev",
+                    "repositories",
                     "createdAt",
                     "updatedAt"
                   ]
@@ -5372,7 +5972,8 @@
                       "properties": {
                         "slug": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                          "maxLength": 200,
+                          "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                           "example": "intro-to-recursion"
                         },
                         "day": {
@@ -5432,6 +6033,28 @@
                       "nullable": true,
                       "minLength": 1
                     },
+                    "repositories": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                            "example": "intro-to-recursion"
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "title"
+                        ]
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -5449,6 +6072,7 @@
                     "week",
                     "timeSlot",
                     "rev",
+                    "repositories",
                     "createdAt",
                     "updatedAt"
                   ]
@@ -5524,6 +6148,16 @@
                     "type": "string",
                     "nullable": true,
                     "minLength": 1
+                  },
+                  "repositories": {
+                    "type": "array",
+                    "nullable": true,
+                    "items": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                      "example": "intro-to-recursion"
+                    }
                   }
                 }
               }
@@ -5566,7 +6200,8 @@
                       "properties": {
                         "slug": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                          "maxLength": 200,
+                          "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                           "example": "intro-to-recursion"
                         },
                         "day": {
@@ -5626,6 +6261,28 @@
                       "nullable": true,
                       "minLength": 1
                     },
+                    "repositories": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                            "example": "intro-to-recursion"
+                          },
+                          "title": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "title"
+                        ]
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -5643,6 +6300,7 @@
                     "week",
                     "timeSlot",
                     "rev",
+                    "repositories",
                     "createdAt",
                     "updatedAt"
                   ]
@@ -5745,7 +6403,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
               "example": "ada"
             },
             "required": false,
@@ -5755,7 +6413,8 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[a-z0-9][a-z0-9._-]*$",
+              "maxLength": 200,
+              "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
               "example": "intro-to-recursion"
             },
             "required": false,
@@ -5765,7 +6424,8 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[a-z0-9][a-z0-9._-]*$",
+              "maxLength": 200,
+              "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
               "example": "intro-to-recursion"
             },
             "required": false,
@@ -5809,7 +6469,7 @@
                         "properties": {
                           "slug": {
                             "type": "string",
-                            "pattern": "^[0-9]{4}(-([1-9][0-9]*|0))?$",
+                            "pattern": "^[0-9]{4}(-([1-9][0-9]?|0))?$",
                             "example": "2026-1"
                           },
                           "name": {
@@ -5926,12 +6586,10 @@
                   },
                   "startAt": {
                     "type": "string",
-                    "nullable": true,
                     "format": "date-time"
                   },
                   "endAt": {
                     "type": "string",
-                    "nullable": true,
                     "format": "date-time"
                   }
                 },
@@ -5979,7 +6637,7 @@
                       "properties": {
                         "slug": {
                           "type": "string",
-                          "pattern": "^[0-9]{4}(-([1-9][0-9]*|0))?$",
+                          "pattern": "^[0-9]{4}(-([1-9][0-9]?|0))?$",
                           "example": "2026-1"
                         },
                         "name": {
@@ -6117,7 +6775,7 @@
                       "properties": {
                         "slug": {
                           "type": "string",
-                          "pattern": "^[0-9]{4}(-([1-9][0-9]*|0))?$",
+                          "pattern": "^[0-9]{4}(-([1-9][0-9]?|0))?$",
                           "example": "2026-1"
                         },
                         "name": {
@@ -6281,7 +6939,7 @@
                       "properties": {
                         "slug": {
                           "type": "string",
-                          "pattern": "^[0-9]{4}(-([1-9][0-9]*|0))?$",
+                          "pattern": "^[0-9]{4}(-([1-9][0-9]?|0))?$",
                           "example": "2026-1"
                         },
                         "name": {
@@ -6494,7 +7152,8 @@
                 "properties": {
                   "slug": {
                     "type": "string",
-                    "minLength": 1
+                    "pattern": "^[a-z][a-z0-9\\-]{1,30}[a-z0-9]$",
+                    "example": "calculus-1"
                   },
                   "name": {
                     "type": "string",
@@ -6752,7 +7411,7 @@
                     "properties": {
                       "slug": {
                         "type": "string",
-                        "pattern": "^[0-9]{4}(-([1-9][0-9]*|0))?$",
+                        "pattern": "^[0-9]{4}(-([1-9][0-9]?|0))?$",
                         "example": "2026-1"
                       },
                       "name": {
@@ -6761,17 +7420,14 @@
                       },
                       "startAt": {
                         "type": "string",
-                        "nullable": true,
                         "format": "date-time"
                       },
                       "endAt": {
                         "type": "string",
-                        "nullable": true,
                         "format": "date-time"
                       },
                       "createdAt": {
                         "type": "string",
-                        "nullable": true,
                         "format": "date-time"
                       }
                     },
@@ -6803,7 +7459,7 @@
                 "properties": {
                   "slug": {
                     "type": "string",
-                    "pattern": "^[0-9]{4}(-([1-9][0-9]*|0))?$",
+                    "pattern": "^[0-9]{4}(-([1-9][0-9]?|0))?$",
                     "example": "2026-1"
                   },
                   "name": {
@@ -6812,12 +7468,10 @@
                   },
                   "startAt": {
                     "type": "string",
-                    "nullable": true,
                     "format": "date-time"
                   },
                   "endAt": {
                     "type": "string",
-                    "nullable": true,
                     "format": "date-time"
                   }
                 },
@@ -6841,7 +7495,7 @@
                   "properties": {
                     "slug": {
                       "type": "string",
-                      "pattern": "^[0-9]{4}(-([1-9][0-9]*|0))?$",
+                      "pattern": "^[0-9]{4}(-([1-9][0-9]?|0))?$",
                       "example": "2026-1"
                     },
                     "name": {
@@ -6850,17 +7504,14 @@
                     },
                     "startAt": {
                       "type": "string",
-                      "nullable": true,
                       "format": "date-time"
                     },
                     "endAt": {
                       "type": "string",
-                      "nullable": true,
                       "format": "date-time"
                     },
                     "createdAt": {
                       "type": "string",
-                      "nullable": true,
                       "format": "date-time"
                     }
                   },
@@ -6905,7 +7556,7 @@
                   "properties": {
                     "slug": {
                       "type": "string",
-                      "pattern": "^[0-9]{4}(-([1-9][0-9]*|0))?$",
+                      "pattern": "^[0-9]{4}(-([1-9][0-9]?|0))?$",
                       "example": "2026-1"
                     },
                     "name": {
@@ -6914,17 +7565,14 @@
                     },
                     "startAt": {
                       "type": "string",
-                      "nullable": true,
                       "format": "date-time"
                     },
                     "endAt": {
                       "type": "string",
-                      "nullable": true,
                       "format": "date-time"
                     },
                     "createdAt": {
                       "type": "string",
-                      "nullable": true,
                       "format": "date-time"
                     }
                   },
@@ -6969,12 +7617,10 @@
                   },
                   "startAt": {
                     "type": "string",
-                    "nullable": true,
                     "format": "date-time"
                   },
                   "endAt": {
                     "type": "string",
-                    "nullable": true,
                     "format": "date-time"
                   }
                 }
@@ -6992,7 +7638,7 @@
                   "properties": {
                     "slug": {
                       "type": "string",
-                      "pattern": "^[0-9]{4}(-([1-9][0-9]*|0))?$",
+                      "pattern": "^[0-9]{4}(-([1-9][0-9]?|0))?$",
                       "example": "2026-1"
                     },
                     "name": {
@@ -7001,17 +7647,14 @@
                     },
                     "startAt": {
                       "type": "string",
-                      "nullable": true,
                       "format": "date-time"
                     },
                     "endAt": {
                       "type": "string",
-                      "nullable": true,
                       "format": "date-time"
                     },
                     "createdAt": {
                       "type": "string",
-                      "nullable": true,
                       "format": "date-time"
                     }
                   },
@@ -7133,7 +7776,8 @@
               "type": "array",
               "items": {
                 "type": "string",
-                "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                "maxLength": 200,
+                "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                 "example": "intro-to-recursion"
               }
             },
@@ -7200,7 +7844,8 @@
                     "properties": {
                       "slug": {
                         "type": "string",
-                        "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                        "maxLength": 200,
+                        "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                         "example": "intro-to-recursion"
                       },
                       "type": {
@@ -7301,7 +7946,8 @@
                           "properties": {
                             "slug": {
                               "type": "string",
-                              "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                              "maxLength": 200,
+                              "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                               "example": "intro-to-recursion"
                             },
                             "version": {
@@ -7383,7 +8029,8 @@
                 "properties": {
                   "slug": {
                     "type": "string",
-                    "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                    "maxLength": 200,
+                    "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                     "example": "intro-to-recursion"
                   },
                   "type": {
@@ -7426,7 +8073,6 @@
                   },
                   "scheduledAt": {
                     "type": "string",
-                    "nullable": true,
                     "format": "date-time"
                   },
                   "duration": {
@@ -7462,7 +8108,8 @@
                       "properties": {
                         "slug": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                          "maxLength": 200,
+                          "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                           "example": "intro-to-recursion"
                         },
                         "version": {
@@ -7495,7 +8142,8 @@
                   "properties": {
                     "slug": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "type": {
@@ -7596,7 +8244,8 @@
                         "properties": {
                           "slug": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                             "example": "intro-to-recursion"
                           },
                           "version": {
@@ -7689,7 +8338,8 @@
                   "properties": {
                     "slug": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "type": {
@@ -7790,7 +8440,8 @@
                         "properties": {
                           "slug": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                             "example": "intro-to-recursion"
                           },
                           "version": {
@@ -7917,7 +8568,6 @@
                   },
                   "scheduledAt": {
                     "type": "string",
-                    "nullable": true,
                     "format": "date-time"
                   },
                   "duration": {
@@ -7953,7 +8603,8 @@
                       "properties": {
                         "slug": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                          "maxLength": 200,
+                          "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                           "example": "intro-to-recursion"
                         },
                         "version": {
@@ -7996,7 +8647,8 @@
                   "properties": {
                     "slug": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "type": {
@@ -8097,7 +8749,8 @@
                         "properties": {
                           "slug": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                             "example": "intro-to-recursion"
                           },
                           "version": {
@@ -8175,6 +8828,608 @@
             },
             "required": true,
             "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Deleted"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/exam/{slug}/exception": {
+      "post": {
+        "operationId": "createExam-exception",
+        "summary": "Creates a new Exam Exception.",
+        "tags": [
+          "Exams"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Exam ExceptionCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exam Exception"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listExam-exception",
+        "summary": "Find multiple Exam Exceptions.",
+        "tags": [
+          "Exams"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+              "example": "ada"
+            },
+            "required": false,
+            "name": "username",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "exam": {
+                        "type": "string",
+                        "maxLength": 200,
+                        "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                        "example": "intro-to-recursion"
+                      },
+                      "username": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+                        "example": "ada"
+                      },
+                      "extraTime": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                          "hours": {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          "minutes": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        }
+                      },
+                      "scheduledAt": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "date-time"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "note": {
+                        "type": "string",
+                        "nullable": true
+                      }
+                    },
+                    "required": [
+                      "exam",
+                      "username",
+                      "extraTime",
+                      "scheduledAt",
+                      "createdAt",
+                      "updatedAt"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "upsertExam-exception",
+        "summary": "Upsert a single Exam Exception. Creates if it does not exist, update otherwise.",
+        "tags": [
+          "Exams"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+                    "example": "ada"
+                  },
+                  "scheduledAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "note": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "extraTime": {
+                    "type": "object",
+                    "nullable": true,
+                    "properties": {
+                      "hours": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "minutes": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                },
+                "required": [
+                  "username"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "exam": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                      "example": "intro-to-recursion"
+                    },
+                    "username": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+                      "example": "ada"
+                    },
+                    "extraTime": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "hours": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "minutes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "scheduledAt": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "note": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "exam",
+                    "username",
+                    "extraTime",
+                    "scheduledAt",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/exam/{slug}/exception/{username}": {
+      "get": {
+        "operationId": "readExam-exception",
+        "summary": "Find a single Exam Exception.",
+        "tags": [
+          "Exams"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "username",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "exam": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                      "example": "intro-to-recursion"
+                    },
+                    "username": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+                      "example": "ada"
+                    },
+                    "extraTime": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "hours": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "minutes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "scheduledAt": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "note": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "exam",
+                    "username",
+                    "extraTime",
+                    "scheduledAt",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateExam-exception",
+        "summary": "Update a single Exam Exception.",
+        "tags": [
+          "Exams"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "username",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "scheduledAt": {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  "note": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "extraTime": {
+                    "type": "object",
+                    "nullable": true,
+                    "properties": {
+                      "hours": {
+                        "type": "integer",
+                        "minimum": 0
+                      },
+                      "minutes": {
+                        "type": "integer",
+                        "minimum": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "exam": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                      "example": "intro-to-recursion"
+                    },
+                    "username": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+                      "example": "ada"
+                    },
+                    "extraTime": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "hours": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "minutes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "scheduledAt": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "note": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "exam",
+                    "username",
+                    "extraTime",
+                    "scheduledAt",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteExam-exception",
+        "summary": "Delete a single Exam Exception by primary key.",
+        "tags": [
+          "Exams"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "username",
             "in": "path"
           }
         ],
@@ -8275,7 +9530,8 @@
                     "properties": {
                       "slug": {
                         "type": "string",
-                        "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                        "maxLength": 200,
+                        "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                         "example": "intro-to-recursion"
                       },
                       "title": {
@@ -8308,7 +9564,7 @@
                           "properties": {
                             "username": {
                               "type": "string",
-                              "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                               "example": "ada"
                             },
                             "value": {
@@ -8387,7 +9643,8 @@
                 "properties": {
                   "slug": {
                     "type": "string",
-                    "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                    "maxLength": 200,
+                    "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                     "example": "intro-to-recursion"
                   },
                   "title": {
@@ -8417,7 +9674,7 @@
                       "properties": {
                         "username": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                           "example": "ada"
                         },
                         "value": {
@@ -8461,7 +9718,8 @@
                   "properties": {
                     "slug": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "title": {
@@ -8494,7 +9752,7 @@
                         "properties": {
                           "username": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                             "example": "ada"
                           },
                           "value": {
@@ -8584,7 +9842,8 @@
                   "properties": {
                     "slug": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "title": {
@@ -8617,7 +9876,7 @@
                         "properties": {
                           "username": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                             "example": "ada"
                           },
                           "value": {
@@ -8728,7 +9987,7 @@
                       "properties": {
                         "username": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                          "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                           "example": "ada"
                         },
                         "value": {
@@ -8765,7 +10024,8 @@
                   "properties": {
                     "slug": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "title": {
@@ -8798,7 +10058,7 @@
                         "properties": {
                           "username": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                            "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                             "example": "ada"
                           },
                           "value": {
@@ -8931,7 +10191,8 @@
                         "properties": {
                           "slug": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                             "example": "intro-to-recursion"
                           },
                           "title": {
@@ -9141,7 +10402,8 @@
                     },
                     "timeSlot": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "actsAsInvite": {
@@ -9180,7 +10442,7 @@
                             "type": "array",
                             "items": {
                               "type": "string",
-                              "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                               "example": "ada"
                             }
                           },
@@ -9303,7 +10565,8 @@
                     },
                     "timeSlot": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "actsAsInvite": {
@@ -9342,7 +10605,7 @@
                             "type": "array",
                             "items": {
                               "type": "string",
-                              "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                              "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                               "example": "ada"
                             }
                           },
@@ -9478,7 +10741,8 @@
                       },
                       "timeSlot": {
                         "type": "string",
-                        "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                        "maxLength": 200,
+                        "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                         "example": "intro-to-recursion"
                       },
                       "actsAsInvite": {
@@ -9517,7 +10781,7 @@
                               "type": "array",
                               "items": {
                                 "type": "string",
-                                "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                                "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                                 "example": "ada"
                               }
                             },
@@ -9613,7 +10877,8 @@
                           },
                           "timeSlot": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                             "example": "intro-to-recursion"
                           }
                         },
@@ -9734,7 +10999,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
               "example": "ada"
             },
             "required": false,
@@ -9805,7 +11070,8 @@
                     "properties": {
                       "publicId": {
                         "type": "string",
-                        "pattern": "^[A-Za-z0-9_-]+$",
+                        "maxLength": 64,
+                        "pattern": "^[A-Za-z0-9_\\-]+$",
                         "example": "k3Vx9QpL2a"
                       },
                       "kind": {
@@ -9930,7 +11196,8 @@
                   "properties": {
                     "publicId": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
                       "example": "k3Vx9QpL2a"
                     },
                     "kind": {
@@ -10049,6 +11316,1052 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Deleted"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/report": {
+      "post": {
+        "operationId": "createReport",
+        "summary": "Creates a new Report.",
+        "tags": [
+          "Reports"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Report"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "listReport",
+        "summary": "Find multiple Reports.",
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "OPEN",
+                  "TRIAGED",
+                  "RESOLVED",
+                  "DISMISSED"
+                ]
+              }
+            },
+            "required": false,
+            "name": "status",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "enum": [
+                  "BUG",
+                  "SUGGESTION",
+                  "CONTENT",
+                  "OTHER"
+                ]
+              }
+            },
+            "required": false,
+            "name": "kind",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+              "example": "ada"
+            },
+            "required": false,
+            "name": "author",
+            "in": "query"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "publicId": {
+                        "type": "string",
+                        "maxLength": 64,
+                        "pattern": "^[A-Za-z0-9_\\-]+$",
+                        "example": "k3Vx9QpL2a"
+                      },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "BUG",
+                          "SUGGESTION",
+                          "CONTENT",
+                          "OTHER"
+                        ]
+                      },
+                      "message": {
+                        "type": "string"
+                      },
+                      "status": {
+                        "type": "string",
+                        "enum": [
+                          "OPEN",
+                          "TRIAGED",
+                          "RESOLVED",
+                          "DISMISSED"
+                        ]
+                      },
+                      "note": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "url": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "userAgent": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "viewport": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "author": {
+                        "type": "string",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+                        "example": "ada"
+                      },
+                      "course": {
+                        "type": "object",
+                        "nullable": true,
+                        "properties": {
+                          "discipline": {
+                            "type": "string"
+                          },
+                          "instructor": {
+                            "type": "string"
+                          },
+                          "edition": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "discipline",
+                          "instructor",
+                          "edition"
+                        ]
+                      },
+                      "attachments": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "filename": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "mimeType": {
+                              "type": "string",
+                              "minLength": 1
+                            },
+                            "size": {
+                              "type": "integer"
+                            },
+                            "url": {
+                              "type": "string",
+                              "minLength": 1
+                            }
+                          },
+                          "required": [
+                            "filename",
+                            "mimeType",
+                            "size",
+                            "url"
+                          ]
+                        }
+                      },
+                      "triagedBy": {
+                        "type": "string",
+                        "nullable": true,
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+                        "example": "ada"
+                      },
+                      "triagedAt": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "date-time"
+                      },
+                      "createdAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
+                      }
+                    },
+                    "required": [
+                      "publicId",
+                      "kind",
+                      "message",
+                      "status",
+                      "url",
+                      "userAgent",
+                      "viewport",
+                      "author",
+                      "course",
+                      "attachments",
+                      "triagedBy",
+                      "triagedAt",
+                      "createdAt",
+                      "updatedAt"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/report/{publicId}": {
+      "get": {
+        "operationId": "readReport",
+        "summary": "Find a single Report.",
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "publicId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "publicId": {
+                      "type": "string",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
+                      "example": "k3Vx9QpL2a"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "BUG",
+                        "SUGGESTION",
+                        "CONTENT",
+                        "OTHER"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "OPEN",
+                        "TRIAGED",
+                        "RESOLVED",
+                        "DISMISSED"
+                      ]
+                    },
+                    "note": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "url": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "userAgent": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "viewport": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "author": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+                      "example": "ada"
+                    },
+                    "course": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "discipline": {
+                          "type": "string"
+                        },
+                        "instructor": {
+                          "type": "string"
+                        },
+                        "edition": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "discipline",
+                        "instructor",
+                        "edition"
+                      ]
+                    },
+                    "attachments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "filename": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "mimeType": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "size": {
+                            "type": "integer"
+                          },
+                          "url": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "filename",
+                          "mimeType",
+                          "size",
+                          "url"
+                        ]
+                      }
+                    },
+                    "triagedBy": {
+                      "type": "string",
+                      "nullable": true,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+                      "example": "ada"
+                    },
+                    "triagedAt": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "publicId",
+                    "kind",
+                    "message",
+                    "status",
+                    "url",
+                    "userAgent",
+                    "viewport",
+                    "author",
+                    "course",
+                    "attachments",
+                    "triagedBy",
+                    "triagedAt",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "updateReport",
+        "summary": "Update a single Report.",
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "publicId",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      "OPEN",
+                      "TRIAGED",
+                      "RESOLVED",
+                      "DISMISSED",
+                      null
+                    ]
+                  },
+                  "kind": {
+                    "type": "string",
+                    "nullable": true,
+                    "enum": [
+                      "BUG",
+                      "SUGGESTION",
+                      "CONTENT",
+                      "OTHER",
+                      null
+                    ]
+                  },
+                  "note": {
+                    "type": "string",
+                    "nullable": true,
+                    "maxLength": 4000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "publicId": {
+                      "type": "string",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
+                      "example": "k3Vx9QpL2a"
+                    },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "BUG",
+                        "SUGGESTION",
+                        "CONTENT",
+                        "OTHER"
+                      ]
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "OPEN",
+                        "TRIAGED",
+                        "RESOLVED",
+                        "DISMISSED"
+                      ]
+                    },
+                    "note": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "url": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "userAgent": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "viewport": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "author": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+                      "example": "ada"
+                    },
+                    "course": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "discipline": {
+                          "type": "string"
+                        },
+                        "instructor": {
+                          "type": "string"
+                        },
+                        "edition": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "discipline",
+                        "instructor",
+                        "edition"
+                      ]
+                    },
+                    "attachments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "filename": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "mimeType": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "size": {
+                            "type": "integer"
+                          },
+                          "url": {
+                            "type": "string",
+                            "minLength": 1
+                          }
+                        },
+                        "required": [
+                          "filename",
+                          "mimeType",
+                          "size",
+                          "url"
+                        ]
+                      }
+                    },
+                    "triagedBy": {
+                      "type": "string",
+                      "nullable": true,
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+                      "example": "ada"
+                    },
+                    "triagedAt": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "publicId",
+                    "kind",
+                    "message",
+                    "status",
+                    "url",
+                    "userAgent",
+                    "viewport",
+                    "author",
+                    "course",
+                    "attachments",
+                    "triagedBy",
+                    "triagedAt",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteReport",
+        "summary": "Delete a single Report by primary key.",
+        "tags": [
+          "Reports"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "publicId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Deleted"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/repository": {
+      "get": {
+        "operationId": "repositoryList",
+        "summary": "Find multiple Repositories.",
+        "tags": [
+          "Repositories"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Repository"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "operationId": "repositoryCreate",
+        "summary": "Creates a new Repository.",
+        "tags": [
+          "Repositories"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Repository"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "repositoryUpsert",
+        "summary": "Upsert a single Repository.",
+        "description": "Creates the repository if the slug is free, or returns the existing one unchanged.",
+        "tags": [
+          "Repositories"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Repository"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/repository/{slug}": {
+      "get": {
+        "operationId": "repositoryRead",
+        "summary": "Find a single Repository.",
+        "tags": [
+          "Repositories"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Repository"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "repositoryDelete",
+        "summary": "Delete a single Repository.",
+        "tags": [
+          "Repositories"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryDeleted"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/repository/{slug}/files": {
+      "post": {
+        "operationId": "repositoryAddFiles",
+        "summary": "Send the files of a coming commit.",
+        "description": "One multipart part per file, each named after the sha-256 of its bytes. A part whose bytes do not match its name is refused.",
+        "tags": [
+          "Repositories"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryFiles"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RepositoryFilesResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/repository/{slug}/commit": {
+      "post": {
+        "operationId": "repositoryCommit",
+        "summary": "Record a tree as the new head of a Repository.",
+        "tags": [
+          "Repositories"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RepositoryCommit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Repository"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/repository/{slug}/rotate-token": {
+      "post": {
+        "operationId": "repositoryRotateToken",
+        "summary": "Replace the clone token of a Repository.",
+        "description": "The previous clone URL stops resolving.",
+        "tags": [
+          "Repositories"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Repository"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/blob/missing": {
+      "post": {
+        "operationId": "blobMissing",
+        "summary": "List the hashes the server has no blob for.",
+        "description": "Lets a client send only the files the server lacks. Open to any authenticated user: knowing a hash already gives access to its bytes.",
+        "tags": [
+          "Blobs"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BlobMissingInput"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BlobMissingResult"
                 }
               }
             }
@@ -10282,7 +12595,8 @@
                           },
                           "timeSlot": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                             "example": "intro-to-recursion"
                           }
                         },
@@ -10379,7 +12693,8 @@
                       },
                       "timeSlot": {
                         "type": "string",
-                        "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                        "maxLength": 200,
+                        "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                         "example": "intro-to-recursion"
                       }
                     },
@@ -10613,7 +12928,8 @@
                         },
                         "timeSlot": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                          "maxLength": 200,
+                          "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                           "example": "intro-to-recursion"
                         }
                       },
@@ -10811,7 +13127,8 @@
                         },
                         "timeSlot": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                          "maxLength": 200,
+                          "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                           "example": "intro-to-recursion"
                         }
                       },
@@ -10911,7 +13228,8 @@
                       },
                       "timeSlot": {
                         "type": "string",
-                        "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                        "maxLength": 200,
+                        "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                         "example": "intro-to-recursion"
                       }
                     },
@@ -11140,7 +13458,8 @@
                         },
                         "timeSlot": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                          "maxLength": 200,
+                          "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                           "example": "intro-to-recursion"
                         }
                       },
@@ -11300,7 +13619,8 @@
               "type": "array",
               "items": {
                 "type": "string",
-                "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                "maxLength": 200,
+                "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                 "example": "intro-to-recursion"
               }
             },
@@ -11378,7 +13698,8 @@
                         "properties": {
                           "slug": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                             "example": "intro-to-recursion"
                           },
                           "status": {
@@ -12336,7 +14657,8 @@
                         "properties": {
                           "slug": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                             "example": "intro-to-recursion"
                           },
                           "status": {
@@ -12977,7 +15299,8 @@
                 "properties": {
                   "slug": {
                     "type": "string",
-                    "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                    "maxLength": 200,
+                    "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                     "example": "intro-to-recursion"
                   },
                   "status": {
@@ -13934,7 +16257,8 @@
                       "properties": {
                         "slug": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                          "maxLength": 200,
+                          "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                           "example": "intro-to-recursion"
                         },
                         "status": {
@@ -14892,7 +17216,8 @@
                       "properties": {
                         "slug": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                          "maxLength": 200,
+                          "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                           "example": "intro-to-recursion"
                         },
                         "status": {
@@ -15554,7 +17879,8 @@
                       "properties": {
                         "slug": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                          "maxLength": 200,
+                          "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                           "example": "intro-to-recursion"
                         },
                         "status": {
@@ -16512,7 +18838,8 @@
                       "properties": {
                         "slug": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                          "maxLength": 200,
+                          "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                           "example": "intro-to-recursion"
                         },
                         "status": {
@@ -18106,7 +20433,8 @@
                       "properties": {
                         "slug": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                          "maxLength": 200,
+                          "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                           "example": "intro-to-recursion"
                         },
                         "status": {
@@ -19064,7 +21392,8 @@
                       "properties": {
                         "slug": {
                           "type": "string",
-                          "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                          "maxLength": 200,
+                          "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                           "example": "intro-to-recursion"
                         },
                         "status": {
@@ -19791,7 +22120,8 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[a-z0-9][a-z0-9._-]*$",
+              "maxLength": 200,
+              "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
               "example": "intro-to-recursion"
             },
             "required": false,
@@ -19801,7 +22131,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
               "example": "ada"
             },
             "required": false,
@@ -19837,17 +22167,19 @@
                     "properties": {
                       "publicId": {
                         "type": "string",
-                        "pattern": "^[A-Za-z0-9_-]+$",
+                        "maxLength": 64,
+                        "pattern": "^[A-Za-z0-9_\\-]+$",
                         "example": "k3Vx9QpL2a"
                       },
                       "exam": {
                         "type": "string",
-                        "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                        "maxLength": 200,
+                        "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                         "example": "intro-to-recursion"
                       },
                       "author": {
                         "type": "string",
-                        "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                         "example": "ada"
                       },
                       "practiceSession": {
@@ -19865,17 +22197,20 @@
                           "properties": {
                             "publicId": {
                               "type": "string",
-                              "pattern": "^[A-Za-z0-9_-]+$",
+                              "maxLength": 64,
+                              "pattern": "^[A-Za-z0-9_\\-]+$",
                               "example": "k3Vx9QpL2a"
                             },
                             "response": {
                               "type": "string",
-                              "pattern": "^[A-Za-z0-9_-]+$",
+                              "maxLength": 64,
+                              "pattern": "^[A-Za-z0-9_\\-]+$",
                               "example": "k3Vx9QpL2a"
                             },
                             "question": {
                               "type": "string",
-                              "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                              "maxLength": 200,
+                              "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                               "example": "intro-to-recursion"
                             },
                             "status": {
@@ -19979,17 +22314,17 @@
                   },
                   "exam": {
                     "type": "string",
-                    "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                    "maxLength": 200,
+                    "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                     "example": "intro-to-recursion"
                   },
                   "author": {
                     "type": "string",
-                    "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                     "example": "ada"
                   },
                   "practiceSession": {
                     "type": "string",
-                    "nullable": true,
                     "format": "date-time"
                   }
                 },
@@ -20010,17 +22345,19 @@
                   "properties": {
                     "publicId": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
                       "example": "k3Vx9QpL2a"
                     },
                     "exam": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "author": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                       "example": "ada"
                     },
                     "practiceSession": {
@@ -20038,17 +22375,20 @@
                         "properties": {
                           "publicId": {
                             "type": "string",
-                            "pattern": "^[A-Za-z0-9_-]+$",
+                            "maxLength": 64,
+                            "pattern": "^[A-Za-z0-9_\\-]+$",
                             "example": "k3Vx9QpL2a"
                           },
                           "response": {
                             "type": "string",
-                            "pattern": "^[A-Za-z0-9_-]+$",
+                            "maxLength": 64,
+                            "pattern": "^[A-Za-z0-9_\\-]+$",
                             "example": "k3Vx9QpL2a"
                           },
                           "question": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                             "example": "intro-to-recursion"
                           },
                           "status": {
@@ -20160,17 +22500,19 @@
                   "properties": {
                     "publicId": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
                       "example": "k3Vx9QpL2a"
                     },
                     "exam": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "author": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                       "example": "ada"
                     },
                     "practiceSession": {
@@ -20188,17 +22530,20 @@
                         "properties": {
                           "publicId": {
                             "type": "string",
-                            "pattern": "^[A-Za-z0-9_-]+$",
+                            "maxLength": 64,
+                            "pattern": "^[A-Za-z0-9_\\-]+$",
                             "example": "k3Vx9QpL2a"
                           },
                           "response": {
                             "type": "string",
-                            "pattern": "^[A-Za-z0-9_-]+$",
+                            "maxLength": 64,
+                            "pattern": "^[A-Za-z0-9_\\-]+$",
                             "example": "k3Vx9QpL2a"
                           },
                           "question": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                             "example": "intro-to-recursion"
                           },
                           "status": {
@@ -20322,17 +22667,19 @@
                   "properties": {
                     "publicId": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
                       "example": "k3Vx9QpL2a"
                     },
                     "exam": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "author": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                       "example": "ada"
                     },
                     "practiceSession": {
@@ -20350,17 +22697,20 @@
                         "properties": {
                           "publicId": {
                             "type": "string",
-                            "pattern": "^[A-Za-z0-9_-]+$",
+                            "maxLength": 64,
+                            "pattern": "^[A-Za-z0-9_\\-]+$",
                             "example": "k3Vx9QpL2a"
                           },
                           "response": {
                             "type": "string",
-                            "pattern": "^[A-Za-z0-9_-]+$",
+                            "maxLength": 64,
+                            "pattern": "^[A-Za-z0-9_\\-]+$",
                             "example": "k3Vx9QpL2a"
                           },
                           "question": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                             "example": "intro-to-recursion"
                           },
                           "status": {
@@ -20550,7 +22900,8 @@
               "properties": {
                 "publicId": {
                   "type": "string",
-                  "pattern": "^[A-Za-z0-9_-]+$",
+                  "maxLength": 64,
+                  "pattern": "^[A-Za-z0-9_\\-]+$",
                   "example": "k3Vx9QpL2a"
                 }
               },
@@ -20565,7 +22916,8 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[a-z0-9][a-z0-9._-]*$",
+              "maxLength": 200,
+              "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
               "example": "intro-to-recursion"
             },
             "required": false,
@@ -20575,7 +22927,8 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[a-z0-9][a-z0-9._-]*$",
+              "maxLength": 200,
+              "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
               "example": "intro-to-recursion"
             },
             "required": false,
@@ -20585,7 +22938,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
               "example": "ada"
             },
             "required": false,
@@ -20638,17 +22991,20 @@
                     "properties": {
                       "publicId": {
                         "type": "string",
-                        "pattern": "^[A-Za-z0-9_-]+$",
+                        "maxLength": 64,
+                        "pattern": "^[A-Za-z0-9_\\-]+$",
                         "example": "k3Vx9QpL2a"
                       },
                       "response": {
                         "type": "string",
-                        "pattern": "^[A-Za-z0-9_-]+$",
+                        "maxLength": 64,
+                        "pattern": "^[A-Za-z0-9_\\-]+$",
                         "example": "k3Vx9QpL2a"
                       },
                       "question": {
                         "type": "string",
-                        "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                        "maxLength": 200,
+                        "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                         "example": "intro-to-recursion"
                       },
                       "status": {
@@ -20740,17 +23096,20 @@
                   "properties": {
                     "publicId": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
                       "example": "k3Vx9QpL2a"
                     },
                     "response": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
                       "example": "k3Vx9QpL2a"
                     },
                     "question": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "status": {
@@ -20859,17 +23218,20 @@
                   "properties": {
                     "publicId": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
                       "example": "k3Vx9QpL2a"
                     },
                     "response": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
                       "example": "k3Vx9QpL2a"
                     },
                     "question": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "status": {
@@ -21051,7 +23413,8 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[a-z0-9][a-z0-9._-]*$",
+              "maxLength": 200,
+              "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
               "example": "intro-to-recursion"
             },
             "required": false,
@@ -21061,7 +23424,8 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[a-z0-9][a-z0-9._-]*$",
+              "maxLength": 200,
+              "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
               "example": "intro-to-recursion"
             },
             "required": false,
@@ -21071,7 +23435,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
               "example": "ada"
             },
             "required": false,
@@ -21081,7 +23445,7 @@
           {
             "schema": {
               "type": "string",
-              "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
               "example": "ada"
             },
             "required": false,
@@ -21117,12 +23481,14 @@
                     "properties": {
                       "ref": {
                         "type": "string",
-                        "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                        "maxLength": 200,
+                        "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                         "example": "intro-to-recursion"
                       },
                       "submission": {
                         "type": "string",
-                        "pattern": "^[A-Za-z0-9_-]+$",
+                        "maxLength": 64,
+                        "pattern": "^[A-Za-z0-9_\\-]+$",
                         "example": "k3Vx9QpL2a"
                       },
                       "score": {
@@ -21133,7 +23499,7 @@
                       "grader": {
                         "type": "string",
                         "nullable": true,
-                        "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                        "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                         "example": "ada"
                       },
                       "bot": {
@@ -21210,7 +23576,8 @@
                 "properties": {
                   "ref": {
                     "type": "string",
-                    "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                    "maxLength": 200,
+                    "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                     "example": "intro-to-recursion"
                   },
                   "score": {
@@ -21221,7 +23588,7 @@
                   "grader": {
                     "type": "string",
                     "nullable": true,
-                    "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                     "example": "ada"
                   },
                   "bot": {
@@ -21251,12 +23618,14 @@
                   "properties": {
                     "ref": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "submission": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
                       "example": "k3Vx9QpL2a"
                     },
                     "score": {
@@ -21267,7 +23636,7 @@
                     "grader": {
                       "type": "string",
                       "nullable": true,
-                      "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                       "example": "ada"
                     },
                     "bot": {
@@ -21355,12 +23724,14 @@
                   "properties": {
                     "ref": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "submission": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
                       "example": "k3Vx9QpL2a"
                     },
                     "score": {
@@ -21371,7 +23742,7 @@
                     "grader": {
                       "type": "string",
                       "nullable": true,
-                      "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                       "example": "ada"
                     },
                     "bot": {
@@ -21477,12 +23848,14 @@
                   "properties": {
                     "ref": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "submission": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
                       "example": "k3Vx9QpL2a"
                     },
                     "score": {
@@ -21493,7 +23866,7 @@
                     "grader": {
                       "type": "string",
                       "nullable": true,
-                      "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                       "example": "ada"
                     },
                     "bot": {
@@ -21617,17 +23990,19 @@
                 "properties": {
                   "exam": {
                     "type": "string",
-                    "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                    "maxLength": 200,
+                    "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                     "example": "intro-to-recursion"
                   },
                   "question": {
                     "type": "string",
-                    "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                    "maxLength": 200,
+                    "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                     "example": "intro-to-recursion"
                   },
                   "author": {
                     "type": "string",
-                    "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                     "example": "ada"
                   },
                   "payload": {
@@ -21638,7 +24013,6 @@
                   },
                   "startedAt": {
                     "type": "string",
-                    "nullable": true,
                     "format": "date-time"
                   },
                   "automaticallyTriggered": {
@@ -21664,17 +24038,19 @@
                   "properties": {
                     "publicId": {
                       "type": "string",
-                      "pattern": "^[A-Za-z0-9_-]+$",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
                       "example": "k3Vx9QpL2a"
                     },
                     "exam": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "author": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                       "example": "ada"
                     },
                     "practiceSession": {
@@ -21692,17 +24068,20 @@
                         "properties": {
                           "publicId": {
                             "type": "string",
-                            "pattern": "^[A-Za-z0-9_-]+$",
+                            "maxLength": 64,
+                            "pattern": "^[A-Za-z0-9_\\-]+$",
                             "example": "k3Vx9QpL2a"
                           },
                           "response": {
                             "type": "string",
-                            "pattern": "^[A-Za-z0-9_-]+$",
+                            "maxLength": 64,
+                            "pattern": "^[A-Za-z0-9_\\-]+$",
                             "example": "k3Vx9QpL2a"
                           },
                           "question": {
                             "type": "string",
-                            "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                             "example": "intro-to-recursion"
                           },
                           "status": {
@@ -21874,7 +24253,8 @@
                     "properties": {
                       "slug": {
                         "type": "string",
-                        "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                        "maxLength": 200,
+                        "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                         "example": "intro-to-recursion"
                       },
                       "title": {
@@ -21982,7 +24362,8 @@
                 "properties": {
                   "slug": {
                     "type": "string",
-                    "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                    "maxLength": 200,
+                    "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                     "example": "intro-to-recursion"
                   },
                   "title": {
@@ -22054,7 +24435,8 @@
                   "properties": {
                     "slug": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "title": {
@@ -22173,7 +24555,8 @@
                   "properties": {
                     "slug": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "title": {
@@ -22349,7 +24732,8 @@
                   "properties": {
                     "slug": {
                       "type": "string",
-                      "pattern": "^[a-z0-9][a-z0-9._-]*$",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
                       "example": "intro-to-recursion"
                     },
                     "title": {
@@ -22555,11 +24939,15 @@
                   },
                   "githubId": {
                     "type": "string",
-                    "nullable": true
+                    "nullable": true,
+                    "pattern": "^@?[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$",
+                    "example": "ada-lovelace"
                   },
                   "schoolId": {
                     "type": "string",
-                    "nullable": true
+                    "nullable": true,
+                    "pattern": "^[A-Za-z0-9._\\-]{1,32}$",
+                    "example": "231012345"
                   }
                 },
                 "additionalProperties": false
@@ -22765,7 +25153,7 @@
                   },
                   "username": {
                     "type": "string",
-                    "pattern": "^[a-z0-9][a-z0-9_-]{1,30}$",
+                    "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
                     "example": "ada"
                   },
                   "role": {
@@ -22778,11 +25166,15 @@
                   },
                   "githubId": {
                     "type": "string",
-                    "nullable": true
+                    "nullable": true,
+                    "pattern": "^@?[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$",
+                    "example": "ada-lovelace"
                   },
                   "schoolId": {
                     "type": "string",
-                    "nullable": true
+                    "nullable": true,
+                    "pattern": "^[A-Za-z0-9._\\-]{1,32}$",
+                    "example": "231012345"
                   },
                   "password": {
                     "type": "string",
@@ -22904,11 +25296,15 @@
                   },
                   "githubId": {
                     "type": "string",
-                    "nullable": true
+                    "nullable": true,
+                    "pattern": "^@?[A-Za-z0-9](?:[A-Za-z0-9]|-(?=[A-Za-z0-9])){0,38}$",
+                    "example": "ada-lovelace"
                   },
                   "schoolId": {
                     "type": "string",
-                    "nullable": true
+                    "nullable": true,
+                    "pattern": "^[A-Za-z0-9._\\-]{1,32}$",
+                    "example": "231012345"
                   }
                 },
                 "additionalProperties": false

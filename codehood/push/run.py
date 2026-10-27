@@ -98,8 +98,7 @@ class RepositoryApi(Protocol):
     """
     The repository endpoints of one course, as `run.py` uses them.
 
-    A seam: the generated client has no repository endpoints yet, and tests
-    can pass a fake. `HttpRepositoryApi` is the real one. Every method
+    A seam: tests can pass a fake. `HttpRepositoryApi` is the real one. Every method
     raises `httpx.HTTPStatusError` (or `CodehoodAPIError`) on a refused
     request.
     """
@@ -146,8 +145,10 @@ class RepositoryApi(Protocol):
 
 class HttpRepositoryApi:
     """
-    `RepositoryApi` over the REST API, with hand-written requests until the
-    generated client knows the repository endpoints.
+    `RepositoryApi` over the REST API. Listing, upsert, delete and `missing`
+    use the generated client; the multipart upload and the commit are
+    hand-written because the generator handles neither a multipart body nor
+    an array of inline objects.
     """
 
     def __init__(self, client: httpx.Client, discipline: str, course: str) -> None:
@@ -159,30 +160,30 @@ class HttpRepositoryApi:
         """
         See `RepositoryApi.list_trees`.
         """
-        response = self.client.get(self._url(), headers=auth_headers(self.client))
-        response.raise_for_status()
-        return {item["slug"]: item.get("tree") for item in response.json()}
+        items = generated.repository_list(
+            discipline=self.discipline, course=self.course, client=self.client
+        )
+        return {item.slug: item.tree for item in items}
 
     def upsert(self, slug: str) -> None:
         """
         See `RepositoryApi.upsert`.
         """
-        response = self.client.put(
-            self._url(), json={"slug": slug}, headers=auth_headers(self.client)
+        generated.repository_upsert(
+            discipline=self.discipline,
+            course=self.course,
+            body=generated.RepositoryCreate(slug=slug),
+            client=self.client,
         )
-        response.raise_for_status()
 
     def missing(self, hashes: Sequence[str]) -> list[str]:
         """
         See `RepositoryApi.missing`.
         """
-        response = self.client.post(
-            "/api/blob/missing",
-            json={"hashes": list(hashes)},
-            headers=auth_headers(self.client),
+        result = generated.blob_missing(
+            body=generated.BlobMissingInput(hashes=list(hashes)), client=self.client
         )
-        response.raise_for_status()
-        return list(response.json()["missing"])
+        return list(result.missing)
 
     def upload(self, slug: str, entries: Sequence[RepositoryEntry]) -> None:
         """
@@ -193,10 +194,15 @@ class HttpRepositoryApi:
             (sha256, (sha256, source.read_bytes(), "application/octet-stream"))
             for sha256, source in parts.items()
         ]
-        response = self.client.post(
-            self._url(slug, "files"), files=files, headers=auth_headers(self.client)
+        # Built apart from the client: its default `Content-Type: application/json`
+        # would hide the multipart boundary `httpx` computes.
+        request = httpx.Request(
+            "POST",
+            self.client.base_url.join(self._url(slug, "files")),
+            files=files,
+            headers=auth_headers(self.client),
         )
-        response.raise_for_status()
+        self.client.send(request).raise_for_status()
 
     def commit(
         self, slug: str, entries: Sequence[RepositoryEntry], message: str | None
@@ -223,10 +229,12 @@ class HttpRepositoryApi:
         """
         See `RepositoryApi.delete`.
         """
-        response = self.client.delete(
-            self._url(slug), headers=auth_headers(self.client)
+        generated.repository_delete(
+            discipline=self.discipline,
+            course=self.course,
+            slug=slug,
+            client=self.client,
         )
-        response.raise_for_status()
 
     def _url(self, *parts: str) -> str:
         base = f"/api/course/{self.discipline}/{self.course}/repository"
@@ -705,20 +713,12 @@ def _run_upsert_calendar_event(
         week=op.event.week,
         rev=op.event.ref,
         timeSlot=op.event.time_slot,
+        repositories=list(op.event.repositories),
     )
-    # The generated model predates `repositories`; send the whole set so an
-    # unlinked repository leaves the event.
-    payload = {
-        **body.model_dump(mode="json", by_alias=True),
-        "repositories": list(op.event.repositories),
-    }
     try:
-        response = client.put(
-            f"/api/course/{discipline}/{course}/calendar-event",
-            json=payload,
-            headers=auth_headers(client),
+        generated.upsert_calendar_event(
+            discipline=discipline, course=course, body=body, client=client
         )
-        response.raise_for_status()
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
         return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
     return OpResult(
