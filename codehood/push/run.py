@@ -13,8 +13,9 @@ union lands here and nowhere else.
 from __future__ import annotations
 
 import warnings
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
+from typing import Protocol
 
 import httpx
 
@@ -27,6 +28,7 @@ from .plan import (
     DeleteCalendarEvent,
     DeleteGradeColumn,
     DeleteQuestion,
+    DeleteRepository,
     DeleteResource,
     DeleteRollCall,
     DeleteTimeSlot,
@@ -37,16 +39,21 @@ from .plan import (
     UpsertCourse,
     UpsertGradeColumn,
     UpsertQuestion,
+    UpsertRepository,
     UpsertResource,
     UpsertTimeSlot,
     WarnEventHasRollCall,
+    WarnRepositoryKept,
     WarnTimeSlotPinned,
 )
+from .repository import RepositoryEntry
 from .resource import CodeData, FileData, MdData, ResourceData
 from .wire import wire_question
 
 __all__ = [
+    "HttpRepositoryApi",
     "OpResult",
+    "RepositoryApi",
     "describe_failure",
     "fetch_server_state",
     "fetch_students",
@@ -86,8 +93,111 @@ class OpResult:
     skipped: bool = False
 
 
+class RepositoryApi(Protocol):
+    """
+    The repository endpoints of one course, as `run.py` uses them.
+
+    A seam: the generated client has no repository endpoints yet, and tests
+    can pass a fake. `HttpRepositoryApi` is the real one. Every method
+    raises `httpx.HTTPStatusError` (or `CodehoodAPIError`) on a refused
+    request.
+    """
+
+    def list_trees(self) -> Mapping[str, str | None]:
+        """
+        `GET .../repository`: slug -> `tree`, `None` before the first commit.
+        """
+        ...
+
+    def upsert(self, slug: str) -> None:
+        """
+        `PUT .../repository` with `{slug}`.
+        """
+        ...
+
+    def missing(self, hashes: Sequence[str]) -> list[str]:
+        """
+        `POST /api/blob/missing`: the sha-256 hashes the server lacks.
+        """
+        ...
+
+    def upload(self, slug: str, entries: Sequence[RepositoryEntry]) -> None:
+        """
+        `POST .../repository/<slug>/files`: one multipart request, one part
+        per file, named by its sha-256.
+        """
+        ...
+
+    def commit(
+        self, slug: str, entries: Sequence[RepositoryEntry], message: str | None
+    ) -> str | None:
+        """
+        `POST .../repository/<slug>/commit`; returns the new `head`.
+        """
+        ...
+
+    def delete(self, slug: str) -> None:
+        """
+        `DELETE .../repository/<slug>`.
+        """
+        ...
+
+
+class HttpRepositoryApi:
+    """
+    `RepositoryApi` over the REST API, with hand-written requests until the
+    generated client knows the repository endpoints.
+    """
+
+    def __init__(self, client: httpx.Client, discipline: str, course: str) -> None:
+        self.client = client
+        self.discipline = discipline
+        self.course = course
+
+    def list_trees(self) -> Mapping[str, str | None]:
+        """
+        See `RepositoryApi.list_trees`.
+        """
+        raise NotImplementedError
+
+    def upsert(self, slug: str) -> None:
+        """
+        See `RepositoryApi.upsert`.
+        """
+        raise NotImplementedError
+
+    def missing(self, hashes: Sequence[str]) -> list[str]:
+        """
+        See `RepositoryApi.missing`.
+        """
+        raise NotImplementedError
+
+    def upload(self, slug: str, entries: Sequence[RepositoryEntry]) -> None:
+        """
+        See `RepositoryApi.upload`. Reads each file from `entry.source`.
+        """
+        raise NotImplementedError
+
+    def commit(
+        self, slug: str, entries: Sequence[RepositoryEntry], message: str | None
+    ) -> str | None:
+        """
+        See `RepositoryApi.commit`.
+        """
+        raise NotImplementedError
+
+    def delete(self, slug: str) -> None:
+        """
+        See `RepositoryApi.delete`.
+        """
+        raise NotImplementedError
+
+
 def fetch_server_state(
-    discipline: str, course: str, client: httpx.Client
+    discipline: str,
+    course: str,
+    client: httpx.Client,
+    repositories: RepositoryApi | None = None,
 ) -> ServerState:
     """
     Read what the server currently holds for a course.
@@ -100,6 +210,7 @@ def fetch_server_state(
     `.../time-slot` to `slug -> ref`, `.../calendar-event` to
     `(week, timeSlot) -> ServerEvent`, and `.../grade-column` to
     `slug -> rev`; `.../roll-call` adds each event's attendance count.
+    `repositories` (default `HttpRepositoryApi`) gives `slug -> tree`.
 
     A time slot carries no `ref` column server-side, so its ref is
     recomputed here from the fields the listing did return -- which is
@@ -196,7 +307,12 @@ def fetch_students(
 
 
 def run_plan(
-    ops: Iterable[PushOp], *, discipline: str, course: str, client: httpx.Client
+    ops: Iterable[PushOp],
+    *,
+    discipline: str,
+    course: str,
+    client: httpx.Client,
+    repositories: RepositoryApi | None = None,
 ) -> Iterator[OpResult]:
     """
     Execute a plan, yielding one result per operation.
@@ -206,7 +322,11 @@ def run_plan(
     "FR-SYNC-005", "a sync is not atomic". The exception is the course
     row's own `PUT`: every other operation hangs off the course, so after
     it fails the rest come back as skipped results, never attempted.
+
+    Repository ops go through `repositories`, `HttpRepositoryApi` over
+    `client` by default.
     """
+    api = repositories or HttpRepositoryApi(client, discipline, course)
     course_failed = False
     for op in ops:
         if course_failed:
@@ -217,7 +337,9 @@ def run_plan(
                 message="not attempted: the course could not be written",
             )
             continue
-        result = _run_op(op, discipline=discipline, course=course, client=client)
+        result = _run_op(
+            op, discipline=discipline, course=course, client=client, repositories=api
+        )
         yield result
         course_failed = isinstance(op, UpsertCourse) and not result.ok
 
@@ -246,11 +368,22 @@ def describe_failure(exc: CodehoodAPIError | httpx.HTTPStatusError) -> str:
 
 
 def _run_op(
-    op: PushOp, *, discipline: str, course: str, client: httpx.Client
+    op: PushOp,
+    *,
+    discipline: str,
+    course: str,
+    client: httpx.Client,
+    repositories: RepositoryApi,
 ) -> OpResult:
     match op:
         case UpsertCourse():
             return _run_upsert_course(op, client=client)
+        case UpsertRepository():
+            return run_upsert_repository(op, repositories)
+        case WarnRepositoryKept():
+            return run_warn_repository_kept(op)
+        case DeleteRepository():
+            return run_delete_repository(op, repositories)
         case UpsertResource():
             return _run_upsert_resource(
                 op, discipline=discipline, course=course, client=client
@@ -299,6 +432,32 @@ def _run_op(
             return _run_delete_grade_column(
                 op, discipline=discipline, course=course, client=client
             )
+
+
+def run_upsert_repository(op: UpsertRepository, api: RepositoryApi) -> OpResult:
+    """
+    Push one repository: upsert it, ask which blobs are missing, upload
+    those in batches of at most `MAX_FILE_BYTES` (`batch_entries`), then
+    commit the tree.
+
+    A failed step stops the op and reports it; nothing after it runs. The
+    message says how many files were uploaded and the new head.
+    """
+    raise NotImplementedError
+
+
+def run_warn_repository_kept(op: WarnRepositoryKept) -> OpResult:
+    """
+    Not a write: report the repository `plan_repositories` kept.
+    """
+    raise NotImplementedError
+
+
+def run_delete_repository(op: DeleteRepository, api: RepositoryApi) -> OpResult:
+    """
+    Delete one repository, reporting a refused request as a failed result.
+    """
+    raise NotImplementedError
 
 
 def _run_upsert_course(op: UpsertCourse, *, client: httpx.Client) -> OpResult:

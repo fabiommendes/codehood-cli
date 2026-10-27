@@ -19,6 +19,7 @@ from ..push.calendar import allocate, parse_calendar
 from ..push.errors import (
     CalendarError,
     QuestionParseError,
+    RepositoryError,
     ResourceLinkError,
     SlugCollisionError,
 )
@@ -29,6 +30,7 @@ from ..push.plan import (
     DeleteCalendarEvent,
     DeleteGradeColumn,
     DeleteQuestion,
+    DeleteRepository,
     DeleteResource,
     DeleteRollCall,
     DeleteTimeSlot,
@@ -38,9 +40,11 @@ from ..push.plan import (
     UpsertCourse,
     UpsertGradeColumn,
     UpsertQuestion,
+    UpsertRepository,
     UpsertResource,
     UpsertTimeSlot,
     WarnEventHasRollCall,
+    WarnRepositoryKept,
     WarnTimeSlotPinned,
     plan_push,
 )
@@ -61,6 +65,7 @@ PRUNE_OPS = (
     DeleteCalendarEvent,
     DeleteRollCall,
     DeleteGradeColumn,
+    DeleteRepository,
 )
 
 
@@ -90,10 +95,25 @@ def push(
             help="Also delete the roll call of an event removed from the calendar.",
         ),
     ] = False,
+    drop_repositories: Annotated[
+        bool,
+        typer.Option(
+            "--drop-repositories",
+            help="Delete server repositories whose folder is gone from repositories/.",
+        ),
+    ] = False,
+    message: Annotated[
+        str | None,
+        typer.Option(
+            "-m",
+            "--message",
+            help="Commit message for every repository this push changes.",
+        ),
+    ] = None,
 ) -> None:
     """
-    Sync the repository's course row, calendar, resources, questions and
-    grade columns.
+    Sync the repository's course row, repositories, calendar, resources,
+    questions and grade columns.
     """
     try:
         config = RepoConfig.open(path)
@@ -105,6 +125,7 @@ def push(
         SlugCollisionError,
         ResourceLinkError,
         QuestionParseError,
+        RepositoryError,
     ) as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -117,6 +138,8 @@ def push(
             dry_run=dry_run,
             prune=prune,
             drop_roll_calls=drop_roll_calls,
+            drop_repositories=drop_repositories,
+            message=message,
         )
     except httpx.TransportError as exc:
         typer.echo(f"error: could not reach {config.server.url}: {exc}", err=True)
@@ -131,6 +154,8 @@ def sync(
     dry_run: bool,
     prune: bool,
     drop_roll_calls: bool,
+    drop_repositories: bool = False,
+    message: str | None = None,
 ) -> None:
     """
     Read the server's state, plan the push, and run it or print it.
@@ -165,7 +190,15 @@ def sync(
             typer.echo(f"warning  {warning}", err=True)
         local = replace(local, grade_columns=sheet.columns)
 
-    ops = list(plan_push(local, server, drop_roll_calls=drop_roll_calls))
+    ops = list(
+        plan_push(
+            local,
+            server,
+            drop_roll_calls=drop_roll_calls,
+            drop_repositories=drop_repositories,
+            message=message,
+        )
+    )
 
     for file in local.excluded:
         typer.echo(f"excluded  {file.path}")
@@ -236,6 +269,8 @@ def read_local_state(path: Path) -> LocalState:
         CalendarError: `calendar.md` does not parse.
         SlugCollisionError: Two resources or two questions want one slug.
         QuestionParseError: `mdq` refused a file under `questions/`.
+        RepositoryError: A folder under `repositories/` cannot be pushed.
+        ResourceLinkError: A lesson links a missing resource or repository.
     """
     config = RepoConfig.open(path)
 
@@ -316,3 +351,18 @@ def describe(op: PushOp) -> str:
             )
         case DeleteRollCall():
             return f"delete roll call {op.week}/{op.time_slot}"
+        case UpsertRepository() | WarnRepositoryKept() | DeleteRepository():
+            return describe_repository(op)
+
+
+def describe_repository(
+    op: UpsertRepository | WarnRepositoryKept | DeleteRepository,
+) -> str:
+    """
+    Render one repository operation as the line `push` prints for it.
+
+    `UpsertRepository` reads `repository lab1: 3 files (1.2 MB), commit
+    4f2a9c1`, with the first 7 hex digits of the local `tree_sha`.
+    `WarnRepositoryKept` names `--drop-repositories`.
+    """
+    raise NotImplementedError

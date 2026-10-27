@@ -241,11 +241,17 @@ class Event:
     title: str
     description: str = ""
     kind: EventKind = "REGULAR"
+    #: Slugs of the repositories the lesson links, sorted, without repeats.
+    repositories: tuple[str, ...] = ()
 
     @property
     def ref(self) -> str:
         """
         `md5(f"{title}#{description}")`, per the mapping.
+
+        With repositories, their sorted slugs also enter the digest, so
+        linking or unlinking one re-sends the event. Without them the digest
+        stays the old one, so existing refs do not change.
         """
         digest = f"{self.title}#{self.description}".encode("utf-8")
         return hashlib.md5(digest).hexdigest()

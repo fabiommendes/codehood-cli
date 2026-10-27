@@ -12,17 +12,22 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping, Sequence
+from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
-from dataclasses import replace
 from urllib.parse import unquote
 
 from .calendar import Event, EventKey
 from .errors import ResourceLinkError
+from .repository import RepositoryTree
 from .resource import ResourceFile, content_ref
 
 __all__ = [
+    "RepositoryLink",
+    "attach_repositories",
     "attach_resources",
+    "extract_repository_links",
     "extract_resource_links",
+    "rewrite_repository_links",
     "rewrite_event_links",
     "rewrite_resource_links",
 ]
@@ -148,6 +153,60 @@ def rewrite_event_links(
         replace(event, description=rewrite_resource_links(event.description, targets))
         for event in events
     )
+
+
+@dataclass(frozen=True)
+class RepositoryLink:
+    """
+    A link target under `repositories/`: a repository, or a path inside it.
+    """
+
+    slug: str
+    #: Path inside the repository, `None` for its root.
+    path: PurePosixPath | None = None
+
+
+def extract_repository_links(markdown: str) -> tuple[RepositoryLink, ...]:
+    """
+    List the targets of the markdown links that point under `repositories/`.
+
+    Same rules as `extract_resource_links`: normalized (`./` dropped,
+    percent-decoding applied, a trailing `/` ignored), in order of first
+    appearance, code skipped, other links ignored. `repositories/lab1` and
+    `repositories/lab1/src/main.py` both count.
+    """
+    raise NotImplementedError
+
+
+def attach_repositories(
+    events: Sequence[Event], repositories: Sequence[RepositoryTree]
+) -> tuple[Event, ...]:
+    """
+    Return `events`, same order, with `repositories` set to the sorted slugs
+    each lesson links.
+
+    A link to a path inside a repository must name one of its files or a
+    directory that holds some. One repository may be linked from many
+    lessons. An event that links none keeps `repositories=()`.
+
+    Raises:
+        ResourceLinkError: A lesson links a slug that is not in
+            `repositories`, or a path that is not in its tree.
+    """
+    raise NotImplementedError
+
+
+def rewrite_repository_links(
+    events: Sequence[Event], discipline: str, course: str
+) -> tuple[Event, ...]:
+    """
+    Return `events`, same order, with every `repositories/` link rewritten to
+    `/<discipline>/<course>/repositories/<slug>[/<path>]`.
+
+    Link text and `#fragment` are kept; other links are untouched. Run it
+    after `attach_repositories`, which validates the targets.
+    """
+    raise NotImplementedError
 
 
 def _lesson(event: Event) -> str:

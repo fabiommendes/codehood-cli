@@ -9,6 +9,7 @@ GITIGNORE_FILE = ".gitignore"
 QUESTIONS_DIR = "questions"
 EXAMS_DIR = "exams"
 RESOURCES_DIR = "resources"
+REPOSITORIES_DIR = "repositories"
 MACHINE_DIR = ".codehood"
 GIT_DIR = ".git"
 

@@ -24,12 +24,14 @@ from .calendar import Event, EventKey, TimeSlot
 from .exclude import ExcludedFile
 from .grades import GradeColumn
 from .question import AnyQuestion, QuestionFile
+from .repository import RepositoryTree
 from .resource import ResourceData, ResourceFile
 
 __all__ = [
     "DeleteCalendarEvent",
     "DeleteGradeColumn",
     "DeleteQuestion",
+    "DeleteRepository",
     "DeleteResource",
     "DeleteRollCall",
     "DeleteTimeSlot",
@@ -41,11 +43,14 @@ __all__ = [
     "UpsertCourse",
     "UpsertGradeColumn",
     "UpsertQuestion",
+    "UpsertRepository",
     "UpsertResource",
     "UpsertTimeSlot",
     "WarnEventHasRollCall",
+    "WarnRepositoryKept",
     "WarnTimeSlotPinned",
     "plan_push",
+    "plan_repositories",
 ]
 
 
@@ -76,6 +81,7 @@ class LocalState:
     resources: tuple[ResourceFile, ...] = ()
     questions: tuple[QuestionFile, ...] = ()
     grade_columns: tuple[GradeColumn, ...] | None = ()
+    repositories: tuple[RepositoryTree, ...] = ()
     #: Files left out by `[push] exclude`: never written, never pruned.
     excluded: tuple[ExcludedFile, ...] = ()
 
@@ -108,6 +114,9 @@ class ServerState:
     time_slots: Mapping[str, str] = field(default_factory=dict)
     calendar_events: Mapping[tuple[int, str], ServerEvent] = field(default_factory=dict)
     grade_columns: Mapping[str, str] = field(default_factory=dict)
+    #: Slug -> sha1 of the head commit's root tree, `None` before the first
+    #: commit.
+    repositories: Mapping[str, str | None] = field(default_factory=dict)
 
 
 #
@@ -279,8 +288,44 @@ class DeleteGradeColumn:
     slug: str
 
 
+@dataclass(frozen=True)
+class UpsertRepository:
+    """
+    One repository to create if missing and commit `tree` to.
+
+    `message` is the `-m/--message` of the push, `None` for the server's
+    default.
+    """
+
+    tree: RepositoryTree
+    message: str | None = None
+
+
+@dataclass(frozen=True)
+class WarnRepositoryKept:
+    """
+    Not a write: a repository the server has and the course root no longer
+    does, kept because deleting it kills its clone URL and history.
+    """
+
+    slug: str
+
+
+@dataclass(frozen=True)
+class DeleteRepository:
+    """
+    A repository to delete by slug: its folder is gone and the push ran with
+    `--drop-repositories`.
+    """
+
+    slug: str
+
+
 PushOp = (
     UpsertCourse
+    | UpsertRepository
+    | WarnRepositoryKept
+    | DeleteRepository
     | UpsertResource
     | DeleteResource
     | UpsertQuestion
@@ -298,7 +343,12 @@ PushOp = (
 
 
 def plan_push(
-    local: LocalState, server: ServerState, *, drop_roll_calls: bool = False
+    local: LocalState,
+    server: ServerState,
+    *,
+    drop_roll_calls: bool = False,
+    drop_repositories: bool = False,
+    message: str | None = None,
 ) -> Iterator[PushOp]:
     """
     Diff a repository against the server's current state and yield a plan.
@@ -314,10 +364,12 @@ def plan_push(
     deletion, unless an `exclude` pattern leaves its local file out.
     Questions follow the same rule on `version`.
 
-    Calendar slots and events come right after the course, in that
-    order: a slot an event needs has to exist before the event is
-    written, and a resource attached to an event needs the event to exist
-    first. Resources, questions and grade columns follow.
+    Repositories come right after the course (see `plan_repositories`):
+    an event links them by slug, so they exist before the calendar. Calendar
+    slots and events follow, in that order: a slot an event needs has to
+    exist before the event is written, and a resource attached to an event
+    needs the event to exist first. Resources, questions and grade columns
+    follow.
     """
     yield UpsertCourse(
         discipline=local.discipline,
@@ -446,6 +498,24 @@ def plan_calendar(
         ) == (event.ref, event.kind):
             continue
         yield UpsertCalendarEvent(event=event)
+
+
+def plan_repositories(
+    local: LocalState,
+    server: ServerState,
+    *,
+    drop_repositories: bool = False,
+    message: str | None = None,
+) -> Iterator[PushOp]:
+    """
+    The repository half of a plan, in slug order.
+
+    A local repository gets an `UpsertRepository` when the server lacks it
+    or reports a `tree` other than its `tree_sha` (`None` included). A
+    server repository with no local folder gets a `WarnRepositoryKept`, or
+    a `DeleteRepository` with `drop_repositories`.
+    """
+    raise NotImplementedError
 
 
 def plan_grades(local: LocalState, server: ServerState) -> Iterator[PushOp]:

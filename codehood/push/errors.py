@@ -10,6 +10,7 @@ from pathlib import Path
 __all__ = [
     "CalendarError",
     "QuestionParseError",
+    "RepositoryError",
     "ResourceLinkError",
     "SlugCollisionError",
 ]
@@ -80,4 +81,15 @@ class ResourceLinkError(Exception):
     resource has, or one resource is linked from two different lessons.
     The message names the offending path and, for the second case, both
     lessons.
+    """
+
+
+class RepositoryError(Exception):
+    """
+    A folder under `repositories/` cannot be pushed as it is.
+
+    Raised by `repository.scan_repositories` before any network call: a loose
+    file in `repositories/`, a folder whose name is not a slug, a symlink,
+    a file over the upload limit, or a folder with nothing to publish. The
+    message names the offending path.
     """

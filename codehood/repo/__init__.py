@@ -22,6 +22,7 @@ from ._layout import (
     MACHINE_DIR,
     QUESTIONS_DIR,
     README_FILE,
+    REPOSITORIES_DIR,
     RESOURCES_DIR,
     read_course_name,
 )
@@ -51,6 +52,7 @@ __all__ = [
     "QUESTIONS_DIR",
     "EXAMS_DIR",
     "RESOURCES_DIR",
+    "REPOSITORIES_DIR",
     "MACHINE_DIR",
     "GIT_DIR",
     "EXAMPLE_ID",

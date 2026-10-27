@@ -1,0 +1,262 @@
+{
+	"blobs": [
+		{
+			"name": "empty",
+			"content": "",
+			"sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+		},
+		{
+			"name": "one line with newline",
+			"content": "hello\n",
+			"sha": "ce013625030ba8dba906f756967f9e9ca394464a"
+		},
+		{
+			"name": "no trailing newline",
+			"content": "print('hi')",
+			"sha": "54cacc62955769dbcd12f19562bb100cbd6694db"
+		},
+		{
+			"name": "non-ascii text",
+			"content": "ação, 日本語\n",
+			"sha": "61cf2d8a32518e5a3027f1b453d19d8b7b9638d9"
+		},
+		{
+			"name": "binary with NUL and high bytes",
+			"contentBase64": "AAEC//4ACg0K",
+			"sha": "f53ff89b0f26d36d55e9cd7f39b020645fea37c5"
+		},
+		{
+			"name": "crlf line endings",
+			"content": "a\r\nb\r\n",
+			"sha": "c30dea8a3641ea99b125d04d599d843712292759"
+		}
+	],
+	"trees": [
+		{
+			"name": "single file",
+			"files": [
+				{
+					"path": "a.txt",
+					"mode": "100644",
+					"content": "A\n",
+					"sha": "f70f10e4db19068f79bc43844b49f3eece45c4e8"
+				}
+			],
+			"rootSha": "11ab7d5124894d58b4852a45c0242e92aea630c9",
+			"directories": {
+				"": "11ab7d5124894d58b4852a45c0242e92aea630c9"
+			}
+		},
+		{
+			"name": "executable bit",
+			"files": [
+				{
+					"path": "run.sh",
+					"mode": "100755",
+					"content": "#!/bin/sh\necho hi\n",
+					"sha": "4163036efa65bd4a469e752267498f01ea36a55c"
+				},
+				{
+					"path": "README.md",
+					"mode": "100644",
+					"content": "# Title\n",
+					"sha": "a9738745554a034f4e28b7eaa04a6ce09e294b36"
+				}
+			],
+			"rootSha": "d9bde4f3c580f05a5f04bc67319940e5d3cd5252",
+			"directories": {
+				"": "d9bde4f3c580f05a5f04bc67319940e5d3cd5252"
+			}
+		},
+		{
+			"name": "git order: a.txt, a/ and a-b",
+			"files": [
+				{
+					"path": "a.txt",
+					"mode": "100644",
+					"content": "file\n",
+					"sha": "f73f3093ff865c514c6c51f867e35f693487d0d3"
+				},
+				{
+					"path": "a/x.py",
+					"mode": "100644",
+					"content": "x = 1\n",
+					"sha": "7d4290a117a4ddcc11daae7ea675841033830c8f"
+				},
+				{
+					"path": "a-b",
+					"mode": "100644",
+					"content": "dash\n",
+					"sha": "a2544f7ec3007899167de1fef481a5a0fd63fa41"
+				}
+			],
+			"rootSha": "b70791d0af1ed9af1c72470c4ac7c4f824c8838d",
+			"directories": {
+				"": "b70791d0af1ed9af1c72470c4ac7c4f824c8838d",
+				"a": "87fcc388e52ed92c529e73f2ce5268ec0d4a50c9"
+			}
+		},
+		{
+			"name": "nested directories",
+			"files": [
+				{
+					"path": "src/pkg/mod.py",
+					"mode": "100644",
+					"content": "def f(): ...\n",
+					"sha": "b39c32492e19a1c538df6548b3ed20a572682ae4"
+				},
+				{
+					"path": "src/pkg/__init__.py",
+					"mode": "100644",
+					"content": "",
+					"sha": "e69de29bb2d1d6434b8b29ae775ad8c2e48c5391"
+				},
+				{
+					"path": "src/main.py",
+					"mode": "100755",
+					"content": "import pkg\n",
+					"sha": "288701ba1e8c52d222cdeabf236bf4b6486938be"
+				},
+				{
+					"path": "docs/guide/intro.md",
+					"mode": "100644",
+					"content": "intro\n",
+					"sha": "ab5aaf38a1f99b4f3b23a07f999eb5c3dc32fe9d"
+				},
+				{
+					"path": "Makefile",
+					"mode": "100644",
+					"content": "all:\n",
+					"sha": "1263948fb882b8c4fd639b01e17969c825e79619"
+				}
+			],
+			"rootSha": "a4e1d3f7e1880c9ba90b858e108fad1d8ea8f08e",
+			"directories": {
+				"": "a4e1d3f7e1880c9ba90b858e108fad1d8ea8f08e",
+				"docs": "fd41b32f69cc3a68567a711688f5c33bded377e0",
+				"docs/guide": "b9399492154731e182fde5ba1446b16f79c4d091",
+				"src": "74125c41f233bfb55916c7d50cf69257709c351b",
+				"src/pkg": "870cb3c419280e052f1442b2dcacafc7a415e47d"
+			}
+		},
+		{
+			"name": "same content under two paths",
+			"files": [
+				{
+					"path": "one.txt",
+					"mode": "100644",
+					"content": "same\n",
+					"sha": "1275430f1765c63e539cb0452565563bd6aef6a6"
+				},
+				{
+					"path": "dir/two.txt",
+					"mode": "100644",
+					"content": "same\n",
+					"sha": "1275430f1765c63e539cb0452565563bd6aef6a6"
+				}
+			],
+			"rootSha": "bc397633218fe50d9a3a2baebf215ecf53d3f253",
+			"directories": {
+				"": "bc397633218fe50d9a3a2baebf215ecf53d3f253",
+				"dir": "22348adc779ac8e4a20eeb5e0a6e66fcefd6d623"
+			}
+		},
+		{
+			"name": "non-ascii and spaced names",
+			"files": [
+				{
+					"path": "pasta/ação.txt",
+					"mode": "100644",
+					"content": "a\n",
+					"sha": "78981922613b2afb6025042ff6bd878ac1994e85"
+				},
+				{
+					"path": "with space/a b.txt",
+					"mode": "100644",
+					"content": "b\n",
+					"sha": "61780798228d17af2d34fce4cfbdf35556832472"
+				},
+				{
+					"path": "Z.txt",
+					"mode": "100644",
+					"content": "z\n",
+					"sha": "b68025345d5301abad4d9ec9166f455243a0d746"
+				},
+				{
+					"path": "a.txt",
+					"mode": "100644",
+					"content": "lower\n",
+					"sha": "3f2d9cedc75ad2766b40a4158022fcc9f5dfe9b1"
+				}
+			],
+			"rootSha": "2ec6014b1d130a91e27921a545afd068f6c4cd53",
+			"directories": {
+				"": "2ec6014b1d130a91e27921a545afd068f6c4cd53",
+				"pasta": "d77ae7d677ce72a2facf5eada2405353c6ed5a15",
+				"with space": "12dd8fa24dec3c1d9f0b760de9b8889360967a4f"
+			}
+		}
+	],
+	"commits": [
+		{
+			"name": "root commit",
+			"tree": "11ab7d5124894d58b4852a45c0242e92aea630c9",
+			"parents": [],
+			"author": {
+				"name": "Ada Lovelace",
+				"email": "ada@example.com",
+				"timestamp": 1700000000,
+				"timezoneOffset": 0
+			},
+			"committer": {
+				"name": "Ada Lovelace",
+				"email": "ada@example.com",
+				"timestamp": 1700000000,
+				"timezoneOffset": 0
+			},
+			"message": "first commit\n",
+			"sha": "edf89161473d2835353a6ec52e9cb79ea440979a"
+		},
+		{
+			"name": "child commit, other author and committer, west of UTC",
+			"tree": "a4e1d3f7e1880c9ba90b858e108fad1d8ea8f08e",
+			"parents": ["edf89161473d2835353a6ec52e9cb79ea440979a"],
+			"author": {
+				"name": "Grace Hopper",
+				"email": "grace@example.com",
+				"timestamp": 1700003600,
+				"timezoneOffset": -180
+			},
+			"committer": {
+				"name": "Bot",
+				"email": "bot@example.com",
+				"timestamp": 1700007200,
+				"timezoneOffset": 330
+			},
+			"message": "second: nested tree\n\nBody paragraph with ação.\n",
+			"sha": "9809551b98e1ef2aabc4e70fc40895ca3fdfb954"
+		},
+		{
+			"name": "merge commit with two parents and no trailing newline",
+			"tree": "b70791d0af1ed9af1c72470c4ac7c4f824c8838d",
+			"parents": [
+				"edf89161473d2835353a6ec52e9cb79ea440979a",
+				"9809551b98e1ef2aabc4e70fc40895ca3fdfb954"
+			],
+			"author": {
+				"name": "Ada Lovelace",
+				"email": "ada@example.com",
+				"timestamp": 1700010000,
+				"timezoneOffset": 0
+			},
+			"committer": {
+				"name": "Ada Lovelace",
+				"email": "ada@example.com",
+				"timestamp": 1700010000,
+				"timezoneOffset": 0
+			},
+			"message": "merge",
+			"sha": "36049a94aa6dc8d257d9ea7da33814ac881152bd"
+		}
+	]
+}

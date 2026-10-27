@@ -28,6 +28,7 @@ from .calendar import (
 from .errors import (
     CalendarError,
     QuestionParseError,
+    RepositoryError,
     ResourceLinkError,
     SlugCollisionError,
 )
@@ -43,10 +44,21 @@ from .grades import (
     parse_grades_csv,
 )
 from .hook import load_grade_function
+from .links import (
+    RepositoryLink,
+    attach_repositories,
+    attach_resources,
+    extract_repository_links,
+    extract_resource_links,
+    rewrite_event_links,
+    rewrite_repository_links,
+    rewrite_resource_links,
+)
 from .plan import (
     DeleteCalendarEvent,
     DeleteGradeColumn,
     DeleteQuestion,
+    DeleteRepository,
     DeleteResource,
     DeleteTimeSlot,
     LocalState,
@@ -57,18 +69,24 @@ from .plan import (
     UpsertCourse,
     UpsertGradeColumn,
     UpsertQuestion,
+    UpsertRepository,
     UpsertResource,
     UpsertTimeSlot,
+    WarnRepositoryKept,
     WarnTimeSlotPinned,
     plan_push,
-)
-from .links import (
-    attach_resources,
-    extract_resource_links,
-    rewrite_event_links,
-    rewrite_resource_links,
+    plan_repositories,
 )
 from .question import AnyQuestion, QuestionFile, question_version, scan_questions
+from .repository import (
+    MAX_FILE_BYTES,
+    RepositoryEntry,
+    RepositoryTree,
+    batch_entries,
+    blob_sha,
+    scan_repositories,
+    tree_sha,
+)
 from .resource import (
     CodeData,
     FileData,
@@ -79,7 +97,14 @@ from .resource import (
     scan_resources,
     slugify,
 )
-from .run import OpResult, fetch_server_state, fetch_students, run_plan
+from .run import (
+    HttpRepositoryApi,
+    OpResult,
+    RepositoryApi,
+    fetch_server_state,
+    fetch_students,
+    run_plan,
+)
 
 __all__ = [
     #: Plan
@@ -98,8 +123,12 @@ __all__ = [
     "WarnTimeSlotPinned",
     "UpsertGradeColumn",
     "DeleteGradeColumn",
+    "UpsertRepository",
+    "WarnRepositoryKept",
+    "DeleteRepository",
     "PushOp",
     "plan_push",
+    "plan_repositories",
     #: Calendar
     "Calendar",
     "Allocation",
@@ -126,6 +155,18 @@ __all__ = [
     "extract_resource_links",
     "rewrite_event_links",
     "rewrite_resource_links",
+    #: Repositories
+    "MAX_FILE_BYTES",
+    "RepositoryEntry",
+    "RepositoryTree",
+    "RepositoryLink",
+    "batch_entries",
+    "blob_sha",
+    "tree_sha",
+    "scan_repositories",
+    "attach_repositories",
+    "extract_repository_links",
+    "rewrite_repository_links",
     #: Questions
     "AnyQuestion",
     "QuestionFile",
@@ -148,8 +189,11 @@ __all__ = [
     "QuestionParseError",
     "CalendarError",
     "ResourceLinkError",
+    "RepositoryError",
     #: Shell
     "OpResult",
+    "RepositoryApi",
+    "HttpRepositoryApi",
     "fetch_server_state",
     "fetch_students",
     "run_plan",
