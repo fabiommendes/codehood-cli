@@ -14,7 +14,7 @@ import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
-from urllib.parse import unquote
+from urllib.parse import quote, unquote
 
 from .calendar import Event, EventKey
 from .errors import ResourceLinkError
@@ -175,7 +175,12 @@ def extract_repository_links(markdown: str) -> tuple[RepositoryLink, ...]:
     appearance, code skipped, other links ignored. `repositories/lab1` and
     `repositories/lab1/src/main.py` both count.
     """
-    raise NotImplementedError
+    found: dict[RepositoryLink, None] = {}
+    for start, end in _link_targets(markdown):
+        link = _repositories_target(markdown[start:end])
+        if link is not None:
+            found.setdefault(link, None)
+    return tuple(found)
 
 
 def attach_repositories(
@@ -193,7 +198,25 @@ def attach_repositories(
         ResourceLinkError: A lesson links a slug that is not in
             `repositories`, or a path that is not in its tree.
     """
-    raise NotImplementedError
+    by_slug = {tree.slug: tree for tree in repositories}
+    attached: list[Event] = []
+    for event in events:
+        slugs: set[str] = set()
+        for link in extract_repository_links(event.description):
+            tree = by_slug.get(link.slug)
+            where = f"repositories/{link.slug}"
+            if tree is None:
+                raise ResourceLinkError(
+                    f"{_lesson(event)} links to {where}, which is not a repository"
+                )
+            if link.path is not None and not _in_tree(tree, link.path):
+                raise ResourceLinkError(
+                    f"{_lesson(event)} links to {where}/{link.path}, "
+                    "which is not in the repository"
+                )
+            slugs.add(link.slug)
+        attached.append(replace(event, repositories=tuple(sorted(slugs))))
+    return tuple(attached)
 
 
 def rewrite_repository_links(
@@ -206,7 +229,53 @@ def rewrite_repository_links(
     Link text and `#fragment` are kept; other links are untouched. Run it
     after `attach_repositories`, which validates the targets.
     """
-    raise NotImplementedError
+    return tuple(
+        replace(
+            event,
+            description=_rewrite_repositories(event.description, discipline, course),
+        )
+        for event in events
+    )
+
+
+def _rewrite_repositories(markdown: str, discipline: str, course: str) -> str:
+    out = markdown
+    for start, end in reversed(_link_targets(markdown)):
+        raw = markdown[start:end]
+        link = _repositories_target(raw)
+        if link is None:
+            continue
+        url = f"/{discipline}/{course}/repositories/{link.slug}"
+        if link.path is not None:
+            url += "/" + quote(link.path.as_posix())
+        fragment = f"#{raw.split('#', 1)[1]}" if "#" in raw else ""
+        out = out[:start] + url + fragment + out[end:]
+    return out
+
+
+def _in_tree(tree: RepositoryTree, path: PurePosixPath) -> bool:
+    """
+    Whether `path` is a file of `tree` or a directory that holds one.
+    """
+    prefix = path.as_posix()
+    return any(
+        entry.path == prefix or entry.path.startswith(prefix + "/")
+        for entry in tree.entries
+    )
+
+
+def _repositories_target(raw: str) -> RepositoryLink | None:
+    """
+    The repository link a target names, or `None` when it points elsewhere.
+    """
+    if "://" in raw or raw.startswith(("#", "/", "mailto:")):
+        return None
+    cleaned = unquote(raw.split("#", 1)[0].split("?", 1)[0])
+    parts = PurePosixPath(cleaned).parts
+    if len(parts) < 2 or parts[0] != "repositories" or ".." in parts:
+        return None
+    rest = parts[2:]
+    return RepositoryLink(parts[1], PurePosixPath(*rest) if rest else None)
 
 
 def _lesson(event: Event) -> str:

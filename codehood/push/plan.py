@@ -379,6 +379,9 @@ def plan_push(
         end_at=_timestamp(local.end),
     )
 
+    yield from plan_repositories(
+        local, server, drop_repositories=drop_repositories, message=message
+    )
     yield from plan_calendar(local, server, drop_roll_calls=drop_roll_calls)
 
     seen_slugs: set[str] = set()
@@ -515,7 +518,22 @@ def plan_repositories(
     server repository with no local folder gets a `WarnRepositoryKept`, or
     a `DeleteRepository` with `drop_repositories`.
     """
-    raise NotImplementedError
+    local_slugs = set()
+    for tree in local.repositories:
+        local_slugs.add(tree.slug)
+        if tree.slug in server.repositories and (
+            server.repositories[tree.slug] == tree.tree_sha
+        ):
+            continue
+        yield UpsertRepository(tree=tree, message=message)
+
+    for slug in sorted(server.repositories):
+        if slug in local_slugs:
+            continue
+        if drop_repositories:
+            yield DeleteRepository(slug=slug)
+        else:
+            yield WarnRepositoryKept(slug=slug)
 
 
 def plan_grades(local: LocalState, server: ServerState) -> Iterator[PushOp]:

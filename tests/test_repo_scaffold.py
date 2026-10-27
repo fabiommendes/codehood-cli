@@ -19,6 +19,7 @@ GOLDEN_PATHS = {
     "questions",
     "exams",
     "resources",
+    "repositories",
     ".codehood",
     "questions/example.md",
     "exams/example.md",

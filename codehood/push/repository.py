@@ -10,12 +10,21 @@ server's `tree` without uploading anything. No network here.
 
 from __future__ import annotations
 
+import hashlib
+import os
+import re
+import stat
+import sys
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
+import pathspec
+
+from ..globs import is_excluded
 from ..repo import REPOSITORIES_DIR
+from .errors import RepositoryError
 
 __all__ = [
     "MAX_FILE_BYTES",
@@ -35,6 +44,15 @@ MAX_FILE_BYTES = 16 * 1024 * 1024
 
 #: The git mode of a file: regular or executable.
 type FileMode = Literal["100644", "100755"]
+
+#: What the server accepts as a repository slug.
+SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9._\-]*$")
+
+#: The longest slug the server accepts.
+MAX_SLUG_LENGTH = 200
+
+#: A directory in a git tree.
+TREE_MODE = "40000"
 
 
 @dataclass(frozen=True)
@@ -72,7 +90,7 @@ class RepositoryTree:
         """
         Total bytes of the files.
         """
-        raise NotImplementedError
+        return sum(entry.size for entry in self.entries)
 
 
 def scan_repositories(
@@ -95,7 +113,34 @@ def scan_repositories(
             name is not a valid slug, a symlink is found, a file exceeds
             `MAX_FILE_BYTES`, or a folder has no file left to publish.
     """
-    raise NotImplementedError
+    base = root / REPOSITORIES_DIR
+    if not base.is_dir():
+        return
+    children = sorted(os.scandir(base), key=lambda child: child.name)
+    for child in children:
+        path = Path(child.path)
+        if child.is_symlink():
+            raise RepositoryError(f"{path} is a symlink")
+        if not child.is_dir():
+            raise RepositoryError(
+                f"{path} is a file: {REPOSITORIES_DIR}/ holds only repository folders"
+            )
+        if not SLUG_RE.match(child.name) or len(child.name) > MAX_SLUG_LENGTH:
+            raise RepositoryError(
+                f"{path}: {child.name!r} is not a valid repository slug "
+                "(lowercase letters, digits, '.', '_' and '-', starting with "
+                "a letter or digit)"
+            )
+    for child in children:
+        entries = tuple(
+            sorted(
+                _walk(root, Path(child.path), Path(child.path), exclude, []),
+                key=lambda entry: entry.path.encode("utf-8"),
+            )
+        )
+        if not entries:
+            raise RepositoryError(f"{child.path} has no file to publish")
+        yield RepositoryTree(child.name, entries, tree_sha(entries))
 
 
 def blob_sha(data: bytes) -> str:
@@ -106,7 +151,7 @@ def blob_sha(data: bytes) -> str:
         >>> blob_sha(b"")
         'e69de29bb2d1d6434b8b29ae775ad8c2e48c5391'
     """
-    raise NotImplementedError
+    return hashlib.sha1(b"blob %d\0" % len(data) + data).hexdigest()
 
 
 def tree_sha(entries: Sequence[RepositoryEntry]) -> str:
@@ -121,7 +166,21 @@ def tree_sha(entries: Sequence[RepositoryEntry]) -> str:
         ValueError: `entries` is empty, or a path is both a file and a
             directory.
     """
-    raise NotImplementedError
+    if not entries:
+        raise ValueError("a tree needs at least one file")
+    root: _Node = {}
+    for entry in entries:
+        *directories, name = entry.path.split("/")
+        node = root
+        for directory in directories:
+            child = node.setdefault(directory, {})
+            if not isinstance(child, dict):
+                raise ValueError(f"{entry.path}: {directory!r} is also a file")
+            node = child
+        if name in node:
+            raise ValueError(f"{entry.path} is both a file and a directory")
+        node[name] = (entry.mode, entry.git_sha)
+    return _node_sha(root)
 
 
 def file_mode(path: Path) -> FileMode:
@@ -129,7 +188,9 @@ def file_mode(path: Path) -> FileMode:
     `100755` when the owner may execute `path`, `100644` otherwise or on
     Windows.
     """
-    raise NotImplementedError
+    if sys.platform == "win32":
+        return "100644"
+    return "100755" if path.stat().st_mode & stat.S_IXUSR else "100644"
 
 
 def batch_entries(
@@ -144,4 +205,122 @@ def batch_entries(
     Raises:
         ValueError: A file is larger than `max_bytes`.
     """
-    raise NotImplementedError
+    batch: list[RepositoryEntry] = []
+    total = 0
+    for entry in entries:
+        if entry.size > max_bytes:
+            raise ValueError(f"{entry.path} is larger than {max_bytes} bytes")
+        if batch and total + entry.size > max_bytes:
+            yield tuple(batch)
+            batch, total = [], 0
+        batch.append(entry)
+        total += entry.size
+        if total == max_bytes:
+            yield tuple(batch)
+            batch, total = [], 0
+    if batch:
+        yield tuple(batch)
+
+
+#
+# Utilities
+#
+
+#: A directory is a mapping; a file is its `(mode, git sha)`.
+type _Node = dict[str, _Node | tuple[str, str]]
+
+
+def _node_sha(node: _Node) -> str:
+    """
+    The sha1 of the git tree object for a nested directory mapping.
+    """
+    items: list[tuple[bytes, bytes]] = []
+    for name, value in node.items():
+        raw = name.encode("utf-8")
+        if isinstance(value, dict):
+            mode, sha, key = TREE_MODE, _node_sha(value), raw + b"/"
+        else:
+            (mode, sha), key = value, raw
+        items.append((key, mode.encode() + b" " + raw + b"\0" + bytes.fromhex(sha)))
+    body = b"".join(content for _, content in sorted(items))
+    return hashlib.sha1(b"tree %d\0" % len(body) + body).hexdigest()
+
+
+def _walk(
+    root: Path,
+    repository: Path,
+    directory: Path,
+    exclude: Sequence[str],
+    specs: list[tuple[str, pathspec.PathSpec]],
+) -> Iterator[RepositoryEntry]:
+    """
+    Yield the publishable files under `directory`, depth first.
+
+    `repository` is the folder of the repository being scanned. `specs` pairs each `.gitignore` found on the way down with the
+    directory it lives in, relative to the repository folder, outermost
+    first.
+    """
+    prefix = directory.relative_to(repository).as_posix()
+    gitignore = directory / ".gitignore"
+    if gitignore.is_file() and not gitignore.is_symlink():
+        lines = gitignore.read_text(encoding="utf-8", errors="replace").splitlines()
+        specs = [
+            *specs,
+            (
+                "" if prefix == "." else prefix + "/",
+                pathspec.PathSpec.from_lines("gitignore", lines),
+            ),
+        ]
+    for child in sorted(os.scandir(directory), key=lambda item: item.name):
+        path = Path(child.path)
+        if child.name == ".git":
+            continue
+        relative = path.relative_to(repository).as_posix()
+        if is_excluded(path.relative_to(root).as_posix(), exclude):
+            continue
+        is_dir = child.is_dir(follow_symlinks=False)
+        if _ignored(relative + "/" if is_dir else relative, specs):
+            continue
+        if child.is_symlink():
+            raise RepositoryError(f"{path} is a symlink")
+        if is_dir:
+            yield from _walk(root, repository, path, exclude, specs)
+        elif child.is_file(follow_symlinks=False):
+            yield _read_entry(path, relative)
+        else:
+            raise RepositoryError(f"{path} is not a regular file")
+
+
+def _ignored(relative: str, specs: list[tuple[str, pathspec.PathSpec]]) -> bool:
+    """
+    Whether the nested `.gitignore` files ignore a path: the innermost rule
+    that matches decides, and within one file the last one.
+    """
+    ignored = False
+    for base, spec in specs:
+        if not relative.startswith(base):
+            continue
+        result = spec.check_file(relative[len(base) :])
+        if result.include is not None:
+            ignored = result.include
+    return ignored
+
+
+def _read_entry(path: Path, relative: str) -> RepositoryEntry:
+    """
+    Hash one file into a `RepositoryEntry`.
+    """
+    size = path.stat().st_size
+    if size > MAX_FILE_BYTES:
+        raise RepositoryError(
+            f"{path} is {size} bytes, over the {MAX_FILE_BYTES} byte limit"
+        )
+    data = path.read_bytes()
+    return RepositoryEntry(
+        path=relative,
+        mode=file_mode(path),
+        sha256=hashlib.sha256(data).hexdigest(),
+        git_sha=blob_sha(data),
+        size=len(data),
+        source=path,
+    )

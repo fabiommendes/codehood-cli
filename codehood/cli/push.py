@@ -25,7 +25,12 @@ from ..push.errors import (
 )
 from ..push.exclude import scan_excluded
 from ..push.grades import GradesError
-from ..push.links import attach_resources, rewrite_event_links
+from ..push.links import (
+    attach_repositories,
+    attach_resources,
+    rewrite_event_links,
+    rewrite_repository_links,
+)
 from ..push.plan import (
     DeleteCalendarEvent,
     DeleteGradeColumn,
@@ -49,8 +54,9 @@ from ..push.plan import (
     plan_push,
 )
 from ..push.question import scan_questions
+from ..push.repository import scan_repositories
 from ..push.resource import scan_resources
-from ..push.run import OpResult, fetch_server_state, run_plan
+from ..push.run import HttpRepositoryApi, OpResult, fetch_server_state, run_plan
 from ..repo import read_course_name
 from .base import app
 from .grades import read_grade_sheet, unmatched_warnings
@@ -165,8 +171,11 @@ def sync(
         httpx.TransportError: When the server cannot be reached.
     """
     client = get_client(config.server.url)
+    repositories = HttpRepositoryApi(client, local.discipline, local.course)
     try:
-        server = fetch_server_state(local.discipline, local.course, client)
+        server = fetch_server_state(
+            local.discipline, local.course, client, repositories
+        )
     except httpx.HTTPStatusError as exc:
         typer.echo(f"error: could not read the server's current state: {exc}", err=True)
         raise typer.Exit(code=1) from exc
@@ -227,7 +236,11 @@ def sync(
     executed = 0
     not_attempted = 0
     for result in run_plan(
-        to_run, discipline=local.discipline, course=local.course, client=client
+        to_run,
+        discipline=local.discipline,
+        course=local.course,
+        client=client,
+        repositories=repositories,
     ):
         if result.skipped:
             not_attempted += 1
@@ -295,9 +308,9 @@ def read_local_state(path: Path) -> LocalState:
     discipline = config.course.discipline
     course = f"{config.course.instructor}_{config.course.edition}"
     exclude = config.push.exclude
-    resources = attach_resources(
-        allocation.events, tuple(scan_resources(path, exclude)), path
-    )
+    trees = tuple(scan_repositories(path, exclude))
+    linked = attach_repositories(allocation.events, trees)
+    resources = attach_resources(linked, tuple(scan_resources(path, exclude)), path)
 
     return LocalState(
         discipline=discipline,
@@ -306,10 +319,13 @@ def read_local_state(path: Path) -> LocalState:
         start=calendar.start,
         end=calendar.end,
         slots=calendar.slots,
-        events=rewrite_event_links(
-            allocation.events, resources, path, discipline, course
+        events=rewrite_repository_links(
+            rewrite_event_links(linked, resources, path, discipline, course),
+            discipline,
+            course,
         ),
         resources=resources,
+        repositories=trees,
         questions=tuple(scan_questions(path, exclude)),
         excluded=tuple(scan_excluded(path, exclude)),
     )
@@ -365,4 +381,29 @@ def describe_repository(
     4f2a9c1`, with the first 7 hex digits of the local `tree_sha`.
     `WarnRepositoryKept` names `--drop-repositories`.
     """
-    raise NotImplementedError
+    match op:
+        case UpsertRepository():
+            count = len(op.tree.entries)
+            noun = "file" if count == 1 else "files"
+            return (
+                f"repository {op.tree.slug}: {count} {noun} "
+                f"({format_size(op.tree.size)}), commit {op.tree.tree_sha[:7]}"
+            )
+        case WarnRepositoryKept():
+            return (
+                f"repository {op.slug} kept: its folder is gone; "
+                "use --drop-repositories to delete it"
+            )
+        case DeleteRepository():
+            return f"delete repository {op.slug}"
+
+
+def format_size(size: int) -> str:
+    """
+    A byte count in decimal units, e.g. `1.2 MB`.
+    """
+    if size < 1000:
+        return f"{size} B"
+    if size < 1_000_000:
+        return f"{size / 1000:.1f} kB"
+    return f"{size / 1_000_000:.1f} MB"

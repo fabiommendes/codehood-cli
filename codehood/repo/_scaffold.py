@@ -83,6 +83,7 @@ def write_repo(
         ensure_dir(path / _layout.QUESTIONS_DIR),
         ensure_dir(path / _layout.EXAMS_DIR),
         ensure_dir(path / _layout.RESOURCES_DIR),
+        ensure_dir(path / _layout.REPOSITORIES_DIR),
         ensure_dir(path / _layout.MACHINE_DIR),
     ]
     if examples:

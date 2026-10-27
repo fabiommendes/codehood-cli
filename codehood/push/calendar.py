@@ -253,7 +253,10 @@ class Event:
         linking or unlinking one re-sends the event. Without them the digest
         stays the old one, so existing refs do not change.
         """
-        digest = f"{self.title}#{self.description}".encode("utf-8")
+        text = f"{self.title}#{self.description}"
+        if self.repositories:
+            text += "#repositories:" + ",".join(sorted(self.repositories))
+        digest = text.encode("utf-8")
         return hashlib.md5(digest).hexdigest()
 
 

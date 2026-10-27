@@ -137,6 +137,8 @@ def _calendar_defaults(request: httpx.Request) -> httpx.Response | None:
     """
     if request.url.path == f"{BASE}/roll-call" and request.method == "GET":
         return httpx.Response(200, json=[])
+    if request.url.path == f"{BASE}/repository" and request.method == "GET":
+        return httpx.Response(200, json=[])
     if request.url.path == f"{BASE}/time-slot":
         if request.method == "GET":
             return httpx.Response(200, json=[])
@@ -310,6 +312,8 @@ def test_dry_run_prints_a_warning_for_a_cancelled_events_pinned_slot(repo, monke
         if request.url.path == f"{BASE}/resource":
             return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/question":
+            return httpx.Response(200, json=[])
+        if request.url.path == f"{BASE}/repository":
             return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/time-slot":
             return httpx.Response(

@@ -16,11 +16,12 @@ import warnings
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
+from urllib.parse import quote
 
 import httpx
 
 from ..api import generated
-from ..api.base import CodehoodAPIError
+from ..api.base import CodehoodAPIError, auth_headers
 from ..grades import ExamResult, ExamState
 from .calendar import Duration, EventKey, TimeOfDay, TimeSlot
 from .grades import ServerStudent
@@ -46,7 +47,7 @@ from .plan import (
     WarnRepositoryKept,
     WarnTimeSlotPinned,
 )
-from .repository import RepositoryEntry
+from .repository import RepositoryEntry, batch_entries
 from .resource import CodeData, FileData, MdData, ResourceData
 from .wire import wire_question
 
@@ -158,25 +159,44 @@ class HttpRepositoryApi:
         """
         See `RepositoryApi.list_trees`.
         """
-        raise NotImplementedError
+        response = self.client.get(self._url(), headers=auth_headers(self.client))
+        response.raise_for_status()
+        return {item["slug"]: item.get("tree") for item in response.json()}
 
     def upsert(self, slug: str) -> None:
         """
         See `RepositoryApi.upsert`.
         """
-        raise NotImplementedError
+        response = self.client.put(
+            self._url(), json={"slug": slug}, headers=auth_headers(self.client)
+        )
+        response.raise_for_status()
 
     def missing(self, hashes: Sequence[str]) -> list[str]:
         """
         See `RepositoryApi.missing`.
         """
-        raise NotImplementedError
+        response = self.client.post(
+            "/api/blob/missing",
+            json={"hashes": list(hashes)},
+            headers=auth_headers(self.client),
+        )
+        response.raise_for_status()
+        return list(response.json()["missing"])
 
     def upload(self, slug: str, entries: Sequence[RepositoryEntry]) -> None:
         """
         See `RepositoryApi.upload`. Reads each file from `entry.source`.
         """
-        raise NotImplementedError
+        parts = {entry.sha256: entry.source for entry in entries}
+        files = [
+            (sha256, (sha256, source.read_bytes(), "application/octet-stream"))
+            for sha256, source in parts.items()
+        ]
+        response = self.client.post(
+            self._url(slug, "files"), files=files, headers=auth_headers(self.client)
+        )
+        response.raise_for_status()
 
     def commit(
         self, slug: str, entries: Sequence[RepositoryEntry], message: str | None
@@ -184,13 +204,33 @@ class HttpRepositoryApi:
         """
         See `RepositoryApi.commit`.
         """
-        raise NotImplementedError
+        body: dict[str, object] = {
+            "tree": [
+                {"path": entry.path, "mode": entry.mode, "hash": entry.sha256}
+                for entry in entries
+            ]
+        }
+        if message is not None:
+            body["message"] = message
+        response = self.client.post(
+            self._url(slug, "commit"), json=body, headers=auth_headers(self.client)
+        )
+        response.raise_for_status()
+        head = response.json().get("head")
+        return head if isinstance(head, str) else None
 
     def delete(self, slug: str) -> None:
         """
         See `RepositoryApi.delete`.
         """
-        raise NotImplementedError
+        response = self.client.delete(
+            self._url(slug), headers=auth_headers(self.client)
+        )
+        response.raise_for_status()
+
+    def _url(self, *parts: str) -> str:
+        base = f"/api/course/{self.discipline}/{self.course}/repository"
+        return "/".join((base, *(quote(part, safe="") for part in parts)))
 
 
 def fetch_server_state(
@@ -210,7 +250,7 @@ def fetch_server_state(
     `.../time-slot` to `slug -> ref`, `.../calendar-event` to
     `(week, timeSlot) -> ServerEvent`, and `.../grade-column` to
     `slug -> rev`; `.../roll-call` adds each event's attendance count.
-    `repositories` (default `HttpRepositoryApi`) gives `slug -> tree`.
+    `repositories` gives `slug -> tree`; without it no repository is listed.
 
     A time slot carries no `ref` column server-side, so its ref is
     recomputed here from the fields the listing did return -- which is
@@ -282,6 +322,7 @@ def fetch_server_state(
             for event in calendar_events
         },
         grade_columns={column.slug: column.rev or "" for column in grade_columns},
+        repositories=dict(repositories.list_trees()) if repositories else {},
     )
 
 
@@ -443,21 +484,56 @@ def run_upsert_repository(op: UpsertRepository, api: RepositoryApi) -> OpResult:
     A failed step stops the op and reports it; nothing after it runs. The
     message says how many files were uploaded and the new head.
     """
-    raise NotImplementedError
+    slug = op.tree.slug
+    entries = op.tree.entries
+    uploaded = 0
+    try:
+        api.upsert(slug)
+        hashes = list(dict.fromkeys(entry.sha256 for entry in entries))
+        missing = set(api.missing(hashes))
+        pending = [entry for entry in entries if entry.sha256 in missing]
+        for batch in batch_entries(_unique_blobs(pending)):
+            api.upload(slug, batch)
+            uploaded += len(batch)
+        head = api.commit(slug, entries, op.message)
+    except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
+    return OpResult(
+        op=op,
+        ok=True,
+        message=f"uploaded {uploaded} file(s), head {head}"
+        if head
+        else f"uploaded {uploaded} file(s)",
+    )
 
 
 def run_warn_repository_kept(op: WarnRepositoryKept) -> OpResult:
     """
     Not a write: report the repository `plan_repositories` kept.
     """
-    raise NotImplementedError
+    return OpResult(
+        op=op,
+        ok=True,
+        message=f"kept: {op.slug} has no folder; --drop-repositories deletes it",
+    )
 
 
 def run_delete_repository(op: DeleteRepository, api: RepositoryApi) -> OpResult:
     """
     Delete one repository, reporting a refused request as a failed result.
     """
-    raise NotImplementedError
+    try:
+        api.delete(op.slug)
+    except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
+    return OpResult(op=op, ok=True, message=f"deleted {op.slug}")
+
+
+def _unique_blobs(entries: Sequence[RepositoryEntry]) -> list[RepositoryEntry]:
+    """
+    One entry per distinct content: a part name may not repeat in an upload.
+    """
+    return list({entry.sha256: entry for entry in entries}.values())
 
 
 def _run_upsert_course(op: UpsertCourse, *, client: httpx.Client) -> OpResult:
@@ -630,10 +706,19 @@ def _run_upsert_calendar_event(
         rev=op.event.ref,
         timeSlot=op.event.time_slot,
     )
+    # The generated model predates `repositories`; send the whole set so an
+    # unlinked repository leaves the event.
+    payload = {
+        **body.model_dump(mode="json", by_alias=True),
+        "repositories": list(op.event.repositories),
+    }
     try:
-        generated.upsert_calendar_event(
-            discipline=discipline, course=course, body=body, client=client
+        response = client.put(
+            f"/api/course/{discipline}/{course}/calendar-event",
+            json=payload,
+            headers=auth_headers(client),
         )
+        response.raise_for_status()
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
         return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
     return OpResult(
