@@ -4,6 +4,13 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- `repositories/`: each subfolder is pushed as a course repository, honoring
+  its nested `.gitignore` files and `[push] exclude`. Only files the server
+  lacks are uploaded. `-m/--message` sets the commit message. A folder that
+  disappears is kept on the server (with a warning) unless
+  `--drop-repositories` is given. Links from `calendar.md` to
+  `repositories/<slug>[/<path>]` attach the repository to the lesson and point
+  to its page. `ch init` creates `repositories/`.
 - An unreachable server, a connection lost mid-push, or a command run before
   `codehood login` ends with one `error:` line and exit code 1 instead of a
   traceback.
