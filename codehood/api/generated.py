@@ -207,25 +207,16 @@ class Question2QuestionEssay(Model):
     title: str | None = None
     author: str | None = None
     stem: str
-    preamble: str | None = None
     epilogue: str | None = None
     comment: str | None = None
     locale: str | None = None
     tags: list[str] | None = None
+    weight: float | None = None
     meta: dict[str, object | None] | None = None
     type: Literal["essay"]
-    input: Literal["code", "text", "plain"] | None = None
+    content: Literal["code", "text", "plain"] | None = None
     highlight: str | None = None
     answer_key: str | None = Field(default=None, alias="answerKey")
-
-
-class Question2QuestionFillInBlanksItemShortAnswer(Model):
-    model_config = ConfigDict(populate_by_name=True)
-
-    id: str
-    type: Literal["short-answer"]
-    one_of: list[str] | None = Field(default=None, alias="oneOf")
-    regex: str | None = None
 
 
 class Question2QuestionMultipleChoiceChoicesItem(Model):
@@ -239,7 +230,7 @@ class Question2QuestionMultipleChoiceChoicesItem(Model):
 class Question2QuestionMultipleSelectionChoicesItem(Model):
     id: str | None = None
     text: str
-    correct: bool | None = None
+    correct: bool
     feedback: str | None = None
     comment: str | None = None
 
@@ -247,21 +238,23 @@ class Question2QuestionMultipleSelectionChoicesItem(Model):
 class Question2QuestionTrueFalseChoicesItem(Model):
     id: str | None = None
     text: str
-    correct: bool | None = None
+    correct: bool
     marker: str | None = None
     feedback: str | None = None
     comment: str | None = None
 
 
 class Question3QuestionEssay(Model):
-    type: Literal["essay"]
     id: str | None = None
+    uuid: str | None = None
     title: str | None = None
     stem: str
-    preamble: str | None = None
     epilogue: str | None = None
     tags: list[str] | None = None
-    input: Literal["code", "text", "plain"] | None = None
+    locale: str | None = None
+    weight: float | None = None
+    type: Literal["essay"]
+    content: Literal["code", "text", "plain"] | None = None
     highlight: str | None = None
 
 
@@ -271,13 +264,8 @@ class Question3QuestionFillInBlanksItemNumeric(Model):
     id: str
     type: Literal["numeric"]
     unit: str | None = None
-    decimal_places: int | None = Field(default=None, alias="decimalPlaces")
     domain: Literal["integer", "decimal", "fraction"]
-
-
-class Question3QuestionFillInBlanksItemShortAnswer(Model):
-    id: str
-    type: Literal["short-answer"]
+    decimal_places: int | None = Field(default=None, alias="decimalPlaces")
 
 
 class Question3QuestionMultipleChoiceChoicesItem(Model):
@@ -288,16 +276,23 @@ class Question3QuestionMultipleChoiceChoicesItem(Model):
 class Question3QuestionNumeric(Model):
     model_config = ConfigDict(populate_by_name=True)
 
-    type: Literal["numeric"]
     id: str | None = None
+    uuid: str | None = None
     title: str | None = None
     stem: str
-    preamble: str | None = None
     epilogue: str | None = None
     tags: list[str] | None = None
+    locale: str | None = None
+    weight: float | None = None
+    type: Literal["numeric"]
     unit: str | None = None
-    decimal_places: int | None = Field(default=None, alias="decimalPlaces")
     domain: Literal["integer", "decimal", "fraction"]
+    decimal_places: int | None = Field(default=None, alias="decimalPlaces")
+
+
+class Question3QuestionShortAnswerPreAcceptItem(Model):
+    pattern: str
+    feedback: str | None = None
 
 
 class RepositoriesItem(Model):
@@ -539,13 +534,26 @@ class Question2QuestionFillInBlanksItemMultipleChoice(Model):
 class Question2QuestionFillInBlanksItemNumeric(Model):
     model_config = ConfigDict(populate_by_name=True)
 
-    id: str
-    type: Literal["numeric"]
-    answer: float
+    answer: float | str
     unit: str | None = None
     domain: Literal["integer", "decimal", "fraction"] | None = None
     decimal_places: int | None = Field(default=None, alias="decimalPlaces")
     tolerance: Tolerance | None = None
+    id: str
+    type: Literal["numeric"]
+    incorrect_feedback: str | None = Field(default=None, alias="incorrectFeedback")
+
+
+class Question2QuestionFillInBlanksItemShortAnswer(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    accept: list[str | AcceptItem] | None = None
+    reject: list[str | AcceptItem] | None = None
+    pre_accept: list[str | AcceptItem] | None = Field(default=None, alias="preAccept")
+    pre_reject: list[str | AcceptItem] | None = Field(default=None, alias="preReject")
+    id: str
+    type: Literal["short-answer"]
+    incorrect_feedback: str | None = Field(default=None, alias="incorrectFeedback")
 
 
 class Question2QuestionMultipleChoice(Model):
@@ -554,15 +562,16 @@ class Question2QuestionMultipleChoice(Model):
     title: str | None = None
     author: str | None = None
     stem: str
-    preamble: str | None = None
     epilogue: str | None = None
     comment: str | None = None
     locale: str | None = None
     tags: list[str] | None = None
+    weight: float | None = None
     meta: dict[str, object | None] | None = None
     type: Literal["multiple-choice"]
     choices: list[Question2QuestionMultipleChoiceChoicesItem]
-    shuffle: bool | None = None
+    grading: Literal["partial", "symmetric", "inherit"] | None = None
+    shuffle: bool | Literal["inherit"] | None = None
 
 
 class Question2QuestionMultipleSelection(Model):
@@ -571,15 +580,16 @@ class Question2QuestionMultipleSelection(Model):
     title: str | None = None
     author: str | None = None
     stem: str
-    preamble: str | None = None
     epilogue: str | None = None
     comment: str | None = None
     locale: str | None = None
     tags: list[str] | None = None
+    weight: float | None = None
     meta: dict[str, object | None] | None = None
     type: Literal["multiple-selection"]
     choices: list[Question2QuestionMultipleSelectionChoicesItem]
-    shuffle: bool | None = None
+    grading: Literal["partial", "all-or-nothing", "symmetric", "inherit"] | None = None
+    shuffle: bool | Literal["inherit"] | None = None
 
 
 class Question2QuestionNumeric(Model):
@@ -590,18 +600,19 @@ class Question2QuestionNumeric(Model):
     title: str | None = None
     author: str | None = None
     stem: str
-    preamble: str | None = None
     epilogue: str | None = None
     comment: str | None = None
     locale: str | None = None
     tags: list[str] | None = None
+    weight: float | None = None
     meta: dict[str, object | None] | None = None
-    type: Literal["numeric"]
-    answer: float
+    answer: float | str
     unit: str | None = None
     domain: Literal["integer", "decimal", "fraction"] | None = None
     decimal_places: int | None = Field(default=None, alias="decimalPlaces")
     tolerance: Tolerance | None = None
+    type: Literal["numeric"]
+    incorrect_feedback: str | None = Field(default=None, alias="incorrectFeedback")
 
 
 class Question2QuestionShortAnswer(Model):
@@ -612,20 +623,20 @@ class Question2QuestionShortAnswer(Model):
     title: str | None = None
     author: str | None = None
     stem: str
-    preamble: str | None = None
     epilogue: str | None = None
     comment: str | None = None
     locale: str | None = None
     tags: list[str] | None = None
+    weight: float | None = None
     meta: dict[str, object | None] | None = None
-    type: Literal["short-answer"]
-    one_of: list[str] | None = Field(default=None, alias="oneOf")
-    regex: str | None = None
     accept: list[str | AcceptItem] | None = None
     reject: list[str | AcceptItem] | None = None
     pre_accept: list[str | AcceptItem] | None = Field(default=None, alias="preAccept")
     pre_reject: list[str | AcceptItem] | None = Field(default=None, alias="preReject")
-    open_ended: bool | None = Field(default=None, alias="openEnded")
+    type: Literal["short-answer"]
+    diacritics: Literal["fold", "keep"] | None = None
+    unmatched: Literal["manual", "incorrect"] | None = None
+    incorrect_feedback: str | None = Field(default=None, alias="incorrectFeedback")
 
 
 class Question2QuestionTrueFalse(Model):
@@ -634,15 +645,19 @@ class Question2QuestionTrueFalse(Model):
     title: str | None = None
     author: str | None = None
     stem: str
-    preamble: str | None = None
     epilogue: str | None = None
     comment: str | None = None
     locale: str | None = None
     tags: list[str] | None = None
+    weight: float | None = None
     meta: dict[str, object | None] | None = None
     type: Literal["true-false"]
     choices: list[Question2QuestionTrueFalseChoicesItem]
-    shuffle: bool | None = None
+    grading: (
+        Literal["partial", "no-mistakes", "all-or-nothing", "symmetric", "inherit"]
+        | None
+    ) = None
+    shuffle: bool | Literal["inherit"] | None = None
 
 
 class Question3QuestionFillInBlanksItemMultipleChoice(Model):
@@ -651,51 +666,87 @@ class Question3QuestionFillInBlanksItemMultipleChoice(Model):
     choices: list[Question3QuestionMultipleChoiceChoicesItem]
 
 
+class Question3QuestionFillInBlanksItemShortAnswer(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str
+    type: Literal["short-answer"]
+    unmatched: Literal["manual", "incorrect"]
+    pre_accept: list[str | Question3QuestionShortAnswerPreAcceptItem] | None = Field(
+        default=None, alias="preAccept"
+    )
+    pre_reject: list[str | Question3QuestionShortAnswerPreAcceptItem] | None = Field(
+        default=None, alias="preReject"
+    )
+
+
 class Question3QuestionMultipleChoice(Model):
-    type: Literal["multiple-choice"]
     id: str | None = None
+    uuid: str | None = None
     title: str | None = None
     stem: str
-    preamble: str | None = None
     epilogue: str | None = None
     tags: list[str] | None = None
+    locale: str | None = None
+    weight: float | None = None
+    type: Literal["multiple-choice"]
+    shuffle: bool | Literal["inherit"] | None = None
+    grading: Literal["partial", "symmetric", "inherit"] | None = None
     choices: list[Question3QuestionMultipleChoiceChoicesItem]
 
 
 class Question3QuestionMultipleSelection(Model):
-    type: Literal["multiple-selection"]
     id: str | None = None
+    uuid: str | None = None
     title: str | None = None
     stem: str
-    preamble: str | None = None
     epilogue: str | None = None
     tags: list[str] | None = None
+    locale: str | None = None
+    weight: float | None = None
+    type: Literal["multiple-selection"]
+    shuffle: bool | Literal["inherit"] | None = None
+    grading: Literal["partial", "all-or-nothing", "symmetric", "inherit"] | None = None
     choices: list[Question3QuestionMultipleChoiceChoicesItem]
 
 
 class Question3QuestionShortAnswer(Model):
     model_config = ConfigDict(populate_by_name=True)
 
-    type: Literal["short-answer"]
     id: str | None = None
+    uuid: str | None = None
     title: str | None = None
     stem: str
-    preamble: str | None = None
     epilogue: str | None = None
     tags: list[str] | None = None
-    pre_accept: list[str | AcceptItem] | None = Field(default=None, alias="preAccept")
-    pre_reject: list[str | AcceptItem] | None = Field(default=None, alias="preReject")
-    open_ended: bool | None = Field(default=None, alias="openEnded")
+    locale: str | None = None
+    weight: float | None = None
+    type: Literal["short-answer"]
+    diacritics: Literal["fold", "keep"] | None = None
+    unmatched: Literal["manual", "incorrect"]
+    pre_accept: list[str | Question3QuestionShortAnswerPreAcceptItem] | None = Field(
+        default=None, alias="preAccept"
+    )
+    pre_reject: list[str | Question3QuestionShortAnswerPreAcceptItem] | None = Field(
+        default=None, alias="preReject"
+    )
 
 
 class Question3QuestionTrueFalse(Model):
-    type: Literal["true-false"]
     id: str | None = None
+    uuid: str | None = None
     title: str | None = None
     stem: str
-    preamble: str | None = None
     epilogue: str | None = None
     tags: list[str] | None = None
+    locale: str | None = None
+    weight: float | None = None
+    type: Literal["true-false"]
+    shuffle: bool | Literal["inherit"] | None = None
+    grading: (
+        Literal["partial", "no-mistakes", "all-or-nothing", "symmetric", "inherit"]
+        | None
+    ) = None
     choices: list[Question3QuestionMultipleChoiceChoicesItem]
 
 
@@ -846,11 +897,11 @@ class Question2QuestionFillIn(Model):
     title: str | None = None
     author: str | None = None
     stem: str
-    preamble: str | None = None
     epilogue: str | None = None
     comment: str | None = None
     locale: str | None = None
     tags: list[str] | None = None
+    weight: float | None = None
     meta: dict[str, object | None] | None = None
     type: Literal["fill-in"]
     blanks: list[
@@ -858,18 +909,31 @@ class Question2QuestionFillIn(Model):
         | Question2QuestionFillInBlanksItemShortAnswer
         | Question2QuestionFillInBlanksItemNumeric
     ]
-    shuffle: bool | None = None
+    grading: (
+        Literal["partial", "no-mistakes", "all-or-nothing", "symmetric", "inherit"]
+        | None
+    ) = None
+    shuffle: bool | Literal["inherit"] | None = None
+    diacritics: Literal["fold", "keep"] | None = None
+    unmatched: Literal["manual", "incorrect"] | None = None
 
 
 class Question3QuestionFillIn(Model):
-    type: Literal["fill-in"]
     id: str | None = None
+    uuid: str | None = None
     title: str | None = None
     stem: str
-    preamble: str | None = None
     epilogue: str | None = None
     tags: list[str] | None = None
-    shuffle: bool | None = None
+    locale: str | None = None
+    weight: float | None = None
+    type: Literal["fill-in"]
+    shuffle: bool | Literal["inherit"] | None = None
+    grading: (
+        Literal["partial", "no-mistakes", "all-or-nothing", "symmetric", "inherit"]
+        | None
+    ) = None
+    diacritics: Literal["fold", "keep"] | None = None
     blanks: list[
         Question3QuestionFillInBlanksItemMultipleChoice
         | Question3QuestionFillInBlanksItemShortAnswer
@@ -890,9 +954,9 @@ class Question2(Model):
         Question2QuestionMultipleChoice
         | Question2QuestionMultipleSelection
         | Question2QuestionTrueFalse
-        | Question2QuestionEssay
         | Question2QuestionNumeric
         | Question2QuestionShortAnswer
+        | Question2QuestionEssay
         | Question2QuestionFillIn
     )
 
@@ -910,9 +974,9 @@ class Question3(Model):
         Question3QuestionMultipleChoice
         | Question3QuestionMultipleSelection
         | Question3QuestionTrueFalse
-        | Question3QuestionEssay
         | Question3QuestionNumeric
         | Question3QuestionShortAnswer
+        | Question3QuestionEssay
         | Question3QuestionFillIn
     )
 
@@ -926,9 +990,9 @@ class QuestionCreate(Model):
         Question2QuestionMultipleChoice
         | Question2QuestionMultipleSelection
         | Question2QuestionTrueFalse
-        | Question2QuestionEssay
         | Question2QuestionNumeric
         | Question2QuestionShortAnswer
+        | Question2QuestionEssay
         | Question2QuestionFillIn
     )
 
@@ -941,9 +1005,9 @@ class UpdateQuestionRequest(Model):
         Question2QuestionMultipleChoice
         | Question2QuestionMultipleSelection
         | Question2QuestionTrueFalse
-        | Question2QuestionEssay
         | Question2QuestionNumeric
         | Question2QuestionShortAnswer
+        | Question2QuestionEssay
         | Question2QuestionFillIn
         | None
     ) = None

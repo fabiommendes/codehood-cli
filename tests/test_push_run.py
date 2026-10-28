@@ -59,7 +59,7 @@ type: ordering
 
 Put these steps in order.
 
-[ordering]
+[ordering]:
 ```
 first
 second
@@ -658,11 +658,10 @@ def test_run_plan_continues_after_a_failure():
 #
 # run_plan: UpsertQuestion / DeleteQuestion
 #
-def test_run_plan_upsert_question_drops_weight_and_grading_but_keeps_the_rest():
+def test_run_plan_upsert_question_sends_the_whole_document():
     """
-    "weight and grading are dropped on the wire" -- see
-    `dev/specs/to-do/push-questions.md`. Every other field, including the
-    camelCase-aliased ones `mdq` already produces, survives untouched.
+    The server stores the mdq document as is, so every field survives,
+    including `weight`, `grading` and the camelCase-aliased ones.
     """
     sent: dict = {}
 
@@ -685,8 +684,8 @@ def test_run_plan_upsert_question_drops_weight_and_grading_but_keeps_the_rest():
         run_plan([op], discipline=DISCIPLINE, course=COURSE, client=_client(handler))
     )
     assert result.ok is True
-    assert "weight" not in sent["question"]
-    assert "grading" not in sent["question"]
+    assert sent["question"]["weight"] == 1.0
+    assert sent["question"]["grading"] == "inherit"
     assert sent["question"]["type"] == "multiple-choice"
     assert sent["question"]["stem"] == "What is 2 + 2?"
     assert sent["slug"] == "week1-big-o"
