@@ -822,10 +822,10 @@ def _writes_to(calls: list[tuple[str, str]], kind: str) -> list[tuple[str, str]]
     ]
 
 
-def test_an_unsupported_question_blocks_the_push_unless_excluded(
+def test_a_broken_question_blocks_the_push_unless_excluded(
     repo_with_question, monkeypatch
 ):
-    _add_question(repo_with_question, "order.mdq", ORDERING_MDQ)
+    _add_question(repo_with_question, "broken.mdq", "not a valid question {{")
     calls: list[tuple[str, str]] = []
     _install_transport(monkeypatch, _server_with(calls))
 
@@ -833,14 +833,14 @@ def test_an_unsupported_question_blocks_the_push_unless_excluded(
     assert blocked.exit_code == 1, blocked.output
 
     (repo_with_question / "codehood.toml").write_text(
-        _exclude_toml("questions/order.mdq"), encoding="utf-8"
+        _exclude_toml("questions/broken.mdq"), encoding="utf-8"
     )
     calls.clear()
     result = runner.invoke(app, ["push", str(repo_with_question)])
 
     assert result.exit_code == 0, result.output
     assert "blocked" not in result.output
-    assert "questions/order.mdq" in result.output
+    assert "questions/broken.mdq" in result.output
     assert "1 excluded" in result.output
     # The question that is not excluded still goes out.
     assert _writes_to(calls, "question") == [("PUT", f"{BASE}/question")]

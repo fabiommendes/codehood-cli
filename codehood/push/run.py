@@ -619,18 +619,6 @@ def _run_delete_resource(
 def _run_upsert_question(
     op: UpsertQuestion, *, discipline: str, course: str, client: httpx.Client
 ) -> OpResult:
-    if op.question.type == "ordering":
-        # `mdq` parses `ordering` questions; the server's `question` union
-        # has no such member -- see `dev/specs/to-do/push-questions.md`,
-        # "Out, and why". Planned, never executed.
-        return OpResult(
-            op=op,
-            ok=False,
-            message=(
-                f"blocked: the server has no `ordering` question type ({op.path})"
-            ),
-        )
-
     payload = wire_question(op.question)
 
     # `model_validate` would round-trip `payload` through one of the

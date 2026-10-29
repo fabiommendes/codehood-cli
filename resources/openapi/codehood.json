@@ -3104,6 +3104,234 @@
                       "blanks"
                     ],
                     "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "uuid": {
+                        "type": "string",
+                        "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                        "example": "123e4567-e89b-12d3-a456-426614174000"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "author": {
+                        "type": "string"
+                      },
+                      "stem": {
+                        "type": "string"
+                      },
+                      "epilogue": {
+                        "type": "string"
+                      },
+                      "comment": {
+                        "type": "string"
+                      },
+                      "locale": {
+                        "type": "string"
+                      },
+                      "tags": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "uniqueItems": true
+                      },
+                      "weight": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "meta": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "nullable": true
+                        }
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "ordering"
+                        ]
+                      },
+                      "lines": {
+                        "type": "array",
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "string",
+                                "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                "example": "Descobrimento do Brasil"
+                              }
+                            ]
+                          },
+                          "minItems": 2,
+                          "maxItems": 2
+                        },
+                        "minItems": 2
+                      },
+                      "extra": {
+                        "type": "array",
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "string",
+                                "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                "example": "Descobrimento do Brasil"
+                              }
+                            ]
+                          },
+                          "minItems": 2,
+                          "maxItems": 2
+                        },
+                        "minItems": 1
+                      },
+                      "accept": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "lines": {
+                              "type": "array",
+                              "items": {
+                                "type": "array",
+                                "items": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "string",
+                                      "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                      "example": "Descobrimento do Brasil"
+                                    }
+                                  ]
+                                },
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "minItems": 1
+                            },
+                            "feedback": {
+                              "type": "string"
+                            },
+                            "comment": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "lines"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "minItems": 1
+                      },
+                      "reject": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "lines": {
+                              "type": "array",
+                              "items": {
+                                "type": "array",
+                                "items": {
+                                  "anyOf": [
+                                    {
+                                      "type": "integer",
+                                      "minimum": 0
+                                    },
+                                    {
+                                      "type": "string",
+                                      "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                      "example": "Descobrimento do Brasil"
+                                    }
+                                  ]
+                                },
+                                "minItems": 2,
+                                "maxItems": 2
+                              },
+                              "minItems": 1
+                            },
+                            "feedback": {
+                              "type": "string"
+                            },
+                            "comment": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "lines"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "minItems": 1
+                      },
+                      "content": {
+                        "type": "string",
+                        "enum": [
+                          "code",
+                          "text"
+                        ]
+                      },
+                      "highlight": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "indentation": {
+                        "type": "string",
+                        "enum": [
+                          "fixed",
+                          "lenient",
+                          "strict"
+                        ]
+                      },
+                      "unmatched": {
+                        "type": "string",
+                        "enum": [
+                          "manual",
+                          "incorrect"
+                        ]
+                      },
+                      "incorrectFeedback": {
+                        "type": "string"
+                      },
+                      "normalizations": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "dedent",
+                            "skip-blanks"
+                          ]
+                        },
+                        "uniqueItems": true
+                      }
+                    },
+                    "required": [
+                      "stem",
+                      "type",
+                      "lines",
+                      "content"
+                    ],
+                    "additionalProperties": false
                   }
                 ]
               }
@@ -3887,6 +4115,116 @@
                       "stem",
                       "type",
                       "blanks"
+                    ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "uuid": {
+                        "type": "string",
+                        "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                        "example": "123e4567-e89b-12d3-a456-426614174000"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "stem": {
+                        "type": "string"
+                      },
+                      "epilogue": {
+                        "type": "string"
+                      },
+                      "tags": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "uniqueItems": true
+                      },
+                      "locale": {
+                        "type": "string"
+                      },
+                      "weight": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "ordering"
+                        ]
+                      },
+                      "content": {
+                        "type": "string",
+                        "enum": [
+                          "code",
+                          "text"
+                        ]
+                      },
+                      "highlight": {
+                        "type": "string"
+                      },
+                      "indentation": {
+                        "type": "string",
+                        "enum": [
+                          "fixed",
+                          "lenient",
+                          "strict"
+                        ]
+                      },
+                      "unmatched": {
+                        "type": "string",
+                        "enum": [
+                          "manual",
+                          "incorrect"
+                        ]
+                      },
+                      "normalizations": {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "enum": [
+                            "dedent",
+                            "skip-blanks"
+                          ]
+                        }
+                      },
+                      "maxLevel": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "pool": {
+                        "type": "array",
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "anyOf": [
+                              {
+                                "type": "integer",
+                                "minimum": 0
+                              },
+                              {
+                                "type": "string",
+                                "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                "example": "Descobrimento do Brasil"
+                              }
+                            ]
+                          },
+                          "minItems": 2,
+                          "maxItems": 2
+                        }
+                      }
+                    },
+                    "required": [
+                      "stem",
+                      "type",
+                      "content",
+                      "unmatched",
+                      "pool"
                     ]
                   }
                 ]
@@ -5067,6 +5405,234 @@
                   "stem",
                   "type",
                   "blanks"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "uuid": {
+                    "type": "string",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "author": {
+                    "type": "string"
+                  },
+                  "stem": {
+                    "type": "string"
+                  },
+                  "epilogue": {
+                    "type": "string"
+                  },
+                  "comment": {
+                    "type": "string"
+                  },
+                  "locale": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "uniqueItems": true
+                  },
+                  "weight": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "meta": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "nullable": true
+                    }
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "ordering"
+                    ]
+                  },
+                  "lines": {
+                    "type": "array",
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                            "example": "Descobrimento do Brasil"
+                          }
+                        ]
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    },
+                    "minItems": 2
+                  },
+                  "extra": {
+                    "type": "array",
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "integer",
+                            "minimum": 0
+                          },
+                          {
+                            "type": "string",
+                            "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                            "example": "Descobrimento do Brasil"
+                          }
+                        ]
+                      },
+                      "minItems": 2,
+                      "maxItems": 2
+                    },
+                    "minItems": 1
+                  },
+                  "accept": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                  "example": "Descobrimento do Brasil"
+                                }
+                              ]
+                            },
+                            "minItems": 2,
+                            "maxItems": 2
+                          },
+                          "minItems": 1
+                        },
+                        "feedback": {
+                          "type": "string"
+                        },
+                        "comment": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "lines"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1
+                  },
+                  "reject": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "lines": {
+                          "type": "array",
+                          "items": {
+                            "type": "array",
+                            "items": {
+                              "anyOf": [
+                                {
+                                  "type": "integer",
+                                  "minimum": 0
+                                },
+                                {
+                                  "type": "string",
+                                  "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                  "example": "Descobrimento do Brasil"
+                                }
+                              ]
+                            },
+                            "minItems": 2,
+                            "maxItems": 2
+                          },
+                          "minItems": 1
+                        },
+                        "feedback": {
+                          "type": "string"
+                        },
+                        "comment": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "lines"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1
+                  },
+                  "content": {
+                    "type": "string",
+                    "enum": [
+                      "code",
+                      "text"
+                    ]
+                  },
+                  "highlight": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "indentation": {
+                    "type": "string",
+                    "enum": [
+                      "fixed",
+                      "lenient",
+                      "strict"
+                    ]
+                  },
+                  "unmatched": {
+                    "type": "string",
+                    "enum": [
+                      "manual",
+                      "incorrect"
+                    ]
+                  },
+                  "incorrectFeedback": {
+                    "type": "string"
+                  },
+                  "normalizations": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "dedent",
+                        "skip-blanks"
+                      ]
+                    },
+                    "uniqueItems": true
+                  }
+                },
+                "required": [
+                  "stem",
+                  "type",
+                  "lines",
+                  "content"
                 ],
                 "additionalProperties": false
               }
@@ -14355,7 +14921,8 @@
                   "essay",
                   "numeric",
                   "short-answer",
-                  "fill-in"
+                  "fill-in",
+                  "ordering"
                 ]
               }
             },
@@ -15565,6 +16132,234 @@
                                   "blanks"
                                 ],
                                 "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "uuid": {
+                                    "type": "string",
+                                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "author": {
+                                    "type": "string"
+                                  },
+                                  "stem": {
+                                    "type": "string"
+                                  },
+                                  "epilogue": {
+                                    "type": "string"
+                                  },
+                                  "comment": {
+                                    "type": "string"
+                                  },
+                                  "locale": {
+                                    "type": "string"
+                                  },
+                                  "tags": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "uniqueItems": true
+                                  },
+                                  "weight": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "meta": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "nullable": true
+                                    }
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "ordering"
+                                    ]
+                                  },
+                                  "lines": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          },
+                                          {
+                                            "type": "string",
+                                            "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                            "example": "Descobrimento do Brasil"
+                                          }
+                                        ]
+                                      },
+                                      "minItems": 2,
+                                      "maxItems": 2
+                                    },
+                                    "minItems": 2
+                                  },
+                                  "extra": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          },
+                                          {
+                                            "type": "string",
+                                            "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                            "example": "Descobrimento do Brasil"
+                                          }
+                                        ]
+                                      },
+                                      "minItems": 2,
+                                      "maxItems": 2
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "accept": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "lines": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "integer",
+                                                  "minimum": 0
+                                                },
+                                                {
+                                                  "type": "string",
+                                                  "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                                  "example": "Descobrimento do Brasil"
+                                                }
+                                              ]
+                                            },
+                                            "minItems": 2,
+                                            "maxItems": 2
+                                          },
+                                          "minItems": 1
+                                        },
+                                        "feedback": {
+                                          "type": "string"
+                                        },
+                                        "comment": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "lines"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "reject": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "lines": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "integer",
+                                                  "minimum": 0
+                                                },
+                                                {
+                                                  "type": "string",
+                                                  "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                                  "example": "Descobrimento do Brasil"
+                                                }
+                                              ]
+                                            },
+                                            "minItems": 2,
+                                            "maxItems": 2
+                                          },
+                                          "minItems": 1
+                                        },
+                                        "feedback": {
+                                          "type": "string"
+                                        },
+                                        "comment": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "lines"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "content": {
+                                    "type": "string",
+                                    "enum": [
+                                      "code",
+                                      "text"
+                                    ]
+                                  },
+                                  "highlight": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "indentation": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fixed",
+                                      "lenient",
+                                      "strict"
+                                    ]
+                                  },
+                                  "unmatched": {
+                                    "type": "string",
+                                    "enum": [
+                                      "manual",
+                                      "incorrect"
+                                    ]
+                                  },
+                                  "incorrectFeedback": {
+                                    "type": "string"
+                                  },
+                                  "normalizations": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "enum": [
+                                        "dedent",
+                                        "skip-blanks"
+                                      ]
+                                    },
+                                    "uniqueItems": true
+                                  }
+                                },
+                                "required": [
+                                  "stem",
+                                  "type",
+                                  "lines",
+                                  "content"
+                                ],
+                                "additionalProperties": false
                               }
                             ]
                           }
@@ -16348,6 +17143,116 @@
                                   "stem",
                                   "type",
                                   "blanks"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "uuid": {
+                                    "type": "string",
+                                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "stem": {
+                                    "type": "string"
+                                  },
+                                  "epilogue": {
+                                    "type": "string"
+                                  },
+                                  "tags": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "uniqueItems": true
+                                  },
+                                  "locale": {
+                                    "type": "string"
+                                  },
+                                  "weight": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "ordering"
+                                    ]
+                                  },
+                                  "content": {
+                                    "type": "string",
+                                    "enum": [
+                                      "code",
+                                      "text"
+                                    ]
+                                  },
+                                  "highlight": {
+                                    "type": "string"
+                                  },
+                                  "indentation": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fixed",
+                                      "lenient",
+                                      "strict"
+                                    ]
+                                  },
+                                  "unmatched": {
+                                    "type": "string",
+                                    "enum": [
+                                      "manual",
+                                      "incorrect"
+                                    ]
+                                  },
+                                  "normalizations": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "enum": [
+                                        "dedent",
+                                        "skip-blanks"
+                                      ]
+                                    }
+                                  },
+                                  "maxLevel": {
+                                    "type": "integer",
+                                    "minimum": 1
+                                  },
+                                  "pool": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          },
+                                          {
+                                            "type": "string",
+                                            "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                            "example": "Descobrimento do Brasil"
+                                          }
+                                        ]
+                                      },
+                                      "minItems": 2,
+                                      "maxItems": 2
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "stem",
+                                  "type",
+                                  "content",
+                                  "unmatched",
+                                  "pool"
                                 ]
                               }
                             ]
@@ -17563,6 +18468,234 @@
                           "blanks"
                         ],
                         "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "uuid": {
+                            "type": "string",
+                            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                            "example": "123e4567-e89b-12d3-a456-426614174000"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "author": {
+                            "type": "string"
+                          },
+                          "stem": {
+                            "type": "string"
+                          },
+                          "epilogue": {
+                            "type": "string"
+                          },
+                          "comment": {
+                            "type": "string"
+                          },
+                          "locale": {
+                            "type": "string"
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "uniqueItems": true
+                          },
+                          "weight": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "meta": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "nullable": true
+                            }
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "ordering"
+                            ]
+                          },
+                          "lines": {
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  {
+                                    "type": "string",
+                                    "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                    "example": "Descobrimento do Brasil"
+                                  }
+                                ]
+                              },
+                              "minItems": 2,
+                              "maxItems": 2
+                            },
+                            "minItems": 2
+                          },
+                          "extra": {
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  {
+                                    "type": "string",
+                                    "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                    "example": "Descobrimento do Brasil"
+                                  }
+                                ]
+                              },
+                              "minItems": 2,
+                              "maxItems": 2
+                            },
+                            "minItems": 1
+                          },
+                          "accept": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "lines": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                          "example": "Descobrimento do Brasil"
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                  },
+                                  "minItems": 1
+                                },
+                                "feedback": {
+                                  "type": "string"
+                                },
+                                "comment": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "lines"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "minItems": 1
+                          },
+                          "reject": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "lines": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                          "example": "Descobrimento do Brasil"
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                  },
+                                  "minItems": 1
+                                },
+                                "feedback": {
+                                  "type": "string"
+                                },
+                                "comment": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "lines"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "minItems": 1
+                          },
+                          "content": {
+                            "type": "string",
+                            "enum": [
+                              "code",
+                              "text"
+                            ]
+                          },
+                          "highlight": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "indentation": {
+                            "type": "string",
+                            "enum": [
+                              "fixed",
+                              "lenient",
+                              "strict"
+                            ]
+                          },
+                          "unmatched": {
+                            "type": "string",
+                            "enum": [
+                              "manual",
+                              "incorrect"
+                            ]
+                          },
+                          "incorrectFeedback": {
+                            "type": "string"
+                          },
+                          "normalizations": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "dedent",
+                                "skip-blanks"
+                              ]
+                            },
+                            "uniqueItems": true
+                          }
+                        },
+                        "required": [
+                          "stem",
+                          "type",
+                          "lines",
+                          "content"
+                        ],
+                        "additionalProperties": false
                       }
                     ]
                   }
@@ -18757,6 +19890,234 @@
                                 "blanks"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                  "example": "123e4567-e89b-12d3-a456-426614174000"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "author": {
+                                  "type": "string"
+                                },
+                                "stem": {
+                                  "type": "string"
+                                },
+                                "epilogue": {
+                                  "type": "string"
+                                },
+                                "comment": {
+                                  "type": "string"
+                                },
+                                "locale": {
+                                  "type": "string"
+                                },
+                                "tags": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "uniqueItems": true
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "meta": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "nullable": true
+                                  }
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "ordering"
+                                  ]
+                                },
+                                "lines": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                          "example": "Descobrimento do Brasil"
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                  },
+                                  "minItems": 2
+                                },
+                                "extra": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                          "example": "Descobrimento do Brasil"
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                  },
+                                  "minItems": 1
+                                },
+                                "accept": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "lines": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "integer",
+                                                "minimum": 0
+                                              },
+                                              {
+                                                "type": "string",
+                                                "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                                "example": "Descobrimento do Brasil"
+                                              }
+                                            ]
+                                          },
+                                          "minItems": 2,
+                                          "maxItems": 2
+                                        },
+                                        "minItems": 1
+                                      },
+                                      "feedback": {
+                                        "type": "string"
+                                      },
+                                      "comment": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "lines"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "minItems": 1
+                                },
+                                "reject": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "lines": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "integer",
+                                                "minimum": 0
+                                              },
+                                              {
+                                                "type": "string",
+                                                "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                                "example": "Descobrimento do Brasil"
+                                              }
+                                            ]
+                                          },
+                                          "minItems": 2,
+                                          "maxItems": 2
+                                        },
+                                        "minItems": 1
+                                      },
+                                      "feedback": {
+                                        "type": "string"
+                                      },
+                                      "comment": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "lines"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "minItems": 1
+                                },
+                                "content": {
+                                  "type": "string",
+                                  "enum": [
+                                    "code",
+                                    "text"
+                                  ]
+                                },
+                                "highlight": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "indentation": {
+                                  "type": "string",
+                                  "enum": [
+                                    "fixed",
+                                    "lenient",
+                                    "strict"
+                                  ]
+                                },
+                                "unmatched": {
+                                  "type": "string",
+                                  "enum": [
+                                    "manual",
+                                    "incorrect"
+                                  ]
+                                },
+                                "incorrectFeedback": {
+                                  "type": "string"
+                                },
+                                "normalizations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "dedent",
+                                      "skip-blanks"
+                                    ]
+                                  },
+                                  "uniqueItems": true
+                                }
+                              },
+                              "required": [
+                                "stem",
+                                "type",
+                                "lines",
+                                "content"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         }
@@ -19540,6 +20901,116 @@
                                 "stem",
                                 "type",
                                 "blanks"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                  "example": "123e4567-e89b-12d3-a456-426614174000"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "stem": {
+                                  "type": "string"
+                                },
+                                "epilogue": {
+                                  "type": "string"
+                                },
+                                "tags": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "uniqueItems": true
+                                },
+                                "locale": {
+                                  "type": "string"
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "ordering"
+                                  ]
+                                },
+                                "content": {
+                                  "type": "string",
+                                  "enum": [
+                                    "code",
+                                    "text"
+                                  ]
+                                },
+                                "highlight": {
+                                  "type": "string"
+                                },
+                                "indentation": {
+                                  "type": "string",
+                                  "enum": [
+                                    "fixed",
+                                    "lenient",
+                                    "strict"
+                                  ]
+                                },
+                                "unmatched": {
+                                  "type": "string",
+                                  "enum": [
+                                    "manual",
+                                    "incorrect"
+                                  ]
+                                },
+                                "normalizations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "dedent",
+                                      "skip-blanks"
+                                    ]
+                                  }
+                                },
+                                "maxLevel": {
+                                  "type": "integer",
+                                  "minimum": 1
+                                },
+                                "pool": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                          "example": "Descobrimento do Brasil"
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                  }
+                                }
+                              },
+                              "required": [
+                                "stem",
+                                "type",
+                                "content",
+                                "unmatched",
+                                "pool"
                               ]
                             }
                           ]
@@ -20784,6 +22255,234 @@
                                 "blanks"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                  "example": "123e4567-e89b-12d3-a456-426614174000"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "author": {
+                                  "type": "string"
+                                },
+                                "stem": {
+                                  "type": "string"
+                                },
+                                "epilogue": {
+                                  "type": "string"
+                                },
+                                "comment": {
+                                  "type": "string"
+                                },
+                                "locale": {
+                                  "type": "string"
+                                },
+                                "tags": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "uniqueItems": true
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "meta": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "nullable": true
+                                  }
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "ordering"
+                                  ]
+                                },
+                                "lines": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                          "example": "Descobrimento do Brasil"
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                  },
+                                  "minItems": 2
+                                },
+                                "extra": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                          "example": "Descobrimento do Brasil"
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                  },
+                                  "minItems": 1
+                                },
+                                "accept": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "lines": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "integer",
+                                                "minimum": 0
+                                              },
+                                              {
+                                                "type": "string",
+                                                "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                                "example": "Descobrimento do Brasil"
+                                              }
+                                            ]
+                                          },
+                                          "minItems": 2,
+                                          "maxItems": 2
+                                        },
+                                        "minItems": 1
+                                      },
+                                      "feedback": {
+                                        "type": "string"
+                                      },
+                                      "comment": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "lines"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "minItems": 1
+                                },
+                                "reject": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "lines": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "integer",
+                                                "minimum": 0
+                                              },
+                                              {
+                                                "type": "string",
+                                                "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                                "example": "Descobrimento do Brasil"
+                                              }
+                                            ]
+                                          },
+                                          "minItems": 2,
+                                          "maxItems": 2
+                                        },
+                                        "minItems": 1
+                                      },
+                                      "feedback": {
+                                        "type": "string"
+                                      },
+                                      "comment": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "lines"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "minItems": 1
+                                },
+                                "content": {
+                                  "type": "string",
+                                  "enum": [
+                                    "code",
+                                    "text"
+                                  ]
+                                },
+                                "highlight": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "indentation": {
+                                  "type": "string",
+                                  "enum": [
+                                    "fixed",
+                                    "lenient",
+                                    "strict"
+                                  ]
+                                },
+                                "unmatched": {
+                                  "type": "string",
+                                  "enum": [
+                                    "manual",
+                                    "incorrect"
+                                  ]
+                                },
+                                "incorrectFeedback": {
+                                  "type": "string"
+                                },
+                                "normalizations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "dedent",
+                                      "skip-blanks"
+                                    ]
+                                  },
+                                  "uniqueItems": true
+                                }
+                              },
+                              "required": [
+                                "stem",
+                                "type",
+                                "lines",
+                                "content"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         }
@@ -21567,6 +23266,116 @@
                                 "stem",
                                 "type",
                                 "blanks"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                  "example": "123e4567-e89b-12d3-a456-426614174000"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "stem": {
+                                  "type": "string"
+                                },
+                                "epilogue": {
+                                  "type": "string"
+                                },
+                                "tags": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "uniqueItems": true
+                                },
+                                "locale": {
+                                  "type": "string"
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "ordering"
+                                  ]
+                                },
+                                "content": {
+                                  "type": "string",
+                                  "enum": [
+                                    "code",
+                                    "text"
+                                  ]
+                                },
+                                "highlight": {
+                                  "type": "string"
+                                },
+                                "indentation": {
+                                  "type": "string",
+                                  "enum": [
+                                    "fixed",
+                                    "lenient",
+                                    "strict"
+                                  ]
+                                },
+                                "unmatched": {
+                                  "type": "string",
+                                  "enum": [
+                                    "manual",
+                                    "incorrect"
+                                  ]
+                                },
+                                "normalizations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "dedent",
+                                      "skip-blanks"
+                                    ]
+                                  }
+                                },
+                                "maxLevel": {
+                                  "type": "integer",
+                                  "minimum": 1
+                                },
+                                "pool": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                          "example": "Descobrimento do Brasil"
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                  }
+                                }
+                              },
+                              "required": [
+                                "stem",
+                                "type",
+                                "content",
+                                "unmatched",
+                                "pool"
                               ]
                             }
                           ]
@@ -22783,6 +24592,234 @@
                           "blanks"
                         ],
                         "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "uuid": {
+                            "type": "string",
+                            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                            "example": "123e4567-e89b-12d3-a456-426614174000"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "author": {
+                            "type": "string"
+                          },
+                          "stem": {
+                            "type": "string"
+                          },
+                          "epilogue": {
+                            "type": "string"
+                          },
+                          "comment": {
+                            "type": "string"
+                          },
+                          "locale": {
+                            "type": "string"
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "uniqueItems": true
+                          },
+                          "weight": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "meta": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "nullable": true
+                            }
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "ordering"
+                            ]
+                          },
+                          "lines": {
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  {
+                                    "type": "string",
+                                    "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                    "example": "Descobrimento do Brasil"
+                                  }
+                                ]
+                              },
+                              "minItems": 2,
+                              "maxItems": 2
+                            },
+                            "minItems": 2
+                          },
+                          "extra": {
+                            "type": "array",
+                            "items": {
+                              "type": "array",
+                              "items": {
+                                "anyOf": [
+                                  {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  {
+                                    "type": "string",
+                                    "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                    "example": "Descobrimento do Brasil"
+                                  }
+                                ]
+                              },
+                              "minItems": 2,
+                              "maxItems": 2
+                            },
+                            "minItems": 1
+                          },
+                          "accept": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "lines": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                          "example": "Descobrimento do Brasil"
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                  },
+                                  "minItems": 1
+                                },
+                                "feedback": {
+                                  "type": "string"
+                                },
+                                "comment": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "lines"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "minItems": 1
+                          },
+                          "reject": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "lines": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                          "example": "Descobrimento do Brasil"
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                  },
+                                  "minItems": 1
+                                },
+                                "feedback": {
+                                  "type": "string"
+                                },
+                                "comment": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "lines"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "minItems": 1
+                          },
+                          "content": {
+                            "type": "string",
+                            "enum": [
+                              "code",
+                              "text"
+                            ]
+                          },
+                          "highlight": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "indentation": {
+                            "type": "string",
+                            "enum": [
+                              "fixed",
+                              "lenient",
+                              "strict"
+                            ]
+                          },
+                          "unmatched": {
+                            "type": "string",
+                            "enum": [
+                              "manual",
+                              "incorrect"
+                            ]
+                          },
+                          "incorrectFeedback": {
+                            "type": "string"
+                          },
+                          "normalizations": {
+                            "type": "array",
+                            "items": {
+                              "type": "string",
+                              "enum": [
+                                "dedent",
+                                "skip-blanks"
+                              ]
+                            },
+                            "uniqueItems": true
+                          }
+                        },
+                        "required": [
+                          "stem",
+                          "type",
+                          "lines",
+                          "content"
+                        ],
+                        "additionalProperties": false
                       }
                     ]
                   }
@@ -23971,6 +26008,234 @@
                                 "blanks"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                  "example": "123e4567-e89b-12d3-a456-426614174000"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "author": {
+                                  "type": "string"
+                                },
+                                "stem": {
+                                  "type": "string"
+                                },
+                                "epilogue": {
+                                  "type": "string"
+                                },
+                                "comment": {
+                                  "type": "string"
+                                },
+                                "locale": {
+                                  "type": "string"
+                                },
+                                "tags": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "uniqueItems": true
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "meta": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "nullable": true
+                                  }
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "ordering"
+                                  ]
+                                },
+                                "lines": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                          "example": "Descobrimento do Brasil"
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                  },
+                                  "minItems": 2
+                                },
+                                "extra": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                          "example": "Descobrimento do Brasil"
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                  },
+                                  "minItems": 1
+                                },
+                                "accept": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "lines": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "integer",
+                                                "minimum": 0
+                                              },
+                                              {
+                                                "type": "string",
+                                                "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                                "example": "Descobrimento do Brasil"
+                                              }
+                                            ]
+                                          },
+                                          "minItems": 2,
+                                          "maxItems": 2
+                                        },
+                                        "minItems": 1
+                                      },
+                                      "feedback": {
+                                        "type": "string"
+                                      },
+                                      "comment": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "lines"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "minItems": 1
+                                },
+                                "reject": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "lines": {
+                                        "type": "array",
+                                        "items": {
+                                          "type": "array",
+                                          "items": {
+                                            "anyOf": [
+                                              {
+                                                "type": "integer",
+                                                "minimum": 0
+                                              },
+                                              {
+                                                "type": "string",
+                                                "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                                "example": "Descobrimento do Brasil"
+                                              }
+                                            ]
+                                          },
+                                          "minItems": 2,
+                                          "maxItems": 2
+                                        },
+                                        "minItems": 1
+                                      },
+                                      "feedback": {
+                                        "type": "string"
+                                      },
+                                      "comment": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "lines"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "minItems": 1
+                                },
+                                "content": {
+                                  "type": "string",
+                                  "enum": [
+                                    "code",
+                                    "text"
+                                  ]
+                                },
+                                "highlight": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "indentation": {
+                                  "type": "string",
+                                  "enum": [
+                                    "fixed",
+                                    "lenient",
+                                    "strict"
+                                  ]
+                                },
+                                "unmatched": {
+                                  "type": "string",
+                                  "enum": [
+                                    "manual",
+                                    "incorrect"
+                                  ]
+                                },
+                                "incorrectFeedback": {
+                                  "type": "string"
+                                },
+                                "normalizations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "dedent",
+                                      "skip-blanks"
+                                    ]
+                                  },
+                                  "uniqueItems": true
+                                }
+                              },
+                              "required": [
+                                "stem",
+                                "type",
+                                "lines",
+                                "content"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         }
@@ -24754,6 +27019,116 @@
                                 "stem",
                                 "type",
                                 "blanks"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                  "example": "123e4567-e89b-12d3-a456-426614174000"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "stem": {
+                                  "type": "string"
+                                },
+                                "epilogue": {
+                                  "type": "string"
+                                },
+                                "tags": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "uniqueItems": true
+                                },
+                                "locale": {
+                                  "type": "string"
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "ordering"
+                                  ]
+                                },
+                                "content": {
+                                  "type": "string",
+                                  "enum": [
+                                    "code",
+                                    "text"
+                                  ]
+                                },
+                                "highlight": {
+                                  "type": "string"
+                                },
+                                "indentation": {
+                                  "type": "string",
+                                  "enum": [
+                                    "fixed",
+                                    "lenient",
+                                    "strict"
+                                  ]
+                                },
+                                "unmatched": {
+                                  "type": "string",
+                                  "enum": [
+                                    "manual",
+                                    "incorrect"
+                                  ]
+                                },
+                                "normalizations": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string",
+                                    "enum": [
+                                      "dedent",
+                                      "skip-blanks"
+                                    ]
+                                  }
+                                },
+                                "maxLevel": {
+                                  "type": "integer",
+                                  "minimum": 1
+                                },
+                                "pool": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "integer",
+                                          "minimum": 0
+                                        },
+                                        {
+                                          "type": "string",
+                                          "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                          "example": "Descobrimento do Brasil"
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 2,
+                                    "maxItems": 2
+                                  }
+                                }
+                              },
+                              "required": [
+                                "stem",
+                                "type",
+                                "content",
+                                "unmatched",
+                                "pool"
                               ]
                             }
                           ]

@@ -72,25 +72,20 @@ than `.md`; both are question extensions.
 `push.question.scan_questions`. It must not become a question and must
 not abort the push.
 
-**Blocked on the server.** Two, both in `ROADBLOCKS.md`:
+**Blocked on the server.** `resources/handout.pdf` is a `FILE` resource,
+whose upload the server does not accept (see `ROADBLOCKS.md`).
 
-- `questions/control-flow/reorder-countdown.md` is an `ordering`
-  question. `mdq` parses it; the server's schema has no such type.
-- `resources/handout.pdf` is a `FILE` resource, whose upload the server
-  does not accept.
-
-So a full `ch push` here reports exactly two failures and exits 1:
+So a full `ch push` here reports exactly one failure and exits 1:
 
 ```
-summary: 17 operation(s) executed, 2 failed, 0 skipped
+summary: 17 operation(s) executed, 1 failed, 0 skipped
 failures:
   resource handout (FILE): blocked: the server accepts no FILE upload yet (...)
-  question control-flow-reorder-countdown: blocked: the server has no `ordering` question type (...)
 ```
 
 That is the point of the fixture: it proves a failure does not stop the
-push. A second `ch push --dry-run` replans the course row and those two
-blocked items, and nothing else.
+push. A second `ch push --dry-run` replans the course row and that blocked
+item, and nothing else.
 
 **Resources.** `MD` with front-matter title and description
 (`syllabus.md`), `CODE` in three languages across two subdirectories

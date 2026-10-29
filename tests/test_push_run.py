@@ -760,16 +760,13 @@ def test_run_plan_reports_the_servers_reason_for_a_rejected_question():
     assert result.message == 'failed: 400 question: Unrecognized key: "diacritics"'
 
 
-def test_run_plan_upsert_ordering_question_is_blocked_without_any_http_call():
-    """
-    `mdq` parses `ordering` questions; the server's `question` union has
-    no such member. Refused at execution, like a `FILE` resource, and
-    must send no request at all.
-    """
+def test_run_plan_upsert_ordering_question_sends_its_lines():
+    sent: dict = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
-        raise AssertionError(
-            f"an ordering question must not call the network: {request.url}"
+        sent.update(json.loads(request.content))
+        return httpx.Response(
+            200, json=_question_json("order-the-steps", "md5:ccc", status="DRAFT")
         )
 
     question = mdq.parse(ORDERING_MDQ, kind="question", ids="fill")
@@ -782,8 +779,13 @@ def test_run_plan_upsert_ordering_question_is_blocked_without_any_http_call():
     [result] = list(
         run_plan([op], discipline=DISCIPLINE, course=COURSE, client=_client(handler))
     )
-    assert result.ok is False
-    assert result.message
+    assert result.ok is True
+    assert sent["question"]["type"] == "ordering"
+    assert [text for _, text in sent["question"]["lines"]] == [
+        "first",
+        "second",
+        "third",
+    ]
 
 
 def test_run_plan_upsert_question_http_failure_yields_a_failed_result():

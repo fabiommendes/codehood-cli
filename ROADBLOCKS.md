@@ -76,14 +76,6 @@ matters.
   `contentHash` field, hashed the same way across every content type,
   would let push drop this special case.
 
-- [ ] The question schema is `additionalProperties: false` and the server keeps
-  an old copy of the MDQ schema, so it rejects fields `mdq` now emits (`weight`,
-  `grading`, `diacritics`, `unmatched`, `incorrectFeedback`, a short-answer
-  blank's `accept`/`reject`) and has no `ordering` type. `codehood push`
-  translates each question in `codehood/push/wire.py`: it drops what the server
-  cannot store and refuses `ordering`. See
-  `dev/issues/server-mdq-atrasado-em-relacao-ao-mdq-py.md` in the server.
-
 - [ ] `DELETE .../question/{slug}` soft-deletes: the row survives with
   `status: ARCHIVED` and is still returned by `GET .../question` with no
   status filter. Worked around in `fetch_server_state` by requesting only
@@ -114,6 +106,10 @@ matters.
 
 
 ## Resolved
+
+- [x] The server follows the current mdq spec, `ordering` included
+  (2026-10-28). `codehood/push/wire.py` sends the parsed document as is, and
+  push no longer blocks `ordering` questions.
 
 - [x] Calendar events are reachable by natural key (2026-09-23).
   The collection is course-scoped at

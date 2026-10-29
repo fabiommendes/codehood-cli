@@ -11,12 +11,6 @@ from ..models.base import Model
 from .base import CodehoodAPIError, auth_headers, get_client, query_params
 
 
-class AcceptItem(Model):
-    pattern: str
-    feedback: str | None = None
-    comment: str | None = None
-
-
 class BlobMissingInput(Model):
     hashes: list[str]
 
@@ -235,6 +229,18 @@ class Question2QuestionMultipleSelectionChoicesItem(Model):
     comment: str | None = None
 
 
+class Question2QuestionOrderingAcceptItem(Model):
+    lines: list[list[int | str]]
+    feedback: str | None = None
+    comment: str | None = None
+
+
+class Question2QuestionShortAnswerAcceptItem(Model):
+    pattern: str
+    feedback: str | None = None
+    comment: str | None = None
+
+
 class Question2QuestionTrueFalseChoicesItem(Model):
     id: str | None = None
     text: str
@@ -288,6 +294,27 @@ class Question3QuestionNumeric(Model):
     unit: str | None = None
     domain: Literal["integer", "decimal", "fraction"]
     decimal_places: int | None = Field(default=None, alias="decimalPlaces")
+
+
+class Question3QuestionOrdering(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str | None = None
+    uuid: str | None = None
+    title: str | None = None
+    stem: str
+    epilogue: str | None = None
+    tags: list[str] | None = None
+    locale: str | None = None
+    weight: float | None = None
+    type: Literal["ordering"]
+    content: Literal["code", "text"]
+    highlight: str | None = None
+    indentation: Literal["fixed", "lenient", "strict"] | None = None
+    unmatched: Literal["manual", "incorrect"]
+    normalizations: list[Literal["dedent", "skip-blanks"]] | None = None
+    max_level: int | None = Field(default=None, alias="maxLevel")
+    pool: list[list[int | str]]
 
 
 class Question3QuestionShortAnswerPreAcceptItem(Model):
@@ -547,10 +574,14 @@ class Question2QuestionFillInBlanksItemNumeric(Model):
 class Question2QuestionFillInBlanksItemShortAnswer(Model):
     model_config = ConfigDict(populate_by_name=True)
 
-    accept: list[str | AcceptItem] | None = None
-    reject: list[str | AcceptItem] | None = None
-    pre_accept: list[str | AcceptItem] | None = Field(default=None, alias="preAccept")
-    pre_reject: list[str | AcceptItem] | None = Field(default=None, alias="preReject")
+    accept: list[str | Question2QuestionShortAnswerAcceptItem] | None = None
+    reject: list[str | Question2QuestionShortAnswerAcceptItem] | None = None
+    pre_accept: list[str | Question2QuestionShortAnswerAcceptItem] | None = Field(
+        default=None, alias="preAccept"
+    )
+    pre_reject: list[str | Question2QuestionShortAnswerAcceptItem] | None = Field(
+        default=None, alias="preReject"
+    )
     id: str
     type: Literal["short-answer"]
     incorrect_feedback: str | None = Field(default=None, alias="incorrectFeedback")
@@ -615,6 +646,33 @@ class Question2QuestionNumeric(Model):
     incorrect_feedback: str | None = Field(default=None, alias="incorrectFeedback")
 
 
+class Question2QuestionOrdering(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str | None = None
+    uuid: str | None = None
+    title: str | None = None
+    author: str | None = None
+    stem: str
+    epilogue: str | None = None
+    comment: str | None = None
+    locale: str | None = None
+    tags: list[str] | None = None
+    weight: float | None = None
+    meta: dict[str, object | None] | None = None
+    type: Literal["ordering"]
+    lines: list[list[int | str]]
+    extra: list[list[int | str]] | None = None
+    accept: list[Question2QuestionOrderingAcceptItem] | None = None
+    reject: list[Question2QuestionOrderingAcceptItem] | None = None
+    content: Literal["code", "text"]
+    highlight: str | None = None
+    indentation: Literal["fixed", "lenient", "strict"] | None = None
+    unmatched: Literal["manual", "incorrect"] | None = None
+    incorrect_feedback: str | None = Field(default=None, alias="incorrectFeedback")
+    normalizations: list[Literal["dedent", "skip-blanks"]] | None = None
+
+
 class Question2QuestionShortAnswer(Model):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -629,10 +687,14 @@ class Question2QuestionShortAnswer(Model):
     tags: list[str] | None = None
     weight: float | None = None
     meta: dict[str, object | None] | None = None
-    accept: list[str | AcceptItem] | None = None
-    reject: list[str | AcceptItem] | None = None
-    pre_accept: list[str | AcceptItem] | None = Field(default=None, alias="preAccept")
-    pre_reject: list[str | AcceptItem] | None = Field(default=None, alias="preReject")
+    accept: list[str | Question2QuestionShortAnswerAcceptItem] | None = None
+    reject: list[str | Question2QuestionShortAnswerAcceptItem] | None = None
+    pre_accept: list[str | Question2QuestionShortAnswerAcceptItem] | None = Field(
+        default=None, alias="preAccept"
+    )
+    pre_reject: list[str | Question2QuestionShortAnswerAcceptItem] | None = Field(
+        default=None, alias="preReject"
+    )
     type: Literal["short-answer"]
     diacritics: Literal["fold", "keep"] | None = None
     unmatched: Literal["manual", "incorrect"] | None = None
@@ -958,6 +1020,7 @@ class Question2(Model):
         | Question2QuestionShortAnswer
         | Question2QuestionEssay
         | Question2QuestionFillIn
+        | Question2QuestionOrdering
     )
 
 
@@ -978,6 +1041,7 @@ class Question3(Model):
         | Question3QuestionShortAnswer
         | Question3QuestionEssay
         | Question3QuestionFillIn
+        | Question3QuestionOrdering
     )
 
 
@@ -994,6 +1058,7 @@ class QuestionCreate(Model):
         | Question2QuestionShortAnswer
         | Question2QuestionEssay
         | Question2QuestionFillIn
+        | Question2QuestionOrdering
     )
 
 
@@ -1009,6 +1074,7 @@ class UpdateQuestionRequest(Model):
         | Question2QuestionShortAnswer
         | Question2QuestionEssay
         | Question2QuestionFillIn
+        | Question2QuestionOrdering
         | None
     ) = None
 
@@ -1702,6 +1768,7 @@ def list_question(
             "numeric",
             "short-answer",
             "fill-in",
+            "ordering",
         ]
     ]
     | None = None,
