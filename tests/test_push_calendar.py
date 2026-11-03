@@ -559,6 +559,12 @@ def test_allocate_events_land_on_distinct_real_slot_keys_with_nonnegative_weeks(
     slugs = {slot.slug for slot in calendar.slots}
     assert all(time_slot in slugs for _, time_slot in keys)
     assert all(week >= 0 for week, _ in keys)
+    # Weeks count from the course start, so none passes the course end.
+    last_week = (
+        calendar.end - timedelta(days=calendar.end.weekday())
+        - (calendar.start - timedelta(days=calendar.start.weekday()))
+    ).days // 7
+    assert all(week <= last_week for week, _ in keys)
 
 
 @given(calendar=_allocate_calendars())
