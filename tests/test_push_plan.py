@@ -262,7 +262,7 @@ def test_replanning_after_applying_converges_to_no_resource_ops(
     resources, server_course_exists
 ):
     """
-    FR-SYNC-005, "re-running converges": once a plan's ops have been
+    A sync converges when re-run: once a plan's ops have been
     applied, planning again against the same repository yields no more
     `UpsertResource`/`DeleteResource` ops.
 

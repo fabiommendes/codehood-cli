@@ -96,9 +96,9 @@ matters.
   request (see `DEFAULT_HEADERS`). **Unblocks it properly**: exempt
   bearer-authenticated requests from `checkOrigin`.
 
-- [-] No per-course manifest endpoint (FR-SYNC-002): "The server MUST expose a
-  manifest endpoint per course listing the content it holds -- identifiers and
-  modification markers, no bodies -- so the CLI can diff locally."
+- [-] No per-course manifest endpoint: one listing the content the server
+  holds -- identifiers and modification markers, no bodies -- so the CLI can
+  diff locally.
   `GET /api/course/{discipline}/{course}/resource` is the workaround: it
   answers the question but ships every full row -- titles, descriptions, whole
   `data` bodies -- to compare one string per resource. `cli.course.preSync` is
@@ -117,8 +117,8 @@ matters.
   `(week, timeSlot)`: `.../calendar-event/{week}/{timeSlot}` serves `GET`,
   `PATCH` and `DELETE`. No numeric course id is exposed to the CLI.
 
-- [x] `/api/*/` implements `PUT` for upserting (2026-09-14). Satisfies
-  FR-SYNC-003, so push never branches on create-versus-update. The mounting
+- [x] `/api/*/` implements `PUT` for upserting (2026-09-14). Writes are
+  idempotent, so push never branches on create-versus-update. The mounting
   changed on 2026-09-20: `PUT` now sits on the *collection*
   (`PUT /api/course`, `PUT /api/course/{discipline}/{course}/resource`) with
   the natural key in the body, and is gone from the by-key paths.
@@ -128,7 +128,7 @@ matters.
   so the CLI builds it offline from `codehood.toml`.
 - [x] Resources addressed by natural key (2026-09-14), at
   `/api/course/{discipline}/{course}/resource/{slug}`. The CLI never learns an
-  internal id (FR-SYNC-010).
+  internal id.
 - [x] Path parameters use `{id}` syntax with real `parameters` arrays
   (2026-09-13). `dev/issues/server-spec-omits-path-parameters.md` can close.
 - [x] A resource's modification marker is the CLI's own (2026-09-20).

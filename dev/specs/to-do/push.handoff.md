@@ -108,9 +108,9 @@ Correction: the committed OpenAPI spec only documents a 200 response for
 `response.raise_for_status()` on a 404 and raises `httpx.HTTPStatusError`,
 not a `CodehoodAPIError` subclass. `run_plan` must catch broadly
 (`httpx.HTTPStatusError` and `CodehoodAPIError`) per op and yield a failed
-`OpResult` instead of letting it propagate — this is required for
-FR-SYNC-005 ("remaining operations still run" after a failure), not
-optional polish.
+`OpResult` instead of letting it propagate — this is required
+because a sync is not atomic ("remaining operations still run" after a
+failure), not optional polish.
 
 ### `codehood/push/run.py` — imperative shell
 

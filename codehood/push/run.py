@@ -367,8 +367,8 @@ def run_plan(
     Execute a plan, yielding one result per operation.
 
     A failure executing an operation is caught and reported as a failed
-    `OpResult`; the remaining operations still run -- see `push.md`,
-    "FR-SYNC-005", "a sync is not atomic". The exception is the course
+    `OpResult`; the remaining operations still run -- a sync is not
+    atomic, see `push.md`, "The contract". The exception is the course
     row's own `PUT`: every other operation hangs off the course, so after
     it fails the rest come back as skipped results, never attempted.
 

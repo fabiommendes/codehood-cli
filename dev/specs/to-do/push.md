@@ -27,19 +27,19 @@ Out, and why:
 
 ## The contract
 
-The server repository's `dev/requirements/03-content-sync.md` is
-authoritative. The requirements this slice leans on:
+The server repository's `dev/adr/0011-contrato-de-sync-entre-cli-e-servidor.md` is authoritative. The rules this slice leans
+on:
 
-- **FR-SYNC-004** — the server never infers deletions. The CLI plans; the
-  server executes what it is told.
-- **FR-SYNC-005** — a sync is not atomic. An interrupted push leaves a
-  partial but coherent state, and re-running converges.
-- **FR-SYNC-006** — concurrent pushes are last-write-wins.
-- **FR-SYNC-010** — content is addressed by a natural key derived from its
+- **No inferred deletions** — the server never infers deletions. The CLI
+  plans; the server executes what it is told.
+- **Not atomic** — an interrupted push leaves a partial but coherent state,
+  and re-running converges.
+- **Last write wins** — concurrent pushes are last-write-wins.
+- **Natural keys** — content is addressed by a natural key derived from its
   path.
-- **FR-SYNC-011** — a rename is a delete plus a create.
-- **FR-SYNC-013** — deleting a resource deletes the blob and leaves the URL
-  as a tombstone.
+- **Rename is delete plus create** — the server has no rename operation.
+- **Resource tombstones** — deleting a resource deletes the blob and leaves
+  the URL as a tombstone.
 
 ## Design decisions
 
@@ -118,7 +118,7 @@ saved round-trip.
 This deletes `repo/history.py` and the `history` parameter threaded through
 `find_diffs`.
 
-Until the server grows the manifest endpoint FR-SYNC-002 requires, push
+Until the server grows a per-course manifest endpoint, push
 reads `GET /api/course/{discipline}/{course}/resource` and ignores every
 field but `slug` and `contentHash`.
 
@@ -128,7 +128,7 @@ A resource on the server whose file is gone locally is deleted. The
 repository is the source of truth: a mistake is fixed by fixing the
 repository and pushing again.
 
-This destroys blobs and leaves tombstones (FR-SYNC-013), so push prints
+This destroys blobs and leaves tombstones, so push prints
 what it will delete before doing it.
 
 ### `contentHash` mirrors the server's own importer
@@ -167,8 +167,7 @@ whole, whatever its type, and the interpreter picks `application/json` or
 Every write is a `PUT`. The server registered upsert on 2026-09-14, so push
 never branches on create-versus-update: `upsertCourse` keys on
 `/api/course/{discipline}/{course}`, `upsertResource` on
-`/api/course/{discipline}/{course}/resource/{slug}`. Both are idempotent per FR-SYNC-003, which is what makes FR-SYNC-005's
-"re-running converges" hold without the CLI tracking anything.
+`/api/course/{discipline}/{course}/resource/{slug}`. Both are idempotent, which is what makes "re-running converges" hold without the CLI tracking anything.
 
 That removes the one data dependency a push had. Until 2026-09-14 a `FILE`
 meant `UploadFile -> fileId -> UpsertResource`, and the plan carried a
@@ -184,7 +183,7 @@ Consequences worth the trade:
 
 - `--dry-run` is "print the plan, don't call `run_plan`".
 - Every planning test asserts on a list of dataclasses. No HTTP, no mocks.
-- FR-SYNC-005's "re-running converges" is a property test over the planner:
+- "Re-running converges" is a property test over the planner:
   applying a plan and re-planning yields an empty plan.
 
 `codehood/actions/` is left untouched by this work. Its `Action`/`Seq`/`Try`
@@ -207,7 +206,7 @@ where every operation succeeds and nothing changed prints nothing but a
 summary.
 
 Exit codes: 0 when every operation succeeded, 1 when any failed. A failure
-does not stop the push (FR-SYNC-005): remaining operations still run, and
+does not stop the push (a sync is not atomic): remaining operations still run, and
 the failures are listed at the end. The exception is the course row: every
 other operation hangs off it, so when its `PUT` fails (say, the edition does
 not accept new courses) the rest are reported as `skipped ... not attempted`,

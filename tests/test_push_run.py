@@ -617,7 +617,7 @@ def test_run_plan_file_resource_is_blocked_without_any_http_call():
 
 
 def test_run_plan_continues_after_a_failure():
-    """FR-SYNC-005: one failed op does not stop the remaining ones."""
+    """A sync is not atomic: one failed op does not stop the remaining ones."""
     calls: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:

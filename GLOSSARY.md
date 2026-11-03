@@ -190,7 +190,7 @@ Type: platform
 
 The list of what the server holds for one [Course](#course) -- identifiers and
 [Content hashes](#content-hash), no bodies -- that a [Push](#push) diffs the
-repository against (FR-SYNC-002). The server never computes the difference
+repository against. The server never computes the difference
 itself; it answers what it has and executes what the CLI decides.
 
 ## MDQ
@@ -256,7 +256,7 @@ Type: domain
 
 The one-way sync that makes the server's copy of a [Course](#course) match the
 local repository. Not atomic and not transactional: an interrupted push leaves
-a coherent partial state, and running it again converges (FR-SYNC-005). The
+a coherent partial state, and running it again converges. The
 repository is the source of truth, so content the repository no longer has is
 deleted from the server rather than kept.
 
@@ -351,7 +351,8 @@ so two courses pushing the same bytes share one row; removing a resource
 removes the file only once nothing else points at it, at which point it
 becomes a [Resource tombstone](#resource-tombstone). Served with no
 authentication check, on the understanding that nothing whose disclosure
-matters ever becomes a resource (FR-NFR-032).
+matters ever becomes a resource (server repository
+`dev/adr/0010-blobs-publicos-e-permanentes.md`).
 
 ## Resource slug
 
@@ -361,8 +362,8 @@ Code: `Resource.slug`
 A [Resource](#resource)'s natural key: its path under the repository's
 `resources/` directory, extension dropped and the whole thing flattened to one
 segment, so `resources/week1/slides.pdf` is `week1-slides`. Derived from the
-path rather than assigned by the server (FR-SYNC-010), which is why renaming a
-file is a delete plus a create and never an update (FR-SYNC-011). Two files
+path rather than assigned by the server, which is why renaming a file is a
+delete plus a create and never an update. Two files
 that flatten to the same slug are an error, not a merge.
 
 ## Resource tombstone
