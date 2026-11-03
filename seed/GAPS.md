@@ -48,7 +48,8 @@ skipped, 5 excluded`, mais 22 arquivos `not pushed (no handler)`.
 | G13 | W7 | server, cli | `calendar.md` `## Prova 1` + `exams/prova1.md` `start:` | A aula da prova aponta para a prova; a data fica num lugar só | Sem relação prova↔evento. A spec push-exams lê `start` sem fuso como UTC: a prova cairia 3h antes do evento | aberta |
 | G14 | W8 | mdq | `questions/código/*.md` (formato proposto) | Questão de código com testes ocultos e correção automática | O mdq não tem o tipo; excluídas no `codehood.toml`. `prova2` inclui duas delas e vai falhar quando G10 existir | aberta |
 | G15 | -- | cli | qualquer questão inválida | A questão inválida falha sozinha e o resto sobe | O push inteiro aborta em `QuestionParseError` (motivo da exclusão em G14) | aberta |
-| G16 | -- | cli | `questions/laços/*`, `classes/herança.md`, `condicionais/condição-dupla.md` | Slug translitera acentos (`lacos-...`, `heranca`); `id:` define o slug (mapping doc) | Acento vira hífen: `la-os-passos-do-range`, `classes-heran-a`. `id:` é ignorado (o curso não usa, por causa disso) | aberta |
+| G16 | -- | cli | `questions/laços/*`, `classes/herança.md`, `condicionais/condição-dupla.md` | Slug translitera acentos (`lacos-...`, `heranca`), como `src/utils/slugify.ts` (NFKD sem diacríticos) | Acento vira hífen: `la-os-passos-do-range`, `classes-heran-a` | aberta |
+| G16b | -- | cli | questões com `id:` no front matter | `id:` define o slug (mapping doc) | `scan_questions` ignora `id:`; o slug vem só do caminho. O curso não usa `id:` por causa disso | aberta |
 | G17 | W6, W7 | cli | todas as questões | Questão sem `_` no nome sobe `PUBLISHED` (mapping doc) | As 42 sobem `DRAFT` | issue `cli/dev/issues/question-status-divergence.md` |
 | G18 | -- | cli | `ch init`, `cli/tests/examples/*/exams` | O modelo de prova usa `start`/`duration`, que o mdq e a spec push-exams leem | Gera `meta.codehood.scheduled_at`/`duration_min` | aberta |
 
