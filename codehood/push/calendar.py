@@ -417,9 +417,9 @@ def allocate(calendar: Calendar) -> Allocation:
     if not emitted:
         return Allocation(events=(), warnings=tuple(warnings))
 
-    # 6. `week` is the ISO-week distance from the earliest emitted event.
-    earliest = min(item[0] for item in emitted)
-    earliest_monday = _iso_week_start(earliest)
+    # 6. `week` is the ISO-week distance from the week the course starts in,
+    # the same week 0 the server counts from the course's `startAt`.
+    start_monday = _iso_week_start(calendar.start)
 
     emitted.sort(
         key=lambda item: (
@@ -431,7 +431,7 @@ def allocate(calendar: Calendar) -> Allocation:
     )
     events = tuple(
         Event(
-            week=(_iso_week_start(event_date) - earliest_monday).days // 7,
+            week=(_iso_week_start(event_date) - start_monday).days // 7,
             time_slot=slot.slug,
             title=title,
             description=description,

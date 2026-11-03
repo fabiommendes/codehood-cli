@@ -559,8 +559,6 @@ def test_allocate_events_land_on_distinct_real_slot_keys_with_nonnegative_weeks(
     slugs = {slot.slug for slot in calendar.slots}
     assert all(time_slot in slugs for _, time_slot in keys)
     assert all(week >= 0 for week, _ in keys)
-    if keys:
-        assert min(week for week, _ in keys) == 0
 
 
 @given(calendar=_allocate_calendars())
@@ -591,3 +589,39 @@ def test_allocate_is_invariant_to_the_order_of_days_entries(calendar):
     random.Random(0).shuffle(shuffled_slots)
     shuffled = replace(calendar, slots=tuple(shuffled_slots))
     assert allocate(calendar) == allocate(shuffled)
+
+
+def test_allocate_counts_iso_weeks_from_the_course_start():
+    """
+    Week 0 is the Monday-to-Sunday week the course starts in, as on the
+    server, not the week of the first event.
+    """
+    monday = TimeSlot(
+        slug="mon",
+        day="MONDAY",
+        start=TimeOfDay(hour=14, minute=0),
+        duration=Duration(hours=2, minutes=0),
+    )
+    wednesday = TimeSlot(
+        slug="wed",
+        day="WEDNESDAY",
+        start=TimeOfDay(hour=14, minute=0),
+        duration=Duration(hours=2, minutes=0),
+    )
+    # A Saturday: the first class, Monday the 16th, is already in week 1.
+    calendar = Calendar(
+        start=date(2026, 3, 14),
+        end=date(2026, 3, 31),
+        slots=(monday, wednesday),
+        sections=(
+            Section(title="S1", description=""),
+            Section(title="S2", description=""),
+            Section(title="S3", description="", fixed_date=date(2026, 3, 23)),
+        ),
+    )
+    allocation = allocate(calendar)
+
+    by_title = {e.title: e for e in allocation.events}
+    assert (by_title["S1"].week, by_title["S1"].time_slot) == (1, "mon")
+    assert (by_title["S2"].week, by_title["S2"].time_slot) == (1, "wed")
+    assert (by_title["S3"].week, by_title["S3"].time_slot) == (2, "mon")
