@@ -1,0 +1,83 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 379 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (Aula 12: Som e música) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 15 Tf 28 198 Td (•  4 canais, 64 sons \(0 a 63\) e 8 músicas \(0 a 7\)) Tj ET
+BT /F3 13 Tf 28 174 Td (pyxel.sounds[0].set\('c3e3g3', 'p', '7', 'f', 6\)) Tj ET
+BT /F3 13 Tf 28 152 Td (pyxel.play\(0, 0\)) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (1 / 3) Tj ET
+
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 6 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+8 0 obj
+<< /Length 356 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (Notas) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 15 Tf 28 198 Td (•  Letra da nota, # ou - e a oitava: c3, f#2, b-1) Tj ET
+BT /F1 15 Tf 28 174 Td (•  Pausa: r) Tj ET
+BT /F1 15 Tf 28 150 Td (•  Timbres: t triângulo, s quadrada, p pulso, n ruído) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (2 / 3) Tj ET
+
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 8 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+10 0 obj
+<< /Length 345 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (Música) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 15 Tf 28 198 Td (•  Uma música é uma lista de sons por canal) Tj ET
+BT /F3 13 Tf 28 174 Td (pyxel.musics[0].set\([0], [1]\)) Tj ET
+BT /F3 13 Tf 28 152 Td (pyxel.playm\(0, loop=True\)) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (3 / 3) Tj ET
+
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 10 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000128 00000 n 
+0000000225 00000 n 
+0000000327 00000 n 
+0000000422 00000 n 
+0000000852 00000 n 
+0000000998 00000 n 
+0000001405 00000 n 
+0000001551 00000 n 
+0000001948 00000 n 
+trailer
+<< /Size 12 /Root 1 0 R >>
+startxref
+2096
+%%EOF

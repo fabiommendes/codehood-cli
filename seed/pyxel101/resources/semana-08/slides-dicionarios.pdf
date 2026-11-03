@@ -1,0 +1,65 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 407 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (Aula 8: Dicionários e tuplas) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 15 Tf 28 198 Td (•  Dicionário: pares chave -> valor) Tj ET
+BT /F1 15 Tf 28 174 Td (•  d[chave] falha se ausente; d.get\(chave\) devolve None) Tj ET
+BT /F1 15 Tf 28 150 Td (•  Tupla: sequência imutável, ideal para \(x, y\)) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (1 / 2) Tj ET
+
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 6 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+8 0 obj
+<< /Length 377 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (Estado do jogo) Tj ET
+0.1 0.1 0.1 rg
+BT /F3 13 Tf 28 198 Td (state = {'tela': 'titulo', 'pontos': 0}) Tj ET
+BT /F1 15 Tf 28 176 Td (•  Uma função de update e uma de draw por tela) Tj ET
+BT /F1 15 Tf 28 152 Td (•  Máquina de estados: título, jogo, fim) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (2 / 2) Tj ET
+
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 8 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+xref
+0 10
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000000415 00000 n 
+0000000873 00000 n 
+0000001019 00000 n 
+0000001447 00000 n 
+trailer
+<< /Size 10 /Root 1 0 R >>
+startxref
+1593
+%%EOF

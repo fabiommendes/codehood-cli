@@ -1,0 +1,5 @@
+# Proposto: a chave mime força o tipo mesmo que a extensão sugira outro.
+bola-jogavel.html:
+  title: "Bola quicando, jogável no navegador"
+  description: "Gerado com pyxel package e depois pyxel app2html a partir de bola.py. Abre o jogo na página."
+  mime: "text/html"

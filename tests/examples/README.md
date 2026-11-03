@@ -19,6 +19,10 @@ without an admin creating anything first.
 | `alan-small` | `cs201/alan_2026-1`   | `alan`/`alan` | yes         |
 | `bob`        | --                    | `bob`/`bob` | n/a           |
 
+For a full, realistic course (16 weeks, every material type, pushed by
+`pnpm run db:seed:cli`), see [`cli/seed/`](../../seed/README.md). These
+fixtures stay small and targeted; the seed is not used by the test suite.
+
 ## One token per server
 
 `~/.codehood/credentials.toml` stores one token per server URL, so `ada`

@@ -1,0 +1,82 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 379 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (Aula 10: Colisão e geometria) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 15 Tf 28 198 Td (•  AABB: retângulo alinhado aos eixos) Tj ET
+BT /F1 15 Tf 28 174 Td (•  Dois retângulos se sobrepõem se os intervalos em x e) Tj ET
+BT /F1 15 Tf 28 154 Td (    em y se sobrepõem) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (1 / 3) Tj ET
+
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 6 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+8 0 obj
+<< /Length 350 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (O teste) Tj ET
+0.1 0.1 0.1 rg
+BT /F3 13 Tf 28 198 Td (ax < bx + bw and bx < ax + aw) Tj ET
+BT /F3 13 Tf 28 176 Td (and ay < by + bh and by < ay + ah) Tj ET
+BT /F1 15 Tf 28 154 Td (•  Desenhe os casos no papel antes de codar) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (2 / 3) Tj ET
+
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 8 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+10 0 obj
+<< /Length 300 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (Círculos) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 15 Tf 28 198 Td (•  Distância entre centros <= soma dos raios) Tj ET
+BT /F1 15 Tf 28 174 Td (•  Compare os quadrados para evitar a raiz) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (3 / 3) Tj ET
+
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 10 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000128 00000 n 
+0000000225 00000 n 
+0000000327 00000 n 
+0000000422 00000 n 
+0000000852 00000 n 
+0000000998 00000 n 
+0000001399 00000 n 
+0000001545 00000 n 
+0000001897 00000 n 
+trailer
+<< /Size 12 /Root 1 0 R >>
+startxref
+2045
+%%EOF

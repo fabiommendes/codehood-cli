@@ -1,0 +1,9 @@
+janela.png:
+  title: "Janela do Pyxel"
+  description: "Captura da primeira janela aberta por pyxel.init e pyxel.run."
+repl.png:
+  title: "REPL do Python"
+  description: "Sessão no REPL com 2 ** 10 e a versão do Pyxel."
+slides-ambiente.pdf:
+  title: "Slides da aula 1: ambiente e primeiro programa"
+  description: "Instalação, REPL e o primeiro programa com Pyxel."

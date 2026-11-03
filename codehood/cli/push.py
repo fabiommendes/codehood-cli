@@ -57,7 +57,14 @@ from ..push.question import scan_questions
 from ..push.repository import scan_repositories
 from ..push.resource import scan_resources
 from ..push.run import HttpRepositoryApi, OpResult, fetch_server_state, run_plan
+from ..push.unconsumed import (
+    consumed_paths,
+    excluded_paths,
+    find_unconsumed,
+    list_files,
+)
 from ..repo import read_course_name
+from ..repo.file_tracker import scan_files
 from .base import app
 from .grades import read_grade_sheet, unmatched_warnings
 
@@ -212,6 +219,8 @@ def sync(
     for file in local.excluded:
         typer.echo(f"excluded  {file.path}")
     excluded_note = f", {len(local.excluded)} excluded" if local.excluded else ""
+    for unconsumed in local.unconsumed:
+        typer.echo(f"not pushed (no handler): {unconsumed}")
 
     if dry_run:
         for op in ops:
@@ -308,6 +317,8 @@ def read_local_state(path: Path) -> LocalState:
     discipline = config.course.discipline
     course = f"{config.course.instructor}_{config.course.edition}"
     exclude = config.push.exclude
+    tracked = tuple(scan_files(path, exclude))
+    files, gitignore = list_files(path)
     trees = tuple(scan_repositories(path, exclude))
     linked = attach_repositories(allocation.events, trees)
     resources = attach_resources(linked, tuple(scan_resources(path, exclude)), path)
@@ -328,6 +339,12 @@ def read_local_state(path: Path) -> LocalState:
         repositories=trees,
         questions=tuple(scan_questions(path, exclude)),
         excluded=tuple(scan_excluded(path, exclude)),
+        unconsumed=find_unconsumed(
+            files,
+            consumed=consumed_paths(tracked),
+            excluded=excluded_paths(tracked),
+            gitignore=gitignore,
+        ),
     )
 
 

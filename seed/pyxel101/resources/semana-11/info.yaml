@@ -1,0 +1,4 @@
+personagem.pyxres:
+  title: "Recursos do personagem"
+  description: "Folha de sprites 8x8, tilemap 0 e dois sons, gerados pelo Pyxel."
+  mime: "application/octet-stream"

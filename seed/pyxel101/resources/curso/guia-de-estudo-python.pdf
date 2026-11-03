@@ -1,0 +1,87 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 510 >>
+stream
+0.17 0.2 0.37 rg 0 796 595 46 re f
+BT /F2 20 Tf 1 1 1 rg 20 811 Td (Guia de estudo: tipos e operadores) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 13 Tf 28 770 Td (•  int 3, float 3.5, str 'oi', bool True) Tj ET
+BT /F1 13 Tf 28 748 Td (•  + - * / \(divisão real\) // \(divisão inteira\) % \(resto\) ** \(potência\)) Tj ET
+BT /F1 13 Tf 28 726 Td (•  == != < <= > >= and or not) Tj ET
+BT /F1 13 Tf 28 704 Td (•  type\(x\) mostra o tipo; int\('3'\) e str\(3\) convertem) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 535 10 Td (1 / 3) Tj ET
+
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 6 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+8 0 obj
+<< /Length 459 >>
+stream
+0.17 0.2 0.37 rg 0 796 595 46 re f
+BT /F2 20 Tf 1 1 1 rg 20 811 Td (Guia de estudo: controle de fluxo) Tj ET
+0.1 0.1 0.1 rg
+BT /F3 11 Tf 28 770 Td (if x < 0: ... elif x == 0: ... else: ...) Tj ET
+BT /F3 11 Tf 28 750 Td (for i in range\(inicio, fim, passo\): ...) Tj ET
+BT /F3 11 Tf 28 730 Td (while condição: ...) Tj ET
+BT /F1 13 Tf 28 710 Td (•  break sai do laço; continue pula para a próxima volta) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 535 10 Td (2 / 3) Tj ET
+
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 8 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+10 0 obj
+<< /Length 573 >>
+stream
+0.17 0.2 0.37 rg 0 796 595 46 re f
+BT /F2 20 Tf 1 1 1 rg 20 811 Td (Guia de estudo: estruturas e funções) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 13 Tf 28 770 Td (•  lista [1, 2, 3] tupla \(1, 2\) dicionário {'a': 1}) Tj ET
+BT /F1 13 Tf 28 748 Td (•  lista.append\(x\) lista[1:3] len\(lista\) d.get\('a'\)) Tj ET
+BT /F3 11 Tf 28 726 Td (def soma\(a, b=0\): return a + b) Tj ET
+BT /F3 11 Tf 28 706 Td (class Enemy: def __init__\(self, x\): self.x = x) Tj ET
+BT /F3 11 Tf 28 686 Td (with open\('f.txt'\) as f: texto = f.read\(\)) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 535 10 Td (3 / 3) Tj ET
+
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Contents 10 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000128 00000 n 
+0000000225 00000 n 
+0000000327 00000 n 
+0000000422 00000 n 
+0000000983 00000 n 
+0000001129 00000 n 
+0000001639 00000 n 
+0000001785 00000 n 
+0000002410 00000 n 
+trailer
+<< /Size 12 /Root 1 0 R >>
+startxref
+2558
+%%EOF

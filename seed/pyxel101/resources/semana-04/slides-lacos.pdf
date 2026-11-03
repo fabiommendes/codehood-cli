@@ -1,0 +1,84 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 393 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (Aula 4: Laços) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 15 Tf 28 198 Td (•  for repete para cada item de uma sequência) Tj ET
+BT /F1 15 Tf 28 174 Td (•  range\(inicio, fim, passo\): o fim não entra) Tj ET
+BT /F1 15 Tf 28 150 Td (•  while repete enquanto a condição for verdadeira) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (1 / 3) Tj ET
+
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 6 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+8 0 obj
+<< /Length 425 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (Laços aninhados) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 15 Tf 28 198 Td (•  Laço externo escolhe a linha, o interno a coluna) Tj ET
+BT /F3 13 Tf 28 174 Td (for linha in range\(8\):) Tj ET
+BT /F3 13 Tf 28 152 Td (for coluna in range\(8\):) Tj ET
+BT /F1 15 Tf 28 130 Td (•  O corpo interno roda 8 x 8 = 64 vezes) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (2 / 3) Tj ET
+
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 8 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+10 0 obj
+<< /Length 392 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (Cuidados) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 15 Tf 28 198 Td (•  while sem atualizar a condição trava o programa) Tj ET
+BT /F1 15 Tf 28 174 Td (•  break sai do laço, continue pula para a próxima volta) Tj ET
+BT /F1 15 Tf 28 150 Td (•  Padrão xadrez: \(linha + coluna\) % 2) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (3 / 3) Tj ET
+
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 10 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000128 00000 n 
+0000000225 00000 n 
+0000000327 00000 n 
+0000000422 00000 n 
+0000000866 00000 n 
+0000001012 00000 n 
+0000001488 00000 n 
+0000001634 00000 n 
+0000002078 00000 n 
+trailer
+<< /Size 12 /Root 1 0 R >>
+startxref
+2226
+%%EOF

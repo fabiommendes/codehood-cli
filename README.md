@@ -52,6 +52,11 @@ password and stores a CLI key for the server in
 codehood login
 ```
 
+For CI and scripts, set `CODEHOOD_TOKEN` to a CLI key instead. When it is set
+(and not empty) it is used for every server, and `credentials.toml` is not
+read. `codehood login` and `codehood logout` still edit the file, and say that
+the variable overrides it.
+
 We manage the course by editing or adding files in the local repository and then
 pushing changes to the Codehood server using a simple command:
 

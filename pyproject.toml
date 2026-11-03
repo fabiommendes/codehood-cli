@@ -56,6 +56,8 @@ api-codegen = "python -m codehood.api.generate"
 test-integration = "pytest --run-integration -m integration"
 
 [tool.pytest.ini_options]
+# seed/ holds the example course, whose labs carry their own tests.
+norecursedirs = ["seed", ".*", "__pycache__"]
 markers = [
     "integration: needs a running Codehood server (see CODEHOOD_SERVER); skipped by default, use --run-integration",
 ]

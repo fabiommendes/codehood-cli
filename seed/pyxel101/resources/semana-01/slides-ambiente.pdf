@@ -1,0 +1,109 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R 13 0 R] /Count 4 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 401 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (Aula 1: Ambiente, REPL e primeiro programa) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 15 Tf 28 198 Td (•  Introdução à Programação com Python e Jogos) Tj ET
+BT /F1 15 Tf 28 174 Td (•  Profa. Ada Lovelace) Tj ET
+BT /F1 15 Tf 28 150 Td (•  Hoje: instalar, explorar o REPL e abrir uma janela) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (1 / 4) Tj ET
+
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 6 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+8 0 obj
+<< /Length 568 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (Instalação) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 15 Tf 28 198 Td (•  Python 3.11 ou mais novo: python3 --version) Tj ET
+BT /F1 15 Tf 28 174 Td (•  Pyxel: pip install pyxel \(de preferência dentro de um) Tj ET
+BT /F1 15 Tf 28 154 Td (    venv\)) Tj ET
+BT /F1 15 Tf 28 130 Td (•  Teste: digite pyxel; ele imprime a versão) Tj ET
+BT /F1 15 Tf 28 106 Td (•  Problemas? Traga a mensagem de erro inteira para o) Tj ET
+BT /F1 15 Tf 28 86 Td (    atendimento) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (2 / 4) Tj ET
+
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 8 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+10 0 obj
+<< /Length 494 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (REPL e primeiro programa) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 15 Tf 28 198 Td (•  REPL: digite uma expressão, veja o resultado na hora) Tj ET
+BT /F3 13 Tf 28 174 Td (>>> 2 ** 10) Tj ET
+BT /F1 15 Tf 28 152 Td (•  Um programa é um arquivo .py rodado de ponta a ponta) Tj ET
+BT /F3 13 Tf 28 128 Td (pyxel.init\(160, 120\)) Tj ET
+BT /F3 13 Tf 28 106 Td (pyxel.run\(update, draw\)) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (3 / 4) Tj ET
+
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 10 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+12 0 obj
+<< /Length 539 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (Funções: a receita mínima) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 15 Tf 28 198 Td (•  def nome\(parametros\): abre a função; o corpo é) Tj ET
+BT /F1 15 Tf 28 178 Td (    indentado) Tj ET
+BT /F1 15 Tf 28 154 Td (•  return devolve o resultado para quem chamou) Tj ET
+BT /F3 13 Tf 28 130 Td (def dobro\(n\):) Tj ET
+BT /F3 13 Tf 28 108 Td (return n * 2) Tj ET
+BT /F1 15 Tf 28 86 Td (•  Na semana 5 voltamos às funções com calma) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (4 / 4) Tj ET
+
+endstream
+endobj
+13 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 12 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+xref
+0 14
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000135 00000 n 
+0000000232 00000 n 
+0000000334 00000 n 
+0000000429 00000 n 
+0000000881 00000 n 
+0000001027 00000 n 
+0000001646 00000 n 
+0000001792 00000 n 
+0000002338 00000 n 
+0000002486 00000 n 
+0000003077 00000 n 
+trailer
+<< /Size 14 /Root 1 0 R >>
+startxref
+3225
+%%EOF

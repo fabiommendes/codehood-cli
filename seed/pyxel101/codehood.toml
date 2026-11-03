@@ -1,0 +1,37 @@
+[course]
+discipline = "pyxel101"
+instructor = "ada"
+edition = "2026-2"
+
+[server]
+url = "http://localhost:4321"
+
+[push]
+exclude = [
+    "questions/rascunhos",
+    # Questões de código usam um formato proposto que o mdq ainda não lê, e
+    # um arquivo inválido aborta o push inteiro. Ver cli/seed/GAPS.md.
+    "questions/código",
+    "resources/**/rascunho-*",
+]
+
+[[grades.column]]
+slug = "labs"
+title = "Laboratórios"
+
+[[grades.column]]
+slug = "prova1"
+title = "Prova 1"
+
+[[grades.column]]
+slug = "prova2"
+title = "Prova 2"
+
+[[grades.column]]
+slug = "projeto"
+title = "Projeto final"
+
+[[grades.column]]
+slug = "final"
+title = "Conceito final"
+kind = "label"

@@ -1,0 +1,8 @@
+# Formato proposto, não decidido: o Codehood ainda não corrige entregas por git.
+[autograde]
+command = "python -m pytest -q"
+weight = 1.0
+
+# Testes que o aluno não vê. Ficam fora do repositório publicado e são
+# copiados para tests/ pelo corretor antes de rodar o comando.
+hidden_tests = "tests_ocultos"

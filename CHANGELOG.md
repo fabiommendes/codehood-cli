@@ -4,6 +4,14 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- `CODEHOOD_TOKEN`: when set, the CLI uses it as the API key for any server
+  and does not read `~/.codehood/credentials.toml`.
+- `codehood push` lists the files it did not push because no stage reads
+  them (`not pushed (no handler): exams/prova1.md`), next to the excluded
+  ones.
+- `seed/pyxel101/`: a full course repository used by the server's
+  `pnpm run db:seed:cli`, with `seed/GAPS.md` listing what it asks for and
+  the platform does not do yet.
 - `repositories/`: each subfolder is pushed as a course repository, honoring
   its nested `.gitignore` files and `[push] exclude`. Only files the server
   lacks are uploaded. `-m/--message` sets the commit message. A folder that

@@ -17,6 +17,14 @@ def credentials_path(tmp_path, monkeypatch):
     return path
 
 
+@pytest.fixture(autouse=True)
+def no_token_env(monkeypatch):
+    """
+    An ambient `CODEHOOD_TOKEN` would override every stored token a test sets up.
+    """
+    monkeypatch.delenv("CODEHOOD_TOKEN", raising=False)
+
+
 @pytest.fixture
 def identity() -> CourseIdentity:
     return CourseIdentity(discipline="cs101", instructor="ada", edition="2026-1")

@@ -967,3 +967,63 @@ def test_a_malformed_exclude_table_is_a_config_error(repo, monkeypatch):
 
     assert result.exit_code == 1, result.output
     assert "exclude" in result.output
+
+
+#
+# Files the push did not consume
+#
+
+
+def _write(root, relative: str, text: str = "x\n") -> None:
+    path = root / relative
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
+
+
+def _course(repo, monkeypatch, *, repositories: bool = True):
+    _write(repo, "exams/exam/x.md", "# exam\n")
+    _write(repo, "notes.txt")
+    _write(repo, "solutions/s1.py")
+    if repositories:
+        _write(repo, "repositories/lab/main.py")
+    _write(repo, "questions/big-o.md", EXAMPLE_MDQ)
+    _write(repo, "questions/notes.txt")
+    _write(repo, "resources/week1/private.md")
+    (repo / "codehood.toml").write_text(
+        _exclude_toml("resources/week1/private.md"), encoding="utf-8"
+    )
+    _install_transport(monkeypatch, _server_with([]))
+
+
+def _check(output: str) -> None:
+    assert "not pushed (no handler): exams/exam/x.md" in output
+    assert "not pushed (no handler): notes.txt" in output
+    assert "not pushed (no handler): solutions/s1.py" in output
+    assert "not pushed (no handler): questions/notes.txt" in output
+    assert "repositories/lab/main.py" not in output
+    assert "big-o.md" not in output.replace("question big-o", "")
+    assert "not pushed (no handler): resources/week1/private.md" not in output
+    assert "excluded  resources/week1/private.md" in output
+    lines = [x for x in output.splitlines() if x.startswith("not pushed")]
+    assert lines == sorted(lines)
+
+
+def test_push_lists_unconsumed_files(repo, monkeypatch):
+    _course(repo, monkeypatch, repositories=False)
+    result = runner.invoke(app, ["push", str(repo)])
+    assert result.exit_code == 0, result.output
+    _check(result.output)
+
+
+def test_dry_run_lists_unconsumed_files(repo, monkeypatch):
+    _course(repo, monkeypatch)
+    result = runner.invoke(app, ["push", str(repo), "--dry-run"])
+    assert result.exit_code == 0, result.output
+    _check(result.output)
+
+
+def test_no_unconsumed_prints_nothing(repo, monkeypatch):
+    _install_transport(monkeypatch, _fresh_server_handler([]))
+    result = runner.invoke(app, ["push", str(repo), "--dry-run"])
+    assert result.exit_code == 0, result.output
+    assert "not pushed" not in result.output

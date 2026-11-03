@@ -12,11 +12,13 @@ import typer
 from .. import repo
 from ..api import generated
 from ..api.base import (
+    TOKEN_ENV,
     CodehoodAPIError,
     delete_token,
+    env_token,
     get_client,
     load_login,
-    load_token,
+    load_stored_token,
     save_token,
 )
 from ..models.repo import RepoConfig
@@ -53,12 +55,13 @@ def login() -> None:
         raise typer.Exit(code=1) from exc
 
     key = str(client.base_url)
-    if load_token(key) is not None and load_login(key) != login_name:
+    if load_stored_token(key) is not None and load_login(key) != login_name:
         previous = load_login(key)
         was = f" (was {previous})" if previous else ""
         typer.echo(f"replacing the stored login for {server_url}{was}")
     save_token(key, result.token, login=login_name)
     typer.echo(f"logged in to {server_url} as {login_name}")
+    _note_env_override()
 
 
 @app.command()
@@ -79,6 +82,12 @@ def logout() -> None:
         "note: this only forgets the key locally -- the server has no way "
         "yet to revoke it remotely; use /profile for that."
     )
+    _note_env_override()
+
+
+def _note_env_override() -> None:
+    if env_token() is not None:
+        typer.echo(f"note: {TOKEN_ENV} is set and overrides the stored key")
 
 
 def _repo_config() -> RepoConfig:

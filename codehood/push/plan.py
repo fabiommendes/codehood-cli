@@ -84,6 +84,8 @@ class LocalState:
     repositories: tuple[RepositoryTree, ...] = ()
     #: Files left out by `[push] exclude`: never written, never pruned.
     excluded: tuple[ExcludedFile, ...] = ()
+    #: Versionable files no push stage read, sorted. Reported, never pushed.
+    unconsumed: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)

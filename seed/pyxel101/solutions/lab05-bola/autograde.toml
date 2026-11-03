@@ -1,0 +1,5 @@
+# Formato proposto, não decidido: o Codehood ainda não corrige entregas por git.
+[autograde]
+command = "python -m pytest -q"
+weight = 2.0
+hidden_tests = "tests_ocultos"

@@ -13,6 +13,7 @@ operation" -- so this is the one file in `api/` codegen never touches.
 
 from __future__ import annotations
 
+import os
 import tomllib
 from collections.abc import Mapping, Sequence
 from pathlib import Path
@@ -38,6 +39,10 @@ DEFAULT_HEADERS = {"Content-Type": "application/json"}
 #: Global, not per-repo -- see `dev/specs/to-review/login.md`, "Credentials
 #: are global, not per-repo".
 CREDENTIALS_PATH = Path.home() / ".codehood" / "credentials.toml"
+
+
+#: Environment variable that overrides every stored token, for any server.
+TOKEN_ENV = "CODEHOOD_TOKEN"
 
 
 def get_client(base_url: str | None = None) -> httpx.Client:
@@ -125,10 +130,29 @@ def stored_servers() -> list[str]:
     return list(servers)
 
 
+def env_token() -> str | None:
+    """
+    The token in `CODEHOOD_TOKEN`, or `None` when it is unset or empty.
+    """
+    return os.environ.get(TOKEN_ENV) or None
+
+
 def load_token(base_url: str) -> str | None:
     """
-    The stored CLI API key for `base_url`, or `None` if `codehood login`
-    was never run for it (or `codehood logout` cleared it).
+    The CLI API key to use for `base_url`, or `None` if there is none.
+
+    `CODEHOOD_TOKEN` wins for any server, and then the credentials file is
+    not read. Otherwise it is the key `codehood login` stored, if any.
+    """
+    token = env_token()
+    if token is not None:
+        return token
+    return load_stored_token(base_url)
+
+
+def load_stored_token(base_url: str) -> str | None:
+    """
+    The key `codehood login` stored for `base_url`, ignoring `CODEHOOD_TOKEN`.
     """
     if not CREDENTIALS_PATH.exists():
         return None

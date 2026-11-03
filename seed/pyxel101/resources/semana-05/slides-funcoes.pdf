@@ -1,0 +1,84 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [7 0 R 9 0 R 11 0 R] /Count 3 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Courier /Encoding /WinAnsiEncoding >>
+endobj
+6 0 obj
+<< /Length 406 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (Aula 5 \(reposição\): Funções) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 15 Tf 28 198 Td (•  def nome\(parametros\): agrupa um comportamento) Tj ET
+BT /F1 15 Tf 28 174 Td (•  return devolve um valor; print só mostra) Tj ET
+BT /F1 15 Tf 28 150 Td (•  Variáveis locais não existem fora da função) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (1 / 3) Tj ET
+
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 6 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+8 0 obj
+<< /Length 390 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (O ciclo do Pyxel) Tj ET
+0.1 0.1 0.1 rg
+BT /F1 15 Tf 28 198 Td (•  update\(\): lógica, 30 vezes por segundo) Tj ET
+BT /F1 15 Tf 28 174 Td (•  draw\(\): desenho, logo depois de update) Tj ET
+BT /F1 15 Tf 28 150 Td (•  Nunca desenhe no update nem mude estado no draw) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (2 / 3) Tj ET
+
+endstream
+endobj
+9 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 8 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+10 0 obj
+<< /Length 374 >>
+stream
+0.17 0.2 0.37 rg 0 224 480 46 re f
+BT /F2 22 Tf 1 1 1 rg 20 239 Td (Bola quicando) Tj ET
+0.1 0.1 0.1 rg
+BT /F3 13 Tf 28 198 Td (def quica\(pos, vel, minimo, maximo\):) Tj ET
+BT /F3 13 Tf 28 176 Td (if pos < minimo or pos > maximo:) Tj ET
+BT /F3 13 Tf 28 154 Td (return -vel) Tj ET
+BT /F3 13 Tf 28 132 Td (return vel) Tj ET
+BT /F1 8 Tf 0.5 0.5 0.5 rg 420 10 Td (3 / 3) Tj ET
+
+endstream
+endobj
+11 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 480 270] /Contents 10 0 R /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000128 00000 n 
+0000000225 00000 n 
+0000000327 00000 n 
+0000000422 00000 n 
+0000000879 00000 n 
+0000001025 00000 n 
+0000001466 00000 n 
+0000001612 00000 n 
+0000002038 00000 n 
+trailer
+<< /Size 12 /Root 1 0 R >>
+startxref
+2186
+%%EOF
