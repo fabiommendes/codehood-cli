@@ -27,28 +27,30 @@ anything.
 codehood init
 ```
 
-It will create the following folder structure in your current working directory:
+It asks for the discipline, your username, the edition and the server, and
+creates the following folder structure in your current working directory:
 
 ```
 ├── .codehood/
 ├── questions/
-│   └── example.mdq
+│   └── example.md
 ├── exams/
-│   ├── draft/
-│   │   └── example.md
-│   ├── practice/
-│   │   └── example.md
-│   └── published/
+│   └── example.md
 ├── resources/
 ├── repositories/
+├── .gitignore
 ├── codehood.toml
 ├── calendar.md
-├── roster.csv
 └── README.md
 ```
 
-It will also ask for your credentials to connect to the Codehood server and
-storing them in the `codehood.toml` file.
+Then log in from inside the repository. `codehood login` asks for your
+password and stores a CLI key for the server in
+`~/.codehood/credentials.toml`, never in `codehood.toml`:
+
+```bash
+codehood login
+```
 
 We manage the course by editing or adding files in the local repository and then
 pushing changes to the Codehood server using a simple command:
