@@ -22,6 +22,7 @@ import pytest
 
 from codehood.api import base as base_module
 from codehood.grades import ExamResult
+from codehood.models.repo import CourseKey
 from codehood.push.calendar import Duration, Event, EventKey, TimeOfDay, TimeSlot
 from codehood.push.grades import GradeColumn
 from codehood.push.plan import (
@@ -38,7 +39,6 @@ from codehood.push.plan import (
     UpsertQuestion,
     UpsertResource,
     UpsertTimeSlot,
-    WarnTimeSlotPinned,
 )
 from codehood.push.resource import CodeData, FileData, LinkData, MdData
 from codehood.push.run import fetch_server_state, fetch_students, run_plan
@@ -71,6 +71,7 @@ third
 
 DISCIPLINE = "cs101"
 COURSE = "ada_2026-1"
+KEY = CourseKey(DISCIPLINE, "ada", "2026-1")
 BASE = f"/api/course/{DISCIPLINE}/{COURSE}"
 
 
@@ -427,8 +428,7 @@ def test_run_plan_upsert_course_puts_the_natural_key_in_the_body():
         return httpx.Response(200, json=_course_json())
 
     op = UpsertCourse(
-        discipline=DISCIPLINE,
-        course=COURSE,
+        key=KEY,
         description="A course.",
         start_at="2026-01-01T00:00:00Z",
         end_at="2026-06-01T00:00:00Z",
@@ -458,8 +458,7 @@ def test_run_plan_upsert_course_404_yields_a_failed_result_not_a_raise():
         return httpx.Response(404, json={"message": "discipline not found"})
 
     op = UpsertCourse(
-        discipline=DISCIPLINE,
-        course=COURSE,
+        key=KEY,
         description="A course.",
         start_at="2026-01-01T00:00:00Z",
         end_at="2026-06-01T00:00:00Z",
@@ -485,8 +484,7 @@ def test_run_plan_after_a_failed_upsert_course_attempts_nothing_else():
 
     ops = [
         UpsertCourse(
-            discipline=DISCIPLINE,
-            course=COURSE,
+            key=KEY,
             description="A course.",
             start_at="2026-01-01T00:00:00Z",
             end_at="2026-06-01T00:00:00Z",
@@ -1088,25 +1086,6 @@ def test_run_plan_delete_calendar_event_http_failure_yields_a_failed_result():
     )
     assert result.ok is False
     assert result.message
-
-
-def test_run_plan_warn_time_slot_pinned_makes_no_request_and_succeeds():
-    """
-    `WarnTimeSlotPinned` isn't a write: the mapping's "Deletion and
-    pruning" leaves a `CANCELLED`-pinned slot untouched, so executing this
-    op must call no endpoint at all and still report success.
-    """
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        raise AssertionError(
-            f"a pinned-slot warning must not call the network: {request.url}"
-        )
-
-    op = WarnTimeSlotPinned(slug="wed", week=2)
-    [result] = list(
-        run_plan([op], discipline=DISCIPLINE, course=COURSE, client=_client(handler))
-    )
-    assert result.ok is True
 
 
 #

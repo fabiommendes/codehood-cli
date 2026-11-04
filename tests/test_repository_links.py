@@ -12,6 +12,7 @@ from pathlib import Path, PurePosixPath
 
 import pytest
 
+from codehood.models.repo import CourseKey, RepoConfig
 from codehood.push.calendar import Event
 from codehood.push.errors import RepositoryError, ResourceLinkError
 from codehood.push.links import (
@@ -21,6 +22,8 @@ from codehood.push.links import (
     rewrite_repository_links,
 )
 from codehood.push.repository import RepositoryEntry, RepositoryTree
+
+KEY = CourseKey("cs101", "ada", "2026-1")
 
 push_module = importlib.import_module("codehood.cli.push")
 
@@ -148,15 +151,13 @@ def test_a_prefix_of_a_file_name_is_not_a_directory():
 # rewrite_repository_links
 #
 def test_a_repository_root_link_points_to_the_server_page():
-    [event] = rewrite_repository_links(
-        [_event("See [lab](repositories/lab1).")], "cs101", "ada_2026-1"
-    )
+    [event] = rewrite_repository_links([_event("See [lab](repositories/lab1).")], KEY)
     assert event.description == "See [lab](/cs101/ada_2026-1/repositories/lab1)."
 
 
 def test_a_path_link_keeps_the_path_and_the_fragment():
     [event] = rewrite_repository_links(
-        [_event("[f](./repositories/lab1/src/main.py#L3)")], "cs101", "ada_2026-1"
+        [_event("[f](./repositories/lab1/src/main.py#L3)")], KEY
     )
     assert event.description == (
         "[f](/cs101/ada_2026-1/repositories/lab1/src/main.py#L3)"
@@ -165,13 +166,13 @@ def test_a_path_link_keeps_the_path_and_the_fragment():
 
 def test_other_links_are_left_untouched():
     text = "[x](https://example.org) [y](resources/w1/a.md) [z](#top)"
-    [event] = rewrite_repository_links([_event(text)], "cs101", "ada_2026-1")
+    [event] = rewrite_repository_links([_event(text)], KEY)
     assert event.description == text
 
 
 def test_rewriting_keeps_the_event_otherwise_intact():
     original = _event("[lab](repositories/lab1)")
-    [event] = rewrite_repository_links([original], "cs101", "ada_2026-1")
+    [event] = rewrite_repository_links([original], KEY)
     assert replace(event, description=original.description) == original
 
 
@@ -248,7 +249,7 @@ def test_read_local_state_scans_repositories(tmp_path):
         _calendar("Nothing."),
         {"repositories/lab1/a.py": "x\n", "repositories/lab2/b.py": "y\n"},
     )
-    local = push_module.read_local_state(root)
+    local = push_module.read_local_state(root, RepoConfig.open(root))
     assert [tree.slug for tree in local.repositories] == ["lab1", "lab2"]
 
 
@@ -258,7 +259,7 @@ def test_read_local_state_links_and_rewrites_repository_links(tmp_path):
         _calendar("Open [the lab](repositories/lab1/a.py)."),
         {"repositories/lab1/a.py": "x\n"},
     )
-    [event] = push_module.read_local_state(root).events
+    [event] = push_module.read_local_state(root, RepoConfig.open(root)).events
     assert event.repositories == ("lab1",)
     assert event.description == (
         "Open [the lab](/cs101/ada_2026-1/repositories/lab1/a.py)."
@@ -272,13 +273,13 @@ def test_read_local_state_rejects_a_link_to_a_missing_repository(tmp_path):
         {"repositories/lab1/a.py": "x\n"},
     )
     with pytest.raises(ResourceLinkError, match="ghost"):
-        push_module.read_local_state(root)
+        push_module.read_local_state(root, RepoConfig.open(root))
 
 
 def test_read_local_state_rejects_a_loose_file_in_repositories(tmp_path):
     root = _course(tmp_path, _calendar("Nothing."), {"repositories/notes.txt": "x"})
     with pytest.raises(RepositoryError, match=r"notes\.txt"):
-        push_module.read_local_state(root)
+        push_module.read_local_state(root, RepoConfig.open(root))
 
 
 def test_read_local_state_applies_push_exclude_to_repositories(tmp_path):
@@ -292,12 +293,12 @@ def test_read_local_state_applies_push_exclude_to_repositories(tmp_path):
         TOML + '\n[push]\nexclude = ["repositories/lab1/secret.txt"]\n',
         encoding="utf-8",
     )
-    [tree] = push_module.read_local_state(root).repositories
+    [tree] = push_module.read_local_state(root, RepoConfig.open(root)).repositories
     assert [entry.path for entry in tree.entries] == ["a.py"]
 
 
 def test_a_course_without_repositories_has_none(tmp_path):
     root = _course(tmp_path, _calendar("Nothing."), {})
-    local = push_module.read_local_state(root)
+    local = push_module.read_local_state(root, RepoConfig.open(root))
     assert local.repositories == ()
     assert all(event.repositories == () for event in local.events)

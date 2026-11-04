@@ -3,7 +3,7 @@ The imperative shell of `codehood push`.
 
 The only thing in `codehood/push/` that touches HTTP: `fetch_server_state`
 reads what the server currently holds, so `plan.plan_push` can diff
-against it; `run_plan` executes a plan one `PushOp` at a time.
+against it; `run_plan` executes a plan one `Write` at a time.
 
 This module is also the single place the core's `ResourceData` is
 translated into the generated request models, so a change to the server's
@@ -33,8 +33,6 @@ from .plan import (
     DeleteResource,
     DeleteRollCall,
     DeleteTimeSlot,
-    PushOp,
-    RejectQuestion,
     ServerEvent,
     ServerQuestion,
     ServerState,
@@ -45,10 +43,7 @@ from .plan import (
     UpsertRepository,
     UpsertResource,
     UpsertTimeSlot,
-    WarnEventHasRollCall,
-    WarnQuestionPublished,
-    WarnRepositoryKept,
-    WarnTimeSlotPinned,
+    Write,
 )
 from .repository import RepositoryEntry, batch_entries
 from .resource import CodeData, FileData, LinkData, MdData, ResourceData
@@ -89,10 +84,10 @@ EXAM_STATES: dict[str, ExamState] = {
 @dataclass(frozen=True)
 class OpResult:
     """
-    The outcome of executing one `PushOp`.
+    The outcome of executing one `Write`.
     """
 
-    op: PushOp
+    op: Write
     ok: bool
     message: str
     #: The operation was never attempted because an earlier one it depends
@@ -371,7 +366,7 @@ def fetch_students(
 
 
 def run_plan(
-    ops: Iterable[PushOp],
+    ops: Iterable[Write],
     *,
     discipline: str,
     course: str,
@@ -432,7 +427,7 @@ def describe_failure(exc: CodehoodAPIError | httpx.HTTPStatusError) -> str:
 
 
 def _run_op(
-    op: PushOp,
+    op: Write,
     *,
     discipline: str,
     course: str,
@@ -444,16 +439,6 @@ def _run_op(
             return _run_upsert_course(op, client=client)
         case UpsertRepository():
             return run_upsert_repository(op, repositories)
-        case WarnRepositoryKept():
-            return run_warn_repository_kept(op)
-        case RejectQuestion():
-            return OpResult(op=op, ok=False, message=f"invalid: {op.reason}")
-        case WarnQuestionPublished():
-            return OpResult(
-                op=op,
-                ok=True,
-                message=f"kept {op.status}; hide it on the web or drop the `_`",
-            )
         case DeleteRepository():
             return run_delete_repository(op, repositories)
         case UpsertResource():
@@ -488,10 +473,6 @@ def _run_op(
             return _run_delete_calendar_event(
                 op, discipline=discipline, course=course, client=client
             )
-        case WarnTimeSlotPinned():
-            return _run_warn_time_slot_pinned(op)
-        case WarnEventHasRollCall():
-            return _run_warn_event_has_roll_call(op)
         case DeleteRollCall():
             return _run_delete_roll_call(
                 op, discipline=discipline, course=course, client=client
@@ -538,17 +519,6 @@ def run_upsert_repository(op: UpsertRepository, api: RepositoryApi) -> OpResult:
     )
 
 
-def run_warn_repository_kept(op: WarnRepositoryKept) -> OpResult:
-    """
-    Not a write: report the repository `plan_repositories` kept.
-    """
-    return OpResult(
-        op=op,
-        ok=True,
-        message=f"kept: {op.slug} has no folder; --drop-repositories deletes it",
-    )
-
-
 def run_delete_repository(op: DeleteRepository, api: RepositoryApi) -> OpResult:
     """
     Delete one repository, reporting a refused request as a failed result.
@@ -571,15 +541,12 @@ def _run_upsert_course(op: UpsertCourse, *, client: httpx.Client) -> OpResult:
     """
     `PUT /api/course`, which takes the whole natural key in its body.
 
-    The course is addressed by `{instructor}_{edition}` everywhere else,
-    so it is split back apart here rather than carried twice through the
-    plan.
+    The course is addressed by `{instructor}_{edition}` everywhere else.
     """
-    instructor, _, edition = op.course.partition("_")
     body = generated.CourseCreate(
-        discipline=op.discipline,
-        instructor=instructor,
-        edition=edition,
+        discipline=op.key.discipline,
+        instructor=op.key.instructor,
+        edition=op.key.edition,
         description=op.description,
         startAt=op.start_at,
         endAt=op.end_at,
@@ -796,19 +763,6 @@ def _run_delete_calendar_event(
     return OpResult(op=op, ok=True, message=f"deleted {op.week}/{op.time_slot}")
 
 
-def _run_warn_time_slot_pinned(op: WarnTimeSlotPinned) -> OpResult:
-    """
-    Not a write: `plan_calendar` already decided to keep this slot because
-    a `CANCELLED` calendar event still pins it. Nothing to send; report it
-    the same way every other op reports what it did.
-    """
-    return OpResult(
-        op=op,
-        ok=True,
-        message=(f"kept: calendar event {op.week}/{op.slug} is CANCELLED and pins it"),
-    )
-
-
 def _run_delete_roll_call(
     op: DeleteRollCall, *, discipline: str, course: str, client: httpx.Client
 ) -> OpResult:
@@ -823,21 +777,6 @@ def _run_delete_roll_call(
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
         return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
     return OpResult(op=op, ok=True, message=f"deleted {op.week}/{op.time_slot}")
-
-
-def _run_warn_event_has_roll_call(op: WarnEventHasRollCall) -> OpResult:
-    """
-    Not a write: `plan_calendar` already decided to keep this event because
-    it has a roll call. Report it like every other op.
-    """
-    return OpResult(
-        op=op,
-        ok=True,
-        message=(
-            f"kept: event {op.week}/{op.time_slot} has a roll call with "
-            f"{op.attendances} attendance(s)"
-        ),
-    )
 
 
 def _run_upsert_grade_column(

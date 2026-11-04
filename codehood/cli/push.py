@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
 from typing import Annotated
@@ -40,9 +41,15 @@ from ..push.plan import (
     DeleteResource,
     DeleteRollCall,
     DeleteTimeSlot,
+    KeptCancelled,
+    KeptDraftPublished,
+    KeptForRollCall,
+    KeptPinnedSlot,
+    KeptRepository,
     LocalState,
-    PushOp,
-    RejectQuestion,
+    Notice,
+    Plan,
+    Rejected,
     UpsertCalendarEvent,
     UpsertCourse,
     UpsertGradeColumn,
@@ -50,15 +57,12 @@ from ..push.plan import (
     UpsertRepository,
     UpsertResource,
     UpsertTimeSlot,
-    WarnEventHasRollCall,
-    WarnQuestionPublished,
-    WarnRepositoryKept,
-    WarnTimeSlotPinned,
+    Write,
     plan_push,
 )
 from ..push.question import scan_questions
 from ..push.repository import scan_repositories
-from ..push.resource import README_SLUG, read_readme, scan_resources
+from ..push.resource import read_course_readme, scan_resources
 from ..push.run import HttpRepositoryApi, OpResult, fetch_server_state, run_plan
 from ..push.unconsumed import (
     consumed_paths,
@@ -66,7 +70,6 @@ from ..push.unconsumed import (
     find_unconsumed,
     list_files,
 )
-from ..repo import read_course_name
 from ..repo.file_tracker import scan_files
 from .base import app
 from .grades import read_grade_sheet, unmatched_warnings
@@ -133,7 +136,7 @@ def push(
     """
     try:
         config = RepoConfig.open(path)
-        local = read_local_state(path)
+        local = read_local_state(path, config)
     except (
         FileNotFoundError,
         ValidationError,
@@ -145,6 +148,9 @@ def push(
     ) as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=1) from exc
+
+    for warning in local.warnings:
+        typer.echo(f"warning  {warning}", err=True)
 
     try:
         sync(
@@ -209,14 +215,12 @@ def sync(
             typer.echo(f"warning  {warning}", err=True)
         local = replace(local, grade_columns=sheet.columns)
 
-    ops = list(
-        plan_push(
-            local,
-            server,
-            drop_roll_calls=drop_roll_calls,
-            drop_repositories=drop_repositories,
-            message=message,
-        )
+    plan = plan_push(
+        local,
+        server,
+        drop_roll_calls=drop_roll_calls,
+        drop_repositories=drop_repositories,
+        message=message,
     )
 
     for file in local.excluded:
@@ -224,34 +228,26 @@ def sync(
     excluded_note = f", {len(local.excluded)} excluded" if local.excluded else ""
     for unconsumed in local.unconsumed:
         typer.echo(f"not pushed (no handler): {unconsumed}")
+    for notice in plan.notices:
+        typer.echo(notice_line(notice))
 
     if dry_run:
-        rejected = [op for op in ops if isinstance(op, RejectQuestion)]
-        for op in ops:
-            if isinstance(op, RejectQuestion):
-                typer.echo(f"invalid  {describe(op)}: {op.reason}")
-            else:
-                typer.echo(f"planned  {describe(op)}")
-        typer.echo(
-            f"summary: {len(ops) - len(rejected)} operation(s) planned, "
-            f"0 executed (--dry-run){f', {len(rejected)} invalid' if rejected else ''}"
-            f"{excluded_note}"
-        )
-        if grades_failed or rejected:
+        for op in plan.writes:
+            typer.echo(f"planned  {describe(op)}")
+        typer.echo(dry_run_summary(plan) + excluded_note)
+        if exit_code(plan, (), grades_failed=grades_failed):
             raise typer.Exit(code=1)
         return
 
-    to_run: list[PushOp] = []
-    skipped: list[PushOp] = []
-    for op in ops:
+    to_run: list[Write] = []
+    skipped: list[Write] = []
+    for op in plan.writes:
         (skipped if isinstance(op, PRUNE_OPS) and not prune else to_run).append(op)
 
     for op in skipped:
         typer.echo(f"skipped  {describe(op)} (--no-prune)")
 
-    failures: list[OpResult] = []
-    executed = 0
-    not_attempted = 0
+    results: list[OpResult] = []
     for result in run_plan(
         to_run,
         discipline=local.discipline,
@@ -259,33 +255,70 @@ def sync(
         client=client,
         repositories=repositories,
     ):
+        results.append(result)
         if result.skipped:
-            not_attempted += 1
             typer.echo(f"skipped  {describe(result.op)} ({result.message})")
             continue
-        executed += 1
         status = "ok" if result.ok else "failed"
         typer.echo(f"{status:>6}  {describe(result.op)}: {result.message}")
-        if not result.ok:
-            failures.append(result)
 
-    typer.echo(
-        f"summary: {executed} operation(s) executed, {len(failures)} failed, "
-        f"{len(skipped)} skipped"
-        f"{f', {not_attempted} not attempted' if not_attempted else ''}"
-        f"{excluded_note}"
-    )
+    failures = [result for result in results if not result.ok and not result.skipped]
+    typer.echo(run_summary(plan, results, skipped=len(skipped)) + excluded_note)
     if failures:
         typer.echo("failures:")
         for result in failures:
             typer.echo(f"  {describe(result.op)}: {result.message}")
     if grades_failed:
         typer.echo("grade columns were not pushed, see the errors above")
-    if failures or grades_failed:
+    if exit_code(plan, results, grades_failed=grades_failed):
         raise typer.Exit(code=1)
 
 
-def read_local_state(path: Path) -> LocalState:
+def exit_code(
+    plan: Plan, results: Sequence[OpResult], *, grades_failed: bool = False
+) -> int:
+    """
+    The exit code of a push: failed when a question was rejected, a write
+    failed or the grade columns could not be computed.
+    """
+    failed = bool(plan.rejected) or grades_failed
+    return int(failed or any(not result.ok for result in results))
+
+
+def dry_run_summary(plan: Plan) -> str:
+    """
+    The summary line of a `--dry-run`: planned writes, apart from the
+    rejected questions.
+    """
+    return (
+        f"summary: {len(plan.writes)} operation(s) planned, 0 executed (--dry-run)"
+        f"{_invalid_note(plan)}"
+    )
+
+
+def run_summary(plan: Plan, results: Sequence[OpResult], *, skipped: int) -> str:
+    """
+    The summary line of a push that ran: counts only writes, never notices.
+
+    `skipped` is the number of writes `--no-prune` held back; `results` that
+    were never attempted are counted apart.
+    """
+    attempted = [result for result in results if not result.skipped]
+    failed = sum(1 for result in attempted if not result.ok)
+    not_attempted = len(results) - len(attempted)
+    return (
+        f"summary: {len(attempted)} operation(s) executed, {failed} failed, "
+        f"{skipped} skipped"
+        f"{f', {not_attempted} not attempted' if not_attempted else ''}"
+        f"{_invalid_note(plan)}"
+    )
+
+
+def _invalid_note(plan: Plan) -> str:
+    return f", {len(plan.rejected)} invalid" if plan.rejected else ""
+
+
+def read_local_state(path: Path, config: RepoConfig) -> LocalState:
     """
     Read a course repository into the value `plan_push` diffs.
 
@@ -302,15 +335,14 @@ def read_local_state(path: Path) -> LocalState:
         ResourceLinkError: A lesson links a missing resource or repository.
         ResourceFileError: An `info.yaml` or a `.url` file is malformed.
     """
-    config = RepoConfig.open(path)
-
     readme_path = path / "README.md"
     if not readme_path.exists():
         raise FileNotFoundError(
             f"no README.md at {path} -- it is the course description"
         )
-    parsed = read_course_name(readme_path.read_text(encoding="utf-8"))
-    description = config.course.description or (parsed[1] if parsed else "")
+    description, readme = read_course_readme(
+        readme_path.read_text(encoding="utf-8"), config.course.description, readme_path
+    )
 
     calendar_path = path / "calendar.md"
     if not calendar_path.exists():
@@ -319,41 +351,25 @@ def read_local_state(path: Path) -> LocalState:
         )
     calendar = parse_calendar(calendar_path.read_text(encoding="utf-8"))
     allocation = allocate(calendar)
-    for warning in allocation.warnings:
-        typer.echo(f"warning  {warning}", err=True)
 
-    discipline = config.course.discipline
-    course = f"{config.course.instructor}_{config.course.edition}"
+    key = config.key
     exclude = config.push.exclude
     tracked = tuple(scan_files(path, exclude))
     files, gitignore = list_files(path)
     trees = tuple(scan_repositories(path, exclude))
     linked = attach_repositories(allocation.events, trees)
-    scanned = tuple(scan_resources(path, exclude))
-    readme = read_readme(readme_path, describes_course=not config.course.description)
-    if readme is not None:
-        clash = [file.path for file in scanned if file.slug == README_SLUG]
-        if clash:
-            raise SlugCollisionError({README_SLUG: [readme_path, *clash]})
-        scanned = (readme, *scanned)
-    resources = rewrite_body_links(
-        attach_resources(linked, scanned, path),
-        path,
-        discipline,
-        course,
-    )
+    extras = (readme,) if readme is not None else ()
+    scanned = tuple(scan_resources(path, exclude, extras))
+    resources = rewrite_body_links(attach_resources(linked, scanned, path), path, key)
 
     return LocalState(
-        discipline=discipline,
-        course=course,
+        key=key,
         description=description,
         start=calendar.start,
         end=calendar.end,
         slots=calendar.slots,
         events=rewrite_repository_links(
-            rewrite_event_links(linked, resources, path, discipline, course),
-            discipline,
-            course,
+            rewrite_event_links(linked, resources, path, key), key
         ),
         resources=resources,
         repositories=trees,
@@ -365,10 +381,11 @@ def read_local_state(path: Path) -> LocalState:
             excluded=excluded_paths(tracked),
             gitignore=gitignore,
         ),
+        warnings=allocation.warnings,
     )
 
 
-def describe(op: PushOp) -> str:
+def describe(op: Write) -> str:
     """
     Render one operation as the line `push` prints for it.
     """
@@ -381,10 +398,6 @@ def describe(op: PushOp) -> str:
             return f"delete resource {op.slug}"
         case UpsertQuestion():
             return f"question {op.slug}"
-        case RejectQuestion():
-            return f"question {op.slug} ({op.path.name})"
-        case WarnQuestionPublished():
-            return f"question {op.slug} (its file marks a draft)"
         case DeleteQuestion():
             return f"delete question {op.slug}"
         case UpsertTimeSlot():
@@ -395,32 +408,22 @@ def describe(op: PushOp) -> str:
             return f"event {op.event.week}/{op.event.time_slot} ({op.event.kind})"
         case DeleteCalendarEvent():
             return f"delete event {op.week}/{op.time_slot}"
-        case WarnTimeSlotPinned():
-            return f"time slot {op.slug} kept (event {op.week}/{op.slug} is CANCELLED)"
         case UpsertGradeColumn():
             return f"grade column {op.column.slug} ({len(op.column.values)} values)"
         case DeleteGradeColumn():
             return f"delete grade column {op.slug}"
-        case WarnEventHasRollCall():
-            return (
-                f"event {op.week}/{op.time_slot} kept: it has a roll call with "
-                f"{op.attendances} attendance(s); use --drop-roll-calls to delete it"
-            )
         case DeleteRollCall():
             return f"delete roll call {op.week}/{op.time_slot}"
-        case UpsertRepository() | WarnRepositoryKept() | DeleteRepository():
+        case UpsertRepository() | DeleteRepository():
             return describe_repository(op)
 
 
-def describe_repository(
-    op: UpsertRepository | WarnRepositoryKept | DeleteRepository,
-) -> str:
+def describe_repository(op: UpsertRepository | DeleteRepository) -> str:
     """
     Render one repository operation as the line `push` prints for it.
 
     `UpsertRepository` reads `repository lab1: 3 files (1.2 MB), commit
     4f2a9c1`, with the first 7 hex digits of the local `tree_sha`.
-    `WarnRepositoryKept` names `--drop-repositories`.
     """
     match op:
         case UpsertRepository():
@@ -430,13 +433,52 @@ def describe_repository(
                 f"repository {op.tree.slug}: {count} {noun} "
                 f"({format_size(op.tree.size)}), commit {op.tree.tree_sha[:7]}"
             )
-        case WarnRepositoryKept():
-            return (
-                f"repository {op.slug} kept: its folder is gone; "
-                "use --drop-repositories to delete it"
-            )
         case DeleteRepository():
             return f"delete repository {op.slug}"
+
+
+def describe_notice(notice: Notice) -> str:
+    """
+    Render one notice as the text `push` prints after its `invalid` or
+    `warning` prefix.
+    """
+    match notice:
+        case Rejected():
+            return f"question {notice.slug} ({notice.path.name}): {notice.reason}"
+        case KeptDraftPublished():
+            return (
+                f"question {notice.slug} (its file marks a draft): kept "
+                f"{notice.status}; hide it on the web or drop the `_`"
+            )
+        case KeptPinnedSlot():
+            events = ", ".join(f"{week}/{notice.slug}" for week in notice.weeks)
+            plural = len(notice.weeks) > 1
+            return (
+                f"time slot {notice.slug} kept (event{'s' if plural else ''} "
+                f"{events} {'are' if plural else 'is'} CANCELLED)"
+            )
+        case KeptForRollCall():
+            return (
+                f"event {notice.week}/{notice.time_slot} kept: it has a roll call "
+                f"with {notice.attendances} attendance(s); use --drop-roll-calls "
+                "to delete it"
+            )
+        case KeptRepository():
+            return (
+                f"repository {notice.slug} kept: its folder is gone; "
+                "use --drop-repositories to delete it"
+            )
+        case KeptCancelled():
+            return f"event {notice.week}/{notice.time_slot} kept: it is CANCELLED"
+
+
+def notice_line(notice: Notice) -> str:
+    """
+    The line `push` prints for a notice: `invalid` when it fails the push,
+    `warning` otherwise.
+    """
+    prefix = "invalid" if isinstance(notice, Rejected) else "warning"
+    return f"{prefix}  {describe_notice(notice)}"
 
 
 def format_size(size: int) -> str:

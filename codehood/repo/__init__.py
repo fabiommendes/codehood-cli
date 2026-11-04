@@ -24,7 +24,6 @@ from ._layout import (
     README_FILE,
     REPOSITORIES_DIR,
     RESOURCES_DIR,
-    read_course_name,
 )
 from ._scaffold import (
     IdentityConflictError,
@@ -38,7 +37,6 @@ from ._scaffold import (
 __all__ = [
     "write_repo",
     "read_config",
-    "read_course_name",
     "PathReport",
     "PathStatus",
     #: Errors

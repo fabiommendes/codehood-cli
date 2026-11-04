@@ -17,6 +17,7 @@ from dataclasses import dataclass, replace
 from pathlib import Path, PurePosixPath
 from urllib.parse import quote, unquote
 
+from ..models.repo import CourseKey
 from .calendar import Event, EventKey
 from .errors import ResourceLinkError
 from .repository import RepositoryTree
@@ -133,12 +134,11 @@ def rewrite_event_links(
     events: Sequence[Event],
     resources: Sequence[ResourceFile],
     root: Path,
-    discipline: str,
-    course: str,
+    key: CourseKey,
 ) -> tuple[Event, ...]:
     """
     Return `events`, same order, with every link to one of `resources`
-    rewritten in the description to `/<discipline>/<course>/resources/<slug>`.
+    rewritten in the description to `key.url("resources", <slug>)`.
 
     Link text and `#fragment` are kept. Titles, week, slot and kind are
     unchanged; so is any event whose description links to no resource. The
@@ -146,8 +146,8 @@ def rewrite_event_links(
     `Event`. `root` is the course root, as in `attach_resources`.
     """
     targets = {
-        PurePosixPath(resource.path.relative_to(root).as_posix()): (
-            f"/{discipline}/{course}/resources/{resource.slug}"
+        PurePosixPath(resource.path.relative_to(root).as_posix()): key.url(
+            "resources", resource.slug
         )
         for resource in resources
     }
@@ -160,12 +160,11 @@ def rewrite_event_links(
 def rewrite_body_links(
     resources: Sequence[ResourceFile],
     root: Path,
-    discipline: str,
-    course: str,
+    key: CourseKey,
 ) -> tuple[ResourceFile, ...]:
     """
     Return `resources`, same order, with every link in an `MD` body that
-    names another resource rewritten to `/<discipline>/<course>/resources/<slug>`.
+    names another resource rewritten to `key.url("resources", <slug>)`.
 
     A target resolves against the folder of the file that holds it, as a
     Markdown viewer reads it (`![](repl.png)`, `[rubrica](../projeto/rubrica.md)`);
@@ -188,7 +187,7 @@ def rewrite_body_links(
             continue
         source = PurePosixPath(resource.path.relative_to(root).as_posix())
         content = _rewrite_relative(
-            resource.data.content, source, by_path, f"/{discipline}/{course}/resources"
+            resource.data.content, source, by_path, key.url("resources")
         )
         if content == resource.data.content:
             rewritten.append(resource)
@@ -307,11 +306,11 @@ def attach_repositories(
 
 
 def rewrite_repository_links(
-    events: Sequence[Event], discipline: str, course: str
+    events: Sequence[Event], key: CourseKey
 ) -> tuple[Event, ...]:
     """
     Return `events`, same order, with every `repositories/` link rewritten to
-    `/<discipline>/<course>/repositories/<slug>[/<path>]`.
+    `key.url("repositories", <slug>)`, plus `/<path>` for a file.
 
     Link text and `#fragment` are kept; other links are untouched. Run it
     after `attach_repositories`, which validates the targets.
@@ -319,20 +318,20 @@ def rewrite_repository_links(
     return tuple(
         replace(
             event,
-            description=_rewrite_repositories(event.description, discipline, course),
+            description=_rewrite_repositories(event.description, key),
         )
         for event in events
     )
 
 
-def _rewrite_repositories(markdown: str, discipline: str, course: str) -> str:
+def _rewrite_repositories(markdown: str, key: CourseKey) -> str:
     out = markdown
     for start, end in reversed(_link_targets(markdown)):
         raw = markdown[start:end]
         link = _repositories_target(raw)
         if link is None:
             continue
-        url = f"/{discipline}/{course}/repositories/{link.slug}"
+        url = key.url("repositories", link.slug)
         if link.path is not None:
             url += "/" + quote(link.path.as_posix())
         fragment = f"#{raw.split('#', 1)[1]}" if "#" in raw else ""

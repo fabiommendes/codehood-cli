@@ -42,7 +42,7 @@ __all__ = [
     "ResourceData",
     "ResourceFile",
     "content_ref",
-    "read_readme",
+    "read_course_readme",
     "resource_slug",
     "scan_resources",
     "slugify",
@@ -290,9 +290,16 @@ def content_ref(
     return f"{REF_PREFIX}:{digest}"
 
 
-def scan_resources(root: Path, exclude: Sequence[str] = ()) -> Iterator[ResourceFile]:
+def scan_resources(
+    root: Path,
+    exclude: Sequence[str] = (),
+    extras: Sequence[ResourceFile] = (),
+) -> Iterator[ResourceFile]:
     """
     Walk `resources/` and yield one `ResourceFile` per file.
+
+    `extras` are resources that do not live under `resources/` (the course
+    README). They are yielded first and take part in the slug collision check.
 
     Reuses the (fixed) `repo.file_tracker.scan_files` for the walk, so a
     subdirectory never becomes a resource of its own. Files matching an
@@ -310,6 +317,9 @@ def scan_resources(root: Path, exclude: Sequence[str] = ()) -> Iterator[Resource
     entries: list[tuple[str, Path]] = []
     info_dirs: set[Path] = set()
 
+    for extra in extras:
+        by_slug[extra.slug].append(extra.path)
+
     for file in scan_files(root, exclude):
         if file.type is not FileType.RESOURCE or file.excluded:
             continue
@@ -326,22 +336,25 @@ def scan_resources(root: Path, exclude: Sequence[str] = ()) -> Iterator[Resource
         raise SlugCollisionError(collisions)
 
     infos = {folder: read_info(base / folder / INFO_FILE) for folder in info_dirs}
+    yield from extras
     for slug, rel_path in entries:
         info = infos.get(rel_path.parent, {}).get(rel_path.name, ResourceInfo())
         yield read_resource(base, slug, rel_path, info)
 
 
-def read_readme(path: Path, *, describes_course: bool) -> ResourceFile | None:
+def read_course_readme(
+    text: str, override: str | None, path: Path
+) -> tuple[str, ResourceFile | None]:
     """
-    Read the course README as the `MD` resource `README_SLUG`, titled by its
-    H1 and without it, or `None` when it would add nothing.
+    Split the course README into the course description and the `MD`
+    resource `README_SLUG` that carries the rest of it.
 
-    The course has no room for more than a short description, so the rest of
-    the README (grading, bibliography, policies) goes up as a resource. When
-    its first paragraph `describes_course`, a README holding only that
-    paragraph is `None`, since the course already shows it.
+    The description is `override`, else the README's first paragraph (after
+    its H1, if any). The resource is titled by the H1, holds the README
+    without it, and is `None` when it would add nothing: with no `override`,
+    a README holding only the description; with one, an empty README.
+    `path` only labels the resource; nothing is read from it.
     """
-    text = path.read_text(encoding="utf-8")
     lines = text.splitlines()
     title = "README"
     for index, line in enumerate(lines):
@@ -358,10 +371,11 @@ def read_readme(path: Path, *, describes_course: bool) -> ResourceFile | None:
             content.splitlines(),
         )
     )
-    if not content or (describes_course and content == first_paragraph):
-        return None
+    description = override or first_paragraph
+    if not content or (not override and content == first_paragraph):
+        return description, None
     data = MdData(content=content + "\n")
-    return ResourceFile(
+    resource = ResourceFile(
         slug=README_SLUG,
         title=title,
         description=None,
@@ -369,6 +383,7 @@ def read_readme(path: Path, *, describes_course: bool) -> ResourceFile | None:
         ref=content_ref(title, None, data),
         path=path,
     )
+    return description, resource
 
 
 #

@@ -18,11 +18,14 @@ import httpx
 import mdq
 import pytest
 
-from codehood.cli.push import describe, describe_repository
+from codehood.cli.push import describe, describe_notice, describe_repository
+from codehood.models.repo import CourseKey
 from codehood.push.calendar import Duration, Event, TimeOfDay, TimeSlot
 from codehood.push.plan import (
     DeleteRepository,
+    KeptRepository,
     LocalState,
+    Plan,
     ServerState,
     UpsertCalendarEvent,
     UpsertCourse,
@@ -30,7 +33,6 @@ from codehood.push.plan import (
     UpsertRepository,
     UpsertResource,
     UpsertTimeSlot,
-    WarnRepositoryKept,
     plan_push,
     plan_repositories,
 )
@@ -46,12 +48,12 @@ from codehood.push.run import (
     run_delete_repository,
     run_plan,
     run_upsert_repository,
-    run_warn_repository_kept,
 )
 
 MB = 1024 * 1024
 DISCIPLINE = "cs101"
 COURSE = "ada_2026-1"
+KEY = CourseKey(DISCIPLINE, "ada", "2026-1")
 QUESTION = "---\ntitle: Q\n---\n\nWhat is 2 + 2?\n\n- [ ] 3\n- [*] 4\n- [ ] 5\n"
 
 
@@ -78,8 +80,7 @@ def _tree(
 
 def _local(*trees: RepositoryTree, **kwargs) -> LocalState:
     return LocalState(
-        discipline=DISCIPLINE,
-        course=COURSE,
+        key=KEY,
         description="d",
         start=date(2026, 1, 1),
         end=date(2026, 6, 1),
@@ -144,30 +145,30 @@ class FakeApi:
 #
 def test_a_repository_the_server_lacks_is_upserted():
     tree = _tree("lab1")
-    ops = list(plan_repositories(_local(tree), _server()))
+    ops = list(plan_repositories(_local(tree), _server()).writes)
     assert ops == [UpsertRepository(tree=tree, message=None)]
 
 
 def test_a_repository_with_another_tree_is_upserted():
     tree = _tree("lab1")
-    ops = list(plan_repositories(_local(tree), _server(lab1="f" * 40)))
+    ops = list(plan_repositories(_local(tree), _server(lab1="f" * 40)).writes)
     assert ops == [UpsertRepository(tree=tree, message=None)]
 
 
 def test_a_repository_before_its_first_commit_is_upserted():
     tree = _tree("lab1")
-    ops = list(plan_repositories(_local(tree), _server(lab1=None)))
+    ops = list(plan_repositories(_local(tree), _server(lab1=None)).writes)
     assert ops == [UpsertRepository(tree=tree, message=None)]
 
 
 def test_a_repository_with_the_same_tree_plans_nothing():
     tree = _tree("lab1")
-    assert list(plan_repositories(_local(tree), _server(lab1=tree.tree_sha))) == []
+    assert plan_repositories(_local(tree), _server(lab1=tree.tree_sha)) == Plan()
 
 
 def test_the_message_travels_with_every_upsert():
     trees = (_tree("lab1"), _tree("lab2"))
-    ops = list(plan_repositories(_local(*trees), _server(), message="week 3"))
+    ops = list(plan_repositories(_local(*trees), _server(), message="week 3").writes)
     assert [op.message for op in ops if isinstance(op, UpsertRepository)] == [
         "week 3",
         "week 3",
@@ -175,7 +176,9 @@ def test_the_message_travels_with_every_upsert():
 
 
 def test_repositories_are_planned_in_slug_order():
-    ops = list(plan_repositories(_local(_tree("a"), _tree("b"), _tree("c")), _server()))
+    ops = list(
+        plan_repositories(_local(_tree("a"), _tree("b"), _tree("c")), _server()).writes
+    )
     assert [op.tree.slug for op in ops if isinstance(op, UpsertRepository)] == [
         "a",
         "b",
@@ -184,37 +187,33 @@ def test_repositories_are_planned_in_slug_order():
 
 
 def test_a_repository_whose_folder_is_gone_is_kept_with_a_warning():
-    ops = list(plan_repositories(_local(), _server(old="e" * 40)))
-    assert ops == [WarnRepositoryKept(slug="old")]
+    plan = plan_repositories(_local(), _server(old="e" * 40))
+    assert plan == Plan(notices=(KeptRepository(slug="old"),))
 
 
 def test_a_repository_never_committed_whose_folder_is_gone_is_also_kept():
-    assert list(plan_repositories(_local(), _server(old=None))) == [
-        WarnRepositoryKept(slug="old")
-    ]
+    assert plan_repositories(_local(), _server(old=None)) == Plan(
+        notices=(KeptRepository(slug="old"),)
+    )
 
 
 def test_drop_repositories_deletes_a_repository_whose_folder_is_gone():
-    ops = list(
-        plan_repositories(_local(), _server(old="e" * 40), drop_repositories=True)
-    )
-    assert ops == [DeleteRepository(slug="old")]
+    plan = plan_repositories(_local(), _server(old="e" * 40), drop_repositories=True)
+    assert plan == Plan(writes=(DeleteRepository(slug="old"),))
 
 
 def test_drop_repositories_leaves_a_present_repository_alone():
     tree = _tree("lab1")
-    ops = list(
-        plan_repositories(
-            _local(tree), _server(lab1=tree.tree_sha), drop_repositories=True
-        )
+    plan = plan_repositories(
+        _local(tree), _server(lab1=tree.tree_sha), drop_repositories=True
     )
-    assert ops == []
+    assert plan == Plan()
 
 
 def test_a_second_plan_against_the_state_the_first_wrote_plans_no_repository_op():
     trees = (_tree("lab1"), _tree("lab2"))
     server = _server(**{tree.slug: tree.tree_sha for tree in trees})
-    assert list(plan_repositories(_local(*trees), server)) == []
+    assert plan_repositories(_local(*trees), server) == Plan()
 
 
 #
@@ -222,15 +221,16 @@ def test_a_second_plan_against_the_state_the_first_wrote_plans_no_repository_op(
 #
 def test_plan_push_carries_the_repository_ops():
     tree = _tree("lab1")
-    ops = list(plan_push(_local(tree), _server(), message="m"))
+    ops = plan_push(_local(tree), _server(), message="m").writes
     assert UpsertRepository(tree=tree, message="m") in ops
 
 
 def test_plan_push_drops_repositories_only_on_request():
     local, server = _local(), _server(old="e" * 40)
-    assert WarnRepositoryKept(slug="old") in plan_push(local, server)
-    assert DeleteRepository(slug="old") in plan_push(
-        local, server, drop_repositories=True
+    assert KeptRepository(slug="old") in plan_push(local, server).notices
+    assert (
+        DeleteRepository(slug="old")
+        in plan_push(local, server, drop_repositories=True).writes
     )
 
 
@@ -265,7 +265,7 @@ def test_plan_push_orders_course_repositories_calendar_resources_questions():
     )
     kinds = [
         type(op)
-        for op in plan_push(local, _server())
+        for op in plan_push(local, _server()).writes
         if isinstance(
             op,
             UpsertCourse
@@ -288,8 +288,9 @@ def test_plan_push_orders_course_repositories_calendar_resources_questions():
 
 def test_plan_push_with_matching_trees_yields_only_the_course():
     tree = _tree("lab1")
-    ops = list(plan_push(_local(tree), _server(lab1=tree.tree_sha)))
-    assert [type(op) for op in ops] == [UpsertCourse]
+    plan = plan_push(_local(tree), _server(lab1=tree.tree_sha))
+    assert [type(op) for op in plan.writes] == [UpsertCourse]
+    assert plan.notices == ()
 
 
 #
@@ -388,12 +389,6 @@ def test_upsert_reports_the_new_head():
 #
 # warn / delete / run_plan
 #
-def test_a_kept_warning_is_not_a_failure_and_names_the_slug():
-    result = run_warn_repository_kept(WarnRepositoryKept(slug="old"))
-    assert result.ok is True
-    assert "old" in result.message
-
-
 def test_delete_calls_the_api():
     api = FakeApi()
     result = run_delete_repository(DeleteRepository(slug="old"), api)
@@ -419,7 +414,6 @@ def test_run_plan_sends_repository_ops_through_the_given_api():
     api = FakeApi()
     ops = [
         UpsertRepository(tree=_tree("lab1"), message="m"),
-        WarnRepositoryKept(slug="kept"),
         DeleteRepository(slug="old"),
     ]
     results = list(
@@ -431,7 +425,7 @@ def test_run_plan_sends_repository_ops_through_the_given_api():
             repositories=api,
         )
     )
-    assert [r.ok for r in results] == [True, True, True]
+    assert [r.ok for r in results] == [True, True]
     assert [r.op for r in results] == ops
     assert api.names == ["upsert", "missing", "upload", "commit", "delete"]
 
@@ -440,7 +434,7 @@ def test_run_plan_keeps_going_after_a_failed_repository():
     api = FakeApi(fail_on="upsert")
     ops = [
         UpsertRepository(tree=_tree("lab1")),
-        WarnRepositoryKept(slug="kept"),
+        DeleteRepository(slug="old"),
     ]
     results = list(
         run_plan(
@@ -481,7 +475,7 @@ def test_the_plan_line_uses_the_singular_for_one_file():
 
 
 def test_the_kept_line_names_the_flag():
-    line = describe_repository(WarnRepositoryKept(slug="old"))
+    line = describe_notice(KeptRepository(slug="old"))
     assert "old" in line
     assert "--drop-repositories" in line
 

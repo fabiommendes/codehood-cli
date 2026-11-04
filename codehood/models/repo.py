@@ -10,6 +10,7 @@ holds no secret", for why.
 from __future__ import annotations
 
 import tomllib
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal, Self
 
@@ -26,6 +27,7 @@ from .validators import (
 )
 
 __all__ = [
+    "CourseKey",
     "CourseIdentity",
     "ServerConfig",
     "GradeColumnConfig",
@@ -46,6 +48,39 @@ class CourseIdentity(Model):
     edition: EditionSlug
     #: Replaces the README's first paragraph as the course description.
     description: str | None = None
+
+
+@dataclass(frozen=True)
+class CourseKey:
+    """
+    The natural key of a course, and the one place that knows how the server
+    addresses it: `/<discipline>/<instructor>_<edition>`.
+    """
+
+    discipline: str
+    instructor: str
+    edition: str
+
+    @property
+    def slug(self) -> str:
+        """
+        The course's address within its discipline.
+        """
+        return f"{self.instructor}_{self.edition}"
+
+    def url(self, kind: str | None = None, slug: str | None = None) -> str:
+        """
+        The server path of the course, of a `kind` collection under it
+        (`resources`, `repositories`) or of one entry of it.
+
+        Example:
+            >>> CourseKey("cs101", "ada", "2026-1").url("resources", "notes")
+            '/cs101/ada_2026-1/resources/notes'
+        """
+        base = f"/{self.discipline}/{self.slug}"
+        if kind is None:
+            return base
+        return f"{base}/{kind}" if slug is None else f"{base}/{kind}/{slug}"
 
 
 class ServerConfig(Model):
@@ -119,6 +154,15 @@ class RepoConfig(Model):
     server: ServerConfig
     grades: GradesConfig = Field(default_factory=GradesConfig)
     push: PushConfig = Field(default_factory=PushConfig)
+
+    @property
+    def key(self) -> CourseKey:
+        """
+        The course's natural key.
+        """
+        return CourseKey(
+            self.course.discipline, self.course.instructor, self.course.edition
+        )
 
     @classmethod
     def open(cls, path: Path | None = None) -> RepoConfig:

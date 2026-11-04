@@ -3,9 +3,9 @@
 `resources/` and grade columns to the server. See `dev/specs/to-do/push.md` and
 `docs/design/mapping-local-filesystem.md`.
 
-Functional core, imperative shell: `plan.plan_push` is a pure generator
-that diffs a `LocalState` against a `ServerState` and yields a plan
-(`plan.PushOp`); `run.run_plan` is the only thing here that touches HTTP.
+Functional core, imperative shell: `plan.plan_push` is a pure function
+that diffs a `LocalState` against a `ServerState` into a plan
+(`plan.Plan`); `run.run_plan` is the only thing here that touches HTTP.
 """
 
 from __future__ import annotations
@@ -62,9 +62,14 @@ from .plan import (
     DeleteRepository,
     DeleteResource,
     DeleteTimeSlot,
+    KeptDraftPublished,
+    KeptForRollCall,
+    KeptPinnedSlot,
+    KeptRepository,
     LocalState,
-    PushOp,
-    RejectQuestion,
+    Notice,
+    Plan,
+    Rejected,
     ServerEvent,
     ServerQuestion,
     ServerState,
@@ -75,9 +80,7 @@ from .plan import (
     UpsertRepository,
     UpsertResource,
     UpsertTimeSlot,
-    WarnQuestionPublished,
-    WarnRepositoryKept,
-    WarnTimeSlotPinned,
+    Write,
     plan_push,
     plan_repositories,
 )
@@ -132,15 +135,18 @@ __all__ = [
     "DeleteTimeSlot",
     "UpsertCalendarEvent",
     "DeleteCalendarEvent",
-    "WarnTimeSlotPinned",
     "UpsertGradeColumn",
     "DeleteGradeColumn",
     "UpsertRepository",
-    "WarnQuestionPublished",
-    "WarnRepositoryKept",
+    "KeptDraftPublished",
+    "KeptForRollCall",
+    "KeptPinnedSlot",
+    "KeptRepository",
+    "Rejected",
+    "Notice",
+    "Plan",
     "DeleteRepository",
-    "PushOp",
-    "RejectQuestion",
+    "Write",
     "plan_push",
     "plan_repositories",
     #: Calendar

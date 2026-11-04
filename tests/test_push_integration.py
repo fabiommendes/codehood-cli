@@ -35,7 +35,7 @@ from typer.testing import CliRunner
 from codehood.api import base as base_module
 from codehood.api import generated
 from codehood.cli.base import app
-from codehood.models.repo import CourseIdentity, ServerConfig
+from codehood.models.repo import CourseIdentity, RepoConfig, ServerConfig
 from codehood.repo import write_repo
 
 pytestmark = pytest.mark.integration
@@ -253,7 +253,9 @@ def test_push_attaches_a_linked_resource_to_its_lesson_and_reconverges(
     )
     expected = {
         resource.slug: resource.event
-        for resource in read_local_state(course_repo).resources
+        for resource in read_local_state(
+            course_repo, RepoConfig.open(course_repo)
+        ).resources
     }["hello"]
     assert expected is not None, "the link in calendar.md did not attach hello.md"
 

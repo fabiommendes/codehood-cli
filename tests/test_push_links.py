@@ -19,6 +19,7 @@ from typer.testing import CliRunner
 
 from codehood.api import base as base_module
 from codehood.cli.base import app
+from codehood.models.repo import CourseKey, RepoConfig
 from codehood.push.calendar import Event, EventKey
 from codehood.push.errors import ResourceLinkError, SlugCollisionError
 from codehood.push.links import (
@@ -32,11 +33,11 @@ from codehood.push.plan import (
     DeleteCalendarEvent,
     DeleteResource,
     LocalState,
-    PushOp,
     ServerEvent,
     ServerState,
     UpsertCalendarEvent,
     UpsertResource,
+    Write,
     plan_push,
 )
 from codehood.push.resource import (
@@ -46,6 +47,8 @@ from codehood.push.resource import (
     scan_resources,
 )
 
+COURSE_KEY = CourseKey("cs101", "ada", "2026-1")
+SHORT_KEY = CourseKey("d", "c", "e")
 ROOT = Path("/course")
 
 
@@ -290,9 +293,7 @@ def test_rewrite_event_links_points_links_at_the_resource_page():
         _event(2, "tue", "Nothing here. [Web](https://example.com)", "Other"),
     ]
     resources = [_resource("resources/w01/intro.md")]
-    [first, second] = rewrite_event_links(
-        events, resources, ROOT, "cs101", "ada_2026-1"
-    )
+    [first, second] = rewrite_event_links(events, resources, ROOT, COURSE_KEY)
     assert first.description == (
         "Read [Slides](/cs101/ada_2026-1/resources/w01-intro#top) now."
     )
@@ -303,8 +304,8 @@ def test_rewrite_event_links_points_links_at_the_resource_page():
 def test_rewrite_event_links_uses_each_resource_s_own_slug():
     events = [_event(1, "mon", "[A](resources/a.md) [B](resources/sub/b.md)")]
     resources = [_resource("resources/a.md"), _resource("resources/sub/b.md")]
-    [event] = rewrite_event_links(events, resources, ROOT, "d", "c")
-    assert event.description == "[A](/d/c/resources/a) [B](/d/c/resources/sub-b)"
+    [event] = rewrite_event_links(events, resources, ROOT, SHORT_KEY)
+    assert event.description == "[A](/d/c_e/resources/a) [B](/d/c_e/resources/sub-b)"
 
 
 #
@@ -322,14 +323,17 @@ def test_plan_carries_the_event_on_the_upsert():
         event=EventKey(week=3, time_slot="tue"),
     )
     local = LocalState(
-        discipline="cs101",
-        course="ada_2026-1",
+        key=CourseKey("cs101", "ada", "2026-1"),
         description="d",
         start=date(2026, 1, 1),
         end=date(2026, 6, 1),
         resources=(resource,),
     )
-    [op] = [o for o in plan_push(local, ServerState()) if isinstance(o, UpsertResource)]
+    [op] = [
+        o
+        for o in plan_push(local, ServerState()).writes
+        if isinstance(o, UpsertResource)
+    ]
     assert op.event == EventKey(week=3, time_slot="tue")
 
 
@@ -417,14 +421,14 @@ def _repo(tmp_path: Path, calendar: str, files=("resources/w03/recursion.md",)) 
 
 def test_read_local_state_attaches_the_linked_resource(tmp_path):
     repo = _repo(tmp_path, _calendar("[Slides](resources/w03/recursion.md)"))
-    local = push_module.read_local_state(repo)
+    local = push_module.read_local_state(repo, RepoConfig.open(repo))
     [resource] = local.resources
     assert resource.event == EventKey(week=0, time_slot="mon")
 
 
 def test_read_local_state_leaves_an_unlinked_resource_without_event(tmp_path):
     repo = _repo(tmp_path, _calendar("Nothing linked."))
-    [resource] = push_module.read_local_state(repo).resources
+    [resource] = push_module.read_local_state(repo, RepoConfig.open(repo)).resources
     assert resource.event is None
     assert resource == next(scan_resources(repo))
 
@@ -433,13 +437,13 @@ def test_read_local_state_rejects_a_resource_linked_from_two_lessons(tmp_path):
     link = "[Slides](resources/w03/recursion.md)"
     repo = _repo(tmp_path, _calendar(link, link))
     with pytest.raises(ResourceLinkError, match=r"resources/w03/recursion\.md"):
-        push_module.read_local_state(repo)
+        push_module.read_local_state(repo, RepoConfig.open(repo))
 
 
 def test_read_local_state_rejects_a_link_to_a_missing_resource(tmp_path):
     repo = _repo(tmp_path, _calendar("[Slides](resources/w03/nope.md)"))
     with pytest.raises(ResourceLinkError, match=r"resources/w03/nope\.md"):
-        push_module.read_local_state(repo)
+        push_module.read_local_state(repo, RepoConfig.open(repo))
 
 
 @pytest.fixture(autouse=True)
@@ -473,7 +477,7 @@ def test_push_with_a_bad_link_sends_no_request_and_exits_nonzero(tmp_path, monke
 
 def _read_calendar_events_body(repo: Path):
     """The `description` the course's first lesson would be pushed with."""
-    local = push_module.read_local_state(repo)
+    local = push_module.read_local_state(repo, RepoConfig.open(repo))
     return {event.title: event.description for event in local.events}
 
 
@@ -490,7 +494,7 @@ def test_read_local_state_rewrites_resource_links_in_event_descriptions(tmp_path
 def test_read_local_state_does_not_touch_calendar_md(tmp_path):
     text = _calendar("[Slides](resources/w03/recursion.md)")
     repo = _repo(tmp_path, text)
-    push_module.read_local_state(repo)
+    push_module.read_local_state(repo, RepoConfig.open(repo))
     assert (repo / "calendar.md").read_text(encoding="utf-8") == text
 
 
@@ -543,15 +547,14 @@ def test_push_sends_the_rewritten_description_and_leaves_calendar_md_alone(
 #
 # R8: calendar ops come before resource ops
 #
-def _kinds(ops: list[PushOp]) -> list[str]:
+def _kinds(ops: list[Write]) -> list[str]:
     return [type(op).__name__ for op in ops]
 
 
 def test_plan_orders_every_calendar_op_before_any_resource_op():
     resource = _resource("resources/a.md")
     local = LocalState(
-        discipline="cs101",
-        course="ada_2026-1",
+        key=CourseKey("cs101", "ada", "2026-1"),
         description="d",
         start=date(2026, 1, 1),
         end=date(2026, 6, 1),
@@ -562,7 +565,7 @@ def test_plan_orders_every_calendar_op_before_any_resource_op():
         resources={"stale": "ref"},
         calendar_events={(9, "mon"): ServerEvent(ref="r", kind="REGULAR")},
     )
-    ops = list(plan_push(local, server))
+    ops = list(plan_push(local, server).writes)
     kinds = _kinds(ops)
     for calendar_op in (UpsertCalendarEvent, DeleteCalendarEvent):
         assert calendar_op.__name__ in kinds
@@ -628,7 +631,7 @@ def test_links_inside_code_are_neither_attached_nor_an_error(markdown):
 
 @pytest.mark.parametrize("markdown", CODE_SPANS)
 def test_links_inside_code_are_not_rewritten(markdown):
-    targets = {PurePosixPath("resources/a.pdf"): "/d/c/resources/a"}
+    targets = {PurePosixPath("resources/a.pdf"): "/d/c_e/resources/a"}
     assert rewrite_resource_links(markdown, targets) == markdown
 
 
@@ -644,15 +647,15 @@ def test_a_real_link_next_to_code_is_still_extracted_and_rewritten():
         PurePosixPath("resources/b.pdf"),
     )
     targets = {
-        PurePosixPath("resources/a.pdf"): "/d/c/resources/a",
-        PurePosixPath("resources/b.pdf"): "/d/c/resources/b",
-        PurePosixPath("resources/code.pdf"): "/d/c/resources/code",
+        PurePosixPath("resources/a.pdf"): "/d/c_e/resources/a",
+        PurePosixPath("resources/b.pdf"): "/d/c_e/resources/b",
+        PurePosixPath("resources/code.pdf"): "/d/c_e/resources/code",
     }
     assert rewrite_resource_links(markdown, targets) == (
         "```\n[x](resources/code.pdf)\n```\n"
-        "Real [A](/d/c/resources/a), code `[x](resources/code.pdf)`.\n"
+        "Real [A](/d/c_e/resources/a), code `[x](resources/code.pdf)`.\n"
         "~~~\n[x](resources/code.pdf)\n~~~\n"
-        "After [B](/d/c/resources/b)."
+        "After [B](/d/c_e/resources/b)."
     )
 
 
@@ -669,10 +672,10 @@ def test_balanced_parentheses_target_attaches_to_that_resource():
 
 
 def test_balanced_parentheses_target_is_rewritten_whole():
-    targets = {PurePosixPath("resources/a(1).pdf"): "/d/c/resources/a-1"}
+    targets = {PurePosixPath("resources/a(1).pdf"): "/d/c_e/resources/a-1"}
     assert (
         rewrite_resource_links("See [x](resources/a(1).pdf) now.", targets)
-        == "See [x](/d/c/resources/a-1) now."
+        == "See [x](/d/c_e/resources/a-1) now."
     )
 
 
@@ -688,7 +691,7 @@ def test_escaped_brackets_are_not_attached_or_rewritten():
     assert attach_resources([_event(1, "mon", ESCAPED)], [resource], ROOT) == (
         resource,
     )
-    targets = {PurePosixPath("resources/a.pdf"): "/d/c/resources/a"}
+    targets = {PurePosixPath("resources/a.pdf"): "/d/c_e/resources/a"}
     assert rewrite_resource_links(ESCAPED, targets) == ESCAPED
 
 
@@ -817,30 +820,33 @@ def test_rewrite_leaves_the_reference_in_the_text_alone(use):
 
 def test_rewrite_event_links_rewrites_reference_definitions():
     events = [_event(1, "mon", "Read [Slides][s].\n\n[s]: resources/a.md\n")]
-    [event] = rewrite_event_links(events, [_resource("resources/a.md")], ROOT, "d", "c")
-    assert event.description == "Read [Slides][s].\n\n[s]: /d/c/resources/a\n"
+    [event] = rewrite_event_links(
+        events, [_resource("resources/a.md")], ROOT, SHORT_KEY
+    )
+    assert event.description == "Read [Slides][s].\n\n[s]: /d/c_e/resources/a\n"
 
 
 def test_reference_definition_inside_a_fence_is_not_a_definition():
     markdown = "See [Slides][s].\n\n```\n[s]: resources/a.pdf\n```\n"
     assert extract_resource_links(markdown) == ()
-    targets = {PurePosixPath("resources/a.pdf"): "/d/c/resources/a"}
+    targets = {PurePosixPath("resources/a.pdf"): "/d/c_e/resources/a"}
     assert rewrite_resource_links(markdown, targets) == markdown
 
 
 #
 # The skip decision compares the server's event key
 #
-def _plan_resources(resource: ResourceFile, server: ServerState) -> list[PushOp]:
+def _plan_resources(resource: ResourceFile, server: ServerState) -> list[Write]:
     local = LocalState(
-        discipline="cs101",
-        course="ada_2026-1",
+        key=CourseKey("cs101", "ada", "2026-1"),
         description="d",
         start=date(2026, 1, 1),
         end=date(2026, 6, 1),
         resources=(resource,),
     )
-    return [op for op in plan_push(local, server) if isinstance(op, UpsertResource)]
+    return [
+        op for op in plan_push(local, server).writes if isinstance(op, UpsertResource)
+    ]
 
 
 def _attached(rel: str = "resources/a.md") -> ResourceFile:
@@ -953,7 +959,7 @@ def test_dry_run_plans_the_resource_whose_server_event_was_lost(tmp_path, monkey
     from test_cli_push import _calendar_defaults, _course_json
 
     repo = _repo(tmp_path, _calendar("[Slides](resources/w03/recursion.md)"))
-    [local] = push_module.read_local_state(repo).resources
+    [local] = push_module.read_local_state(repo, RepoConfig.open(repo)).resources
 
     def handler(request: httpx.Request) -> httpx.Response:
         if request.method != "GET":
@@ -1007,7 +1013,7 @@ def test_rewrite_body_links_resolves_relative_targets_from_the_file_folder():
         _resource("resources/w01/repl.png"),
         _resource("resources/project/rubric.md"),
     ]
-    rewritten = rewrite_body_links(resources, ROOT, "cs101", "ada_2026-1")
+    rewritten = rewrite_body_links(resources, ROOT, COURSE_KEY)
     assert rewritten[0].data == MdData(
         content="![REPL](/cs101/ada_2026-1/resources/w01-repl)\n"
         "[rubric](/cs101/ada_2026-1/resources/project-rubric#criteria)\n"
@@ -1023,13 +1029,13 @@ def test_rewrite_body_links_resolves_relative_targets_from_the_file_folder():
 
 def test_rewrite_body_links_leaves_a_body_without_resource_links_alone():
     notes = _md("resources/w01/notes.md", "[web](https://example.com)\n")
-    assert rewrite_body_links([notes], ROOT, "cs101", "c") == (notes,)
+    assert rewrite_body_links([notes], ROOT, COURSE_KEY) == (notes,)
 
 
 def test_rewrite_body_links_refuses_a_link_to_a_missing_resource():
     notes = _md("resources/w01/notes.md", "![gone](missing.png)\n")
     with pytest.raises(ResourceLinkError, match="missing.png"):
-        rewrite_body_links([notes], ROOT, "cs101", "c")
+        rewrite_body_links([notes], ROOT, COURSE_KEY)
 
 
 #
@@ -1042,7 +1048,7 @@ README = "# CS101\n\nA description.\n\n## Grading\n\nSee [notes](resources/w03/r
 def test_read_local_state_pushes_a_longer_readme_as_a_resource(tmp_path):
     repo = _repo(tmp_path, _calendar("Nothing linked."))
     (repo / "README.md").write_text(README, encoding="utf-8")
-    local = push_module.read_local_state(repo)
+    local = push_module.read_local_state(repo, RepoConfig.open(repo))
     assert local.description == "A description."
     readme = next(r for r in local.resources if r.slug == "readme")
     assert readme.title == "CS101"
@@ -1054,7 +1060,10 @@ def test_read_local_state_pushes_a_longer_readme_as_a_resource(tmp_path):
 
 def test_read_local_state_skips_a_readme_holding_only_the_description(tmp_path):
     repo = _repo(tmp_path, _calendar("Nothing linked."))
-    slugs = [r.slug for r in push_module.read_local_state(repo).resources]
+    slugs = [
+        r.slug
+        for r in push_module.read_local_state(repo, RepoConfig.open(repo)).resources
+    ]
     assert slugs == ["w03-recursion"]
 
 
@@ -1066,7 +1075,7 @@ def test_config_description_replaces_the_readme_paragraph(tmp_path):
         ),
         encoding="utf-8",
     )
-    local = push_module.read_local_state(repo)
+    local = push_module.read_local_state(repo, RepoConfig.open(repo))
     assert local.description == "Set here."
     readme = next(r for r in local.resources if r.slug == "readme")
     assert readme.data == MdData(content="A description.\n")
@@ -1079,4 +1088,4 @@ def test_a_resource_slugged_readme_collides_with_the_readme(tmp_path):
         encoding="utf-8",
     )
     with pytest.raises(SlugCollisionError, match="readme"):
-        push_module.read_local_state(repo)
+        push_module.read_local_state(repo, RepoConfig.open(repo))

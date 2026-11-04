@@ -299,7 +299,7 @@ def test_dry_run_prints_a_warning_for_a_cancelled_events_pinned_slot(repo, monke
     """
     A `CANCELLED`-pinned slot the local `calendar.md` no longer declares
     survives, but the instructor still needs to see it before deciding --
-    `--dry-run` must print the `WarnTimeSlotPinned` line, not only surface
+    `--dry-run` must print the `KeptPinnedSlot` line, not only surface
     it once the push actually executes.
     """
 
@@ -835,8 +835,9 @@ def test_a_broken_question_fails_alone_and_keeps_its_server_copy(
     result = runner.invoke(app, ["push", str(repo_with_question)])
 
     assert result.exit_code == 1, result.output
-    assert "failed  question broken (broken.mdq): invalid:" in result.output
-    assert "1 failed" in result.output
+    assert "invalid  question broken (broken.mdq):" in result.output
+    assert "0 failed" in result.output
+    assert ", 1 invalid" in result.output
     # The good question still goes out, and the broken one is not pruned.
     assert _writes_to(calls, "question") == [("PUT", f"{BASE}/question")]
 

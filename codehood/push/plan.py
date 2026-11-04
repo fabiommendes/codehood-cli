@@ -1,27 +1,36 @@
 """
-The pure core of `codehood push`: a generator that diffs a repository
-against the server's current state and yields a plan.
+The pure core of `codehood push`: diff a repository against the server's
+current state into a `Plan`, the writes to run and the notices that explain
+what was left alone.
 
 No client, no ids, no `run()` -- see `dev/specs/to-do/push.md`,
 "Architecture". `run.py` is the only thing in `codehood/push/` that
-executes a `PushOp`.
+executes a `Write`.
 
 The two inputs are whole values, `LocalState` and `ServerState`, rather
 than a dozen loose mappings: `slug -> ref` and `slug -> version` are the
 same type and mean different things, and naming them as fields is what
 stops a caller from swapping them silently.
+
+Every keyed entity follows one shape: `diff_keyed` walks the keys of both
+sides and asks a pure `merge_*` function for a `Decision` per key. A merge
+only moves the server forward -- it writes what the repository holds that
+the server does not, and prunes what is gone locally unless something
+protects it.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Iterator, Mapping
+from collections.abc import Callable, Container, Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import date
+from functools import partial
 from pathlib import Path
 from typing import Literal
 
+from ..models.repo import CourseKey
 from .calendar import Event, EventKey, TimeSlot
 from .exclude import ExcludedFile
 from .grades import GradeColumn
@@ -30,6 +39,8 @@ from .repository import RepositoryTree
 from .resource import ResourceData, ResourceFile
 
 __all__ = [
+    "STATUS_ORDER",
+    "Decision",
     "DeleteCalendarEvent",
     "DeleteGradeColumn",
     "DeleteQuestion",
@@ -37,12 +48,22 @@ __all__ = [
     "DeleteResource",
     "DeleteRollCall",
     "DeleteTimeSlot",
+    "Keep",
+    "KeptCancelled",
+    "KeptDraftPublished",
+    "KeptForRollCall",
+    "KeptPinnedSlot",
+    "KeptRepository",
     "LocalState",
-    "PushOp",
-    "RejectQuestion",
+    "Notice",
+    "Plan",
+    "Prune",
+    "Put",
+    "Rejected",
     "ServerEvent",
     "ServerQuestion",
     "ServerState",
+    "Skip",
     "UpsertCalendarEvent",
     "UpsertCourse",
     "UpsertGradeColumn",
@@ -50,13 +71,21 @@ __all__ = [
     "UpsertRepository",
     "UpsertResource",
     "UpsertTimeSlot",
-    "WarnEventHasRollCall",
-    "WarnQuestionPublished",
-    "WarnRepositoryKept",
-    "WarnTimeSlotPinned",
+    "Write",
     "course_ref",
+    "diff_keyed",
+    "join_status",
+    "merge_event",
+    "merge_grade_column",
+    "merge_question",
+    "merge_repository",
+    "merge_resource",
+    "merge_time_slot",
+    "plan_calendar",
+    "plan_grades",
     "plan_push",
     "plan_repositories",
+    "protect",
 ]
 
 
@@ -81,8 +110,7 @@ class LocalState:
     declares none, and prunes whatever the server holds.
     """
 
-    discipline: str
-    course: str
+    key: CourseKey
     description: str
     start: date
     end: date
@@ -96,6 +124,16 @@ class LocalState:
     excluded: tuple[ExcludedFile, ...] = ()
     #: Versionable files no push stage read, sorted. Reported, never pushed.
     unconsumed: tuple[str, ...] = ()
+    #: Problems found while reading that do not stop a push, for the shell to print.
+    warnings: tuple[str, ...] = ()
+
+    @property
+    def discipline(self) -> str:
+        return self.key.discipline
+
+    @property
+    def course(self) -> str:
+        return self.key.slug
 
 
 @dataclass(frozen=True)
@@ -152,13 +190,20 @@ class UpsertCourse:
     The course row to `PUT`, keyed by `(discipline, course)`.
     """
 
-    discipline: str
-    course: str
+    key: CourseKey
     description: str
     start_at: str
     end_at: str
     #: The `course_ref` the row is stored with, as its `rev`.
     ref: str
+
+    @property
+    def discipline(self) -> str:
+        return self.key.discipline
+
+    @property
+    def course(self) -> str:
+        return self.key.slug
 
 
 @dataclass(frozen=True)
@@ -205,30 +250,6 @@ class UpsertQuestion:
     question: AnyQuestion
     path: Path
     status: QuestionStatus = "PUBLISHED"
-
-
-@dataclass(frozen=True)
-class RejectQuestion:
-    """
-    Not a write: a question file `mdq` refused. It fails on its own, and the
-    server keeps what it holds under the slug.
-    """
-
-    slug: str
-    path: Path
-    reason: str
-
-
-@dataclass(frozen=True)
-class WarnQuestionPublished:
-    """
-    Not a write: a question whose file marks it a draft, kept as the server
-    has it because a push never moves a question back down its status.
-    """
-
-    slug: str
-    status: QuestionStatus
-    path: Path
 
 
 @dataclass(frozen=True)
@@ -279,38 +300,6 @@ class DeleteCalendarEvent:
 
 
 @dataclass(frozen=True)
-class WarnTimeSlotPinned:
-    """
-    Not a write: a time slot the preflight would otherwise prune, kept
-    because a `CANCELLED` calendar event still pins it.
-
-    The cancelled event is never rewritten or pruned (see the mapping's
-    "Calendar events"), so it pins the slot indefinitely, and the server
-    refuses to orphan it -- see "Deletion and pruning". `plan_calendar` is
-    a pure generator with no other channel to explain why a slug it would
-    otherwise delete survives, so this rides `PushOp` itself: `run.py`
-    executes it as a no-op and the CLI prints it like any other planned
-    line.
-    """
-
-    slug: str
-    week: int
-
-
-@dataclass(frozen=True)
-class WarnEventHasRollCall:
-    """
-    A calendar event kept, though gone locally, because it has a roll call.
-
-    Reported even when the roll call holds no attendance.
-    """
-
-    week: int
-    time_slot: str
-    attendances: int
-
-
-@dataclass(frozen=True)
 class DeleteRollCall:
     """
     A roll call to delete, by the `(week, timeSlot)` of its event.
@@ -353,16 +342,6 @@ class UpsertRepository:
 
 
 @dataclass(frozen=True)
-class WarnRepositoryKept:
-    """
-    Not a write: a repository the server has and the course root no longer
-    does, kept because deleting it kills its clone URL and history.
-    """
-
-    slug: str
-
-
-@dataclass(frozen=True)
 class DeleteRepository:
     """
     A repository to delete by slug: its folder is gone and the push ran with
@@ -372,29 +351,382 @@ class DeleteRepository:
     slug: str
 
 
-PushOp = (
+Write = (
     UpsertCourse
     | UpsertRepository
-    | WarnRepositoryKept
     | DeleteRepository
     | UpsertResource
     | DeleteResource
     | UpsertQuestion
-    | RejectQuestion
-    | WarnQuestionPublished
     | DeleteQuestion
     | UpsertTimeSlot
     | DeleteTimeSlot
     | UpsertCalendarEvent
     | DeleteCalendarEvent
-    | WarnTimeSlotPinned
-    | WarnEventHasRollCall
     | DeleteRollCall
     | UpsertGradeColumn
     | DeleteGradeColumn
 )
 
 
+#
+# Notices
+#
+@dataclass(frozen=True)
+class Rejected:
+    """
+    A question file `mdq` refused. The server keeps what it holds under the
+    slug and the push fails.
+    """
+
+    slug: str
+    path: Path
+    reason: str
+
+
+@dataclass(frozen=True)
+class KeptDraftPublished:
+    """
+    A question whose file marks it a draft, kept as the server has it
+    because a push never moves a question back down its status.
+    """
+
+    slug: str
+    status: QuestionStatus
+    path: Path
+
+
+@dataclass(frozen=True)
+class KeptPinnedSlot:
+    """
+    A time slot the preflight would otherwise prune, kept because the
+    `CANCELLED` calendar events of `weeks` still pin it.
+
+    A cancelled event is never rewritten or pruned (see the mapping's
+    "Calendar events"), and the server refuses to orphan it -- see
+    "Deletion and pruning".
+    """
+
+    slug: str
+    weeks: tuple[int, ...]
+
+
+@dataclass(frozen=True)
+class KeptForRollCall:
+    """
+    A calendar event kept, though gone locally, because it has a roll call.
+
+    Reported even when the roll call holds no attendance.
+    """
+
+    week: int
+    time_slot: str
+    attendances: int
+
+
+@dataclass(frozen=True)
+class KeptRepository:
+    """
+    A repository the server has and the course root no longer does, kept
+    because deleting it kills its clone URL and history.
+    """
+
+    slug: str
+
+
+@dataclass(frozen=True)
+class KeptCancelled:
+    """
+    A calendar event the server reports as `CANCELLED`, left alone whatever
+    the repository says.
+
+    Only an input of the plan: it pins the event's slot, and `plan_calendar`
+    folds it into a `KeptPinnedSlot`, so it never reaches `Plan.notices`.
+    """
+
+    week: int
+    time_slot: str
+
+
+Notice = (
+    Rejected
+    | KeptDraftPublished
+    | KeptPinnedSlot
+    | KeptForRollCall
+    | KeptRepository
+    | KeptCancelled
+)
+
+
+@dataclass(frozen=True)
+class Plan:
+    """
+    What a push will write and what it leaves alone, and why.
+
+    `writes` is in execution order. `notices` explain what the plan did not
+    write; a `Rejected` one also makes the push fail.
+    """
+
+    writes: tuple[Write, ...] = ()
+    notices: tuple[Notice, ...] = ()
+
+    @classmethod
+    def of(cls, decisions: Iterable[Decision]) -> Plan:
+        """
+        Collect decisions, in order, into the writes and notices they carry.
+        """
+        writes: list[Write] = []
+        notices: list[Notice] = []
+        for decision in decisions:
+            match decision:
+                case Put(op=op, notices=extra):
+                    writes.append(op)
+                    notices.extend(extra)
+                case Prune(op=op, before=before):
+                    writes.extend((*before, op))
+                case Keep(notice=notice):
+                    notices.append(notice)
+                case Skip():
+                    pass
+        return cls(tuple(writes), tuple(notices))
+
+    @property
+    def rejected(self) -> tuple[Rejected, ...]:
+        """
+        The notices that fail the push.
+        """
+        return tuple(n for n in self.notices if isinstance(n, Rejected))
+
+    def __add__(self, other: Plan) -> Plan:
+        return Plan(self.writes + other.writes, self.notices + other.notices)
+
+
+#
+# Decisions
+#
+@dataclass(frozen=True)
+class Skip:
+    """
+    Both sides already agree, or something protects the server's copy.
+    """
+
+
+@dataclass(frozen=True)
+class Put:
+    """
+    Write `op`, and tell why the write is not the whole story.
+    """
+
+    op: Write
+    notices: tuple[Notice, ...] = ()
+
+
+@dataclass(frozen=True)
+class Prune:
+    """
+    Delete what the repository no longer holds, after the `before` writes
+    the delete depends on.
+    """
+
+    op: Write
+    before: tuple[Write, ...] = ()
+
+
+@dataclass(frozen=True)
+class Keep:
+    """
+    Write nothing, and say why.
+    """
+
+    notice: Notice
+
+
+Decision = Skip | Put | Prune | Keep
+
+
+def diff_keyed[K, L, S](
+    local: Mapping[K, L],
+    server: Mapping[K, S],
+    merge: Callable[[K, L | None, S | None], Decision],
+) -> Iterator[Decision]:
+    """
+    Ask `merge` for a decision on every key of either side: the local keys
+    in local order, then the server-only keys in key order.
+
+    `merge` receives the key too, since a server marker alone often cannot
+    name what to delete. A side that lacks the key gives `None`.
+    """
+    for key, value in local.items():
+        yield merge(key, value, server.get(key))
+    for key in sorted(server.keys() - local.keys()):  # type: ignore[type-var]
+        yield merge(key, None, server[key])
+
+
+def protect[K, L, S](
+    merge: Callable[[K, L | None, S | None], Decision], keys: Container[K]
+) -> Callable[[K, L | None, S | None], Decision]:
+    """
+    Wrap `merge` so the server's copy of every key in `keys` is never pruned.
+    """
+
+    def protected(key: K, local: L | None, server: S | None) -> Decision:
+        if local is None and key in keys:
+            return Skip()
+        return merge(key, local, server)
+
+    return protected
+
+
+def join_status(a: QuestionStatus, b: QuestionStatus) -> QuestionStatus:
+    """
+    The further of two statuses along `STATUS_ORDER`.
+    """
+    return max(a, b, key=STATUS_ORDER.index)
+
+
+#
+# Merges
+#
+def merge_resource(
+    slug: str,
+    local: ResourceFile | None,
+    server: tuple[str, EventKey | None] | None,
+) -> Decision:
+    """
+    Upsert a resource whose `(ref, event)` differs from the server's marker;
+    delete one whose file is gone.
+    """
+    if local is None:
+        return Prune(DeleteResource(slug=slug))
+    if server == (local.ref, local.event):
+        return Skip()
+    return Put(
+        UpsertResource(
+            slug=local.slug,
+            title=local.title,
+            description=local.description,
+            data=local.data,
+            ref=local.ref,
+            path=local.path,
+            event=local.event,
+        )
+    )
+
+
+def merge_question(
+    slug: str,
+    local: QuestionFile | InvalidQuestion | None,
+    server: ServerQuestion | None,
+) -> Decision:
+    """
+    Upsert a question whose `version` or status moved; delete one whose file
+    is gone; reject one `mdq` refused.
+
+    The status only moves forward, `DRAFT` to `PUBLISHED` to `HIDDEN`: the
+    file can publish a draft, and only the web hides a question or brings it
+    back. So a push never undoes what the web did, and needs no memory of
+    the previous push to tell which side changed. A draft file over a
+    published question is kept published, with a notice.
+    """
+    if local is None:
+        return Prune(DeleteQuestion(slug=slug))
+    if isinstance(local, InvalidQuestion):
+        return Keep(Rejected(slug=local.slug, path=local.path, reason=local.reason))
+
+    if server is None:
+        return Put(_upsert_question(local, local.status))
+    status = join_status(local.status, server.status)
+    notices: tuple[Notice, ...] = ()
+    if local.status == "DRAFT" and server.status == "PUBLISHED":
+        notices = (
+            KeptDraftPublished(slug=local.slug, status=server.status, path=local.path),
+        )
+    if server.version == local.version and server.status == status:
+        return Keep(notices[0]) if notices else Skip()
+    return Put(_upsert_question(local, status), notices)
+
+
+def merge_time_slot(slug: str, local: TimeSlot | None, server: str | None) -> Decision:
+    """
+    Upsert a slot whose `ref` differs from the server's; delete one the
+    calendar no longer declares.
+    """
+    if local is None:
+        return Prune(DeleteTimeSlot(slug=slug))
+    return Skip() if server == local.ref else Put(UpsertTimeSlot(slot=local))
+
+
+def merge_event(
+    key: tuple[int, str],
+    local: Event | None,
+    server: ServerEvent | None,
+    *,
+    drop_roll_calls: bool = False,
+) -> Decision:
+    """
+    Upsert an event whose `(ref, kind)` differs from the server's; delete one
+    the calendar no longer fills.
+
+    A `CANCELLED` server event absorbs everything: it is neither rewritten
+    nor pruned, whatever the repository says. An event with a roll call is
+    kept, unless `drop_roll_calls` deletes the roll call first.
+    """
+    week, time_slot = key
+    if server is not None and server.kind == "CANCELLED":
+        return Keep(KeptCancelled(week=week, time_slot=time_slot))
+    if local is not None:
+        if server is not None and (server.ref, server.kind) == (local.ref, local.kind):
+            return Skip()
+        return Put(UpsertCalendarEvent(event=local))
+    if server is None:
+        return Skip()
+    delete = DeleteCalendarEvent(week=week, time_slot=time_slot)
+    if server.attendances is None:
+        return Prune(delete)
+    if drop_roll_calls:
+        return Prune(delete, before=(DeleteRollCall(week=week, time_slot=time_slot),))
+    return Keep(
+        KeptForRollCall(week=week, time_slot=time_slot, attendances=server.attendances)
+    )
+
+
+def merge_grade_column(
+    slug: str, local: GradeColumn | None, server: str | None
+) -> Decision:
+    """
+    Upsert a column whose `rev` differs from the server's; delete one
+    `codehood.toml` no longer declares.
+    """
+    if local is None:
+        return Prune(DeleteGradeColumn(slug=slug))
+    return Skip() if server == local.rev else Put(UpsertGradeColumn(column=local))
+
+
+def merge_repository(
+    slug: str,
+    local: RepositoryTree | None,
+    server: str | None,
+    *,
+    drop_repositories: bool = False,
+    message: str | None = None,
+) -> Decision:
+    """
+    Commit a repository whose `tree_sha` differs from the server's tree
+    (`None` before the first commit included); keep or, with
+    `drop_repositories`, delete one whose folder is gone.
+    """
+    if local is None:
+        if drop_repositories:
+            return Prune(DeleteRepository(slug=slug))
+        return Keep(KeptRepository(slug=slug))
+    if server == local.tree_sha:
+        return Skip()
+    return Put(UpsertRepository(tree=local, message=message))
+
+
+#
+# Plan
+#
 def plan_push(
     local: LocalState,
     server: ServerState,
@@ -402,119 +734,77 @@ def plan_push(
     drop_roll_calls: bool = False,
     drop_repositories: bool = False,
     message: str | None = None,
-) -> Iterator[PushOp]:
+) -> Plan:
     """
-    Diff a repository against the server's current state and yield a plan.
+    Diff a repository against the server's current state into a `Plan`.
 
     The course row is `PUT` when it does not exist or its `rev` is not the
     `course_ref` of the description and dates, so a push with nothing new
     plans nothing.
 
-    A resource is planned when its `ref` differs from (or is absent from)
-    `server.resources`; a server slug absent locally is planned for
-    deletion, unless an `exclude` pattern leaves its local file out.
-    Questions follow the same rule on `version`.
-
     Repositories come right after the course (see `plan_repositories`):
     an event links them by slug, so they exist before the calendar. Calendar
-    slots and events follow, in that order: a slot an event needs has to
-    exist before the event is written, and a resource attached to an event
-    needs the event to exist first. Resources, questions and grade columns
-    follow.
+    slots and events follow (see `plan_calendar`): a slot an event needs has
+    to exist before the event is written, and a resource attached to an
+    event needs the event to exist first. Resources, questions and grade
+    columns follow.
     """
     start_at, end_at = _timestamp(local.start), _timestamp(local.end)
     ref = course_ref(local.description, start_at, end_at)
+    course = Plan()
     if not server.course_exists or server.course_rev != ref:
-        yield UpsertCourse(
-            discipline=local.discipline,
-            course=local.course,
-            description=local.description,
-            start_at=start_at,
-            end_at=end_at,
-            ref=ref,
+        course = Plan(
+            writes=(
+                UpsertCourse(
+                    key=local.key,
+                    description=local.description,
+                    start_at=start_at,
+                    end_at=end_at,
+                    ref=ref,
+                ),
+            )
         )
-
-    yield from plan_repositories(
-        local, server, drop_repositories=drop_repositories, message=message
+    return (
+        course
+        + plan_repositories(
+            local, server, drop_repositories=drop_repositories, message=message
+        )
+        + plan_calendar(local, server, drop_roll_calls=drop_roll_calls)
+        + plan_resources(local, server)
+        + plan_questions(local, server)
+        + plan_grades(local, server)
     )
-    yield from plan_calendar(local, server, drop_roll_calls=drop_roll_calls)
-
-    seen_slugs: set[str] = set()
-    for resource in local.resources:
-        seen_slugs.add(resource.slug)
-        if (
-            server.resources.get(resource.slug) == resource.ref
-            and server.resource_events.get(resource.slug) == resource.event
-        ):
-            continue
-        yield UpsertResource(
-            slug=resource.slug,
-            title=resource.title,
-            description=resource.description,
-            data=resource.data,
-            ref=resource.ref,
-            path=resource.path,
-            event=resource.event,
-        )
-
-    excluded = {(file.kind, file.slug) for file in local.excluded}
-
-    for slug in server.resources:
-        if slug not in seen_slugs and ("resource", slug) not in excluded:
-            yield DeleteResource(slug=slug)
-
-    seen_question_slugs: set[str] = set()
-    for question in local.questions:
-        seen_question_slugs.add(question.slug)
-        if isinstance(question, InvalidQuestion):
-            yield RejectQuestion(
-                slug=question.slug, path=question.path, reason=question.reason
-            )
-            continue
-        yield from plan_question(question, server.questions.get(question.slug))
-
-    for slug in server.questions:
-        if slug not in seen_question_slugs and ("question", slug) not in excluded:
-            yield DeleteQuestion(slug=slug)
-
-    yield from plan_grades(local, server)
 
 
-def plan_question(
-    question: QuestionFile, remote: ServerQuestion | None
-) -> Iterator[UpsertQuestion | WarnQuestionPublished]:
+def plan_resources(local: LocalState, server: ServerState) -> Plan:
     """
-    Plan one question: upsert it when its file or its status moved, and warn
-    when its file still marks a draft the server has moved past.
-
-    The status only moves forward, `DRAFT` to `PUBLISHED` to `HIDDEN`: the
-    file can publish a draft, and only the web hides a question or brings it
-    back. So a push never undoes what the web did, and needs no memory of
-    the previous push to tell which side changed.
+    The resource half of a plan: upserts first, then the deletes, except
+    for the slugs an `exclude` pattern leaves out.
     """
-    if remote is None:
-        status: QuestionStatus = question.status
-    else:
-        status = max(question.status, remote.status, key=STATUS_ORDER.index)
-        if question.status == "DRAFT" and remote.status == "PUBLISHED":
-            yield WarnQuestionPublished(
-                slug=question.slug, status=remote.status, path=question.path
-            )
-        if remote.version == question.version and remote.status == status:
-            return
+    markers = {
+        slug: (ref, server.resource_events.get(slug))
+        for slug, ref in server.resources.items()
+    }
+    merge = protect(merge_resource, _excluded(local, "resource"))
+    return Plan.of(
+        diff_keyed({file.slug: file for file in local.resources}, markers, merge)
+    )
 
-    yield UpsertQuestion(
-        slug=question.slug,
-        version=question.version,
-        question=question.question,
-        path=question.path,
-        status=status,
+
+def plan_questions(local: LocalState, server: ServerState) -> Plan:
+    """
+    The question half of a plan: upserts and rejections first, then the
+    deletes, except for the slugs an `exclude` pattern leaves out.
+    """
+    merge = protect(merge_question, _excluded(local, "question"))
+    return Plan.of(
+        diff_keyed({q.slug: q for q in local.questions}, server.questions, merge)
     )
 
 
 def plan_calendar(
     local: LocalState, server: ServerState, *, drop_roll_calls: bool = False
-) -> Iterator[PushOp]:
+) -> Plan:
     """
     The calendar half of a plan: delete events, delete slots, upsert
     slots, upsert events, in that exact order.
@@ -528,64 +818,43 @@ def plan_calendar(
     An event the server reports as `CANCELLED` is neither rewritten nor
     pruned -- see the mapping's "Calendar events" -- and that pins its
     time slot: a slot a `CANCELLED` event still points at is left in
-    place even when no local `days:` entry accounts for it, with a
-    `WarnTimeSlotPinned` naming both.
+    place even when no local `days:` entry accounts for it, with one
+    `KeptPinnedSlot` per slot naming the weeks.
 
     An event with a roll call that left the local calendar is kept with a
-    `WarnEventHasRollCall`, and pins its slot the same way. With
+    `KeptForRollCall`, and pins its slot the same way (silently). With
     `drop_roll_calls` its roll call is deleted first, then the event.
     """
     local_slugs = {slot.slug for slot in local.slots}
-    local_events = {(event.week, event.time_slot): event for event in local.events}
-
-    kept_for_roll_call: set[tuple[int, str]] = set()
-    for key, server_event in server.calendar_events.items():
-        if server_event.kind == "CANCELLED":
-            continue
-        if key in local_events:
-            continue
-        week, time_slot = key
-        if server_event.attendances is None:
-            yield DeleteCalendarEvent(week=week, time_slot=time_slot)
-        elif drop_roll_calls:
-            yield DeleteRollCall(week=week, time_slot=time_slot)
-            yield DeleteCalendarEvent(week=week, time_slot=time_slot)
-        else:
-            kept_for_roll_call.add(key)
-            yield WarnEventHasRollCall(
-                week=week, time_slot=time_slot, attendances=server_event.attendances
-            )
-
-    pinned_slugs: set[str] = set()
-    for week, time_slot in kept_for_roll_call:
-        pinned_slugs.add(time_slot)
-    for (week, time_slot), server_event in server.calendar_events.items():
-        if server_event.kind == "CANCELLED" and time_slot not in local_slugs:
-            pinned_slugs.add(time_slot)
-            yield WarnTimeSlotPinned(slug=time_slot, week=week)
-
-    for slug in server.time_slots:
-        if slug not in local_slugs and slug not in pinned_slugs:
-            yield DeleteTimeSlot(slug=slug)
-
-    for slot in local.slots:
-        if server.time_slots.get(slot.slug) == slot.ref:
-            continue
-        yield UpsertTimeSlot(slot=slot)
-
-    for key, event in local_events.items():
-        matching_server_event = server.calendar_events.get(key)
-        if (
-            matching_server_event is not None
-            and matching_server_event.kind == "CANCELLED"
-        ):
-            continue
-        if matching_server_event is not None and (
-            matching_server_event.ref,
-            matching_server_event.kind,
-        ) == (event.ref, event.kind):
-            continue
-        yield UpsertCalendarEvent(event=event)
+    events = list(
+        diff_keyed(
+            {(event.week, event.time_slot): event for event in local.events},
+            server.calendar_events,
+            partial(merge_event, drop_roll_calls=drop_roll_calls),
+        )
+    )
+    pinned, pin_notices = _pin_slots(events, local_slugs)
+    slots = list(
+        diff_keyed(
+            {slot.slug: slot for slot in local.slots},
+            server.time_slots,
+            protect(merge_time_slot, pinned),
+        )
+    )
+    reported = [
+        d
+        for d in events
+        if isinstance(d, Keep) and not isinstance(d.notice, KeptCancelled)
+    ]
+    return Plan.of(
+        [
+            *_only(events, Prune),
+            *_only(slots, Prune),
+            *_only(slots, Put),
+            *_only(events, Put),
+            *reported,
+        ]
+    ) + Plan(notices=pin_notices)
 
 
 def plan_repositories(
@@ -594,59 +863,94 @@ def plan_repositories(
     *,
     drop_repositories: bool = False,
     message: str | None = None,
-) -> Iterator[PushOp]:
+) -> Plan:
     """
     The repository half of a plan, in slug order.
 
     A local repository gets an `UpsertRepository` when the server lacks it
     or reports a `tree` other than its `tree_sha` (`None` included). A
-    server repository with no local folder gets a `WarnRepositoryKept`, or
+    server repository with no local folder gets a `KeptRepository`, or
     a `DeleteRepository` with `drop_repositories`.
     """
-    local_slugs = set()
-    for tree in local.repositories:
-        local_slugs.add(tree.slug)
-        if tree.slug in server.repositories and (
-            server.repositories[tree.slug] == tree.tree_sha
-        ):
-            continue
-        yield UpsertRepository(tree=tree, message=message)
-
-    for slug in sorted(server.repositories):
-        if slug in local_slugs:
-            continue
-        if drop_repositories:
-            yield DeleteRepository(slug=slug)
-        else:
-            yield WarnRepositoryKept(slug=slug)
+    merge = partial(
+        merge_repository, drop_repositories=drop_repositories, message=message
+    )
+    return Plan.of(
+        diff_keyed(
+            {tree.slug: tree for tree in local.repositories}, server.repositories, merge
+        )
+    )
 
 
-def plan_grades(local: LocalState, server: ServerState) -> Iterator[PushOp]:
+def plan_grades(local: LocalState, server: ServerState) -> Plan:
     """
     The grade column half of a plan: upsert what changed, delete what
     `codehood.toml` no longer declares.
 
-    A column is planned when its `rev` differs from, or is absent from,
-    `server.grade_columns`. Nothing is planned when `local.grade_columns`
-    is `None`: columns that could not be computed are not evidence that
-    the server's should go.
+    Nothing is planned when `local.grade_columns` is `None`: columns that
+    could not be computed are not evidence that the server's should go.
     """
     if local.grade_columns is None:
-        return
-
-    for column in local.grade_columns:
-        if server.grade_columns.get(column.slug) != column.rev:
-            yield UpsertGradeColumn(column=column)
-
-    declared = {column.slug for column in local.grade_columns}
-    for slug in server.grade_columns:
-        if slug not in declared:
-            yield DeleteGradeColumn(slug=slug)
+        return Plan()
+    return Plan.of(
+        diff_keyed(
+            {column.slug: column for column in local.grade_columns},
+            server.grade_columns,
+            merge_grade_column,
+        )
+    )
 
 
 #
 # Utilities
 #
+def _excluded(local: LocalState, kind: str) -> frozenset[str]:
+    """
+    The slugs of `kind` that an `exclude` pattern leaves out of the push.
+    """
+    return frozenset(file.slug for file in local.excluded if file.kind == kind)
+
+
+def _only[D: Decision](decisions: Iterable[Decision], kind: type[D]) -> list[D]:
+    return [d for d in decisions if isinstance(d, kind)]
+
+
+def _pin_slots(
+    events: Iterable[Decision], local_slugs: set[str]
+) -> tuple[frozenset[str], tuple[KeptPinnedSlot, ...]]:
+    """
+    Fold the kept events into the slots they pin and one notice per slot
+    whose pin the calendar does not account for.
+    """
+    pinned: set[str] = set()
+    weeks: dict[str, list[int]] = {}
+    for decision in events:
+        if not isinstance(decision, Keep):
+            continue
+        match decision.notice:
+            case KeptForRollCall(time_slot=slot):
+                pinned.add(slot)
+            case KeptCancelled(week=week, time_slot=slot):
+                pinned.add(slot)
+                if slot not in local_slugs:
+                    weeks.setdefault(slot, []).append(week)
+    notices = tuple(
+        KeptPinnedSlot(slug=slug, weeks=tuple(sorted(found)))
+        for slug, found in sorted(weeks.items())
+    )
+    return frozenset(pinned), notices
+
+
+def _upsert_question(question: QuestionFile, status: QuestionStatus) -> UpsertQuestion:
+    return UpsertQuestion(
+        slug=question.slug,
+        version=question.version,
+        question=question.question,
+        path=question.path,
+        status=status,
+    )
+
+
 def course_ref(description: str, start_at: str, end_at: str) -> str:
     """
     Digest the fields a push writes on the course row into the `rev` it

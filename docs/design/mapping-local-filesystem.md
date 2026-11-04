@@ -62,7 +62,8 @@ Course payload is shown bellow:
 It maps to the following local information:
 
 - `discipline` and `edition` correspond to config fields.
-- `description` is the first paragraph of the local README.md after its H1,
+- `description` is the first paragraph of the local README.md (after its H1,
+  when it has one),
   or `description` in the `[course]` table of `codehood.toml` when set. Error
   if README.md is missing.
 - The README itself, without its H1 and titled by it, is pushed as the `MD`

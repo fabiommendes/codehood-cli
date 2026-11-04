@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 
 from codehood.grades import ExamResult, Student
+from codehood.models.repo import CourseKey
 from codehood.push.grades import (
     ColumnSpec,
     GradeColumn,
@@ -25,6 +26,7 @@ from codehood.push.hook import load_grade_function
 from codehood.push.plan import (
     DeleteGradeColumn,
     LocalState,
+    Plan,
     ServerState,
     UpsertGradeColumn,
     plan_grades,
@@ -305,8 +307,7 @@ def _local(columns: tuple[GradeColumn, ...] | None) -> LocalState:
     from datetime import date
 
     return LocalState(
-        discipline="cs101",
-        course="ada_2026-1",
+        key=CourseKey("cs101", "ada", "2026-1"),
         description="",
         start=date(2026, 1, 1),
         end=date(2026, 6, 1),
@@ -321,18 +322,18 @@ def test_plan_upserts_a_new_or_changed_column_and_skips_an_unchanged_one():
     server = ServerState(
         course_exists=True, grade_columns={"changed": "stale", "same": same.rev}
     )
-    ops = list(plan_grades(_local((new, changed, same)), server))
+    ops = list(plan_grades(_local((new, changed, same)), server).writes)
     assert ops == [UpsertGradeColumn(column=new), UpsertGradeColumn(column=changed)]
 
 
 def test_plan_deletes_a_column_the_repository_no_longer_declares():
     server = ServerState(course_exists=True, grade_columns={"gone": "rev"})
-    assert list(plan_grades(_local(()), server)) == [DeleteGradeColumn(slug="gone")]
+    assert plan_grades(_local(()), server).writes == (DeleteGradeColumn(slug="gone"),)
 
 
 def test_plan_leaves_the_server_alone_when_the_columns_were_not_computed():
     server = ServerState(course_exists=True, grade_columns={"kept": "rev"})
-    assert list(plan_grades(_local(None), server)) == []
+    assert plan_grades(_local(None), server) == Plan()
 
 
 def test_a_second_plan_after_applying_the_first_is_empty():
@@ -342,14 +343,14 @@ def test_a_second_plan_after_applying_the_first_is_empty():
     )
     server = ServerState(course_exists=True, grade_columns={"old": "rev"})
     applied: dict[str, str] = dict(server.grade_columns)
-    for op in plan_grades(_local(columns), server):
+    for op in plan_grades(_local(columns), server).writes:
         if isinstance(op, UpsertGradeColumn):
             applied[op.column.slug] = op.column.rev
         elif isinstance(op, DeleteGradeColumn):
             del applied[op.slug]
 
     again = ServerState(course_exists=True, grade_columns=applied)
-    assert list(plan_grades(_local(columns), again)) == []
+    assert plan_grades(_local(columns), again) == Plan()
 
 
 #

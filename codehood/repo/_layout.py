@@ -50,40 +50,6 @@ def render_readme(name: str) -> str:
     )
 
 
-def read_course_name(text: str) -> tuple[str, str] | None:
-    """
-    Parse a README's H1 and description.
-
-    The H1 is the course name; the first paragraph after it, up to a
-    blank line or a heading, is the description.
-
-    Args:
-        text: The README's full content.
-
-    Returns:
-        A `(name, description)` pair, or `None` if the first non-blank
-        line is not an H1.
-
-    Example:
-        >>> read_course_name("# CS 101\\n\\nAn intro course.\\n")
-        ('CS 101', 'An intro course.')
-    """
-    lines = text.splitlines()
-    index = 0
-    while index < len(lines) and not lines[index].strip():
-        index += 1
-    if index >= len(lines) or not lines[index].startswith("# "):
-        return None
-    name = lines[index][2:].strip()
-    description_lines: list[str] = []
-    for line in lines[index + 1 :]:
-        if line.startswith("#") or (description_lines and not line.strip()):
-            break
-        if line.strip():
-            description_lines.append(line)
-    return name, "\n".join(description_lines)
-
-
 def render_calendar() -> str:
     """
     Render the `calendar.md` `init` writes.
