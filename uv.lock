@@ -763,6 +763,7 @@ requires-dist = [
     { name = "hypothesis", marker = "extra == 'hypothesis'", specifier = ">=6.167.1" },
     { name = "linkify-it-py", specifier = ">=2.2.0" },
     { name = "markdown-it-py", specifier = ">=4.2.0" },
+    { name = "markdownify", marker = "extra == 'html'", specifier = ">=1.0" },
     { name = "optionz", specifier = ">=0.2.0" },
     { name = "pydantic", specifier = ">=2.11" },
     { name = "pygments", specifier = ">=2.21.0" },
@@ -773,7 +774,7 @@ requires-dist = [
     { name = "typer", specifier = ">=0.12" },
     { name = "unicodedata2", specifier = ">=17,<18" },
 ]
-provides-extras = ["test", "hypothesis"]
+provides-extras = ["test", "hypothesis", "html"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -782,6 +783,7 @@ dev = [
     { name = "jsonschema", specifier = ">=4.18" },
     { name = "lark-parser", specifier = ">=0.12.0" },
     { name = "lark-run", specifier = ">=0.1.1" },
+    { name = "markdownify", specifier = ">=1.0" },
     { name = "mypy", specifier = ">=2.3.1" },
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "pytest-cov", specifier = ">=7.1.0" },
