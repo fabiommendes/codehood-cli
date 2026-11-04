@@ -4,6 +4,13 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- `Plan(writes, notices)` replaces the flat list of actions. `diff_keyed`
+  compares entities by key and each entity has its own merge. A rejected
+  question comes out as `invalid`, not `failed`, and notices print before the
+  writes run.
+- `CourseKey` identifies a course across commands.
+- `read_course_readme`: a README without an H1 now gives the description.
+
 - A resource that is not Markdown keeps its extension in the slug
   (`aabb.py`, `aabb.png`), so files that differ only in extension coexist.
   Existing non-Markdown resources move to the new slug on the next push.
