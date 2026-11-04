@@ -1,4 +1,5 @@
 ---
+id: heranca-de-inimigos
 title: Herança entre inimigos
 tags: [classes, heranca]
 locale: pt-BR

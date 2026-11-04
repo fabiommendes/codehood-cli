@@ -14,6 +14,8 @@ stops a caller from swapping them silently.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Iterator, Mapping
 from dataclasses import dataclass, field
 from datetime import date
@@ -23,7 +25,7 @@ from typing import Literal
 from .calendar import Event, EventKey, TimeSlot
 from .exclude import ExcludedFile
 from .grades import GradeColumn
-from .question import AnyQuestion, QuestionFile
+from .question import AnyQuestion, InvalidQuestion, QuestionFile, QuestionStatus
 from .repository import RepositoryTree
 from .resource import ResourceData, ResourceFile
 
@@ -37,7 +39,9 @@ __all__ = [
     "DeleteTimeSlot",
     "LocalState",
     "PushOp",
+    "RejectQuestion",
     "ServerEvent",
+    "ServerQuestion",
     "ServerState",
     "UpsertCalendarEvent",
     "UpsertCourse",
@@ -47,11 +51,17 @@ __all__ = [
     "UpsertResource",
     "UpsertTimeSlot",
     "WarnEventHasRollCall",
+    "WarnQuestionPublished",
     "WarnRepositoryKept",
     "WarnTimeSlotPinned",
+    "course_ref",
     "plan_push",
     "plan_repositories",
 ]
+
+
+#: The order a question's status moves through on a push.
+STATUS_ORDER: tuple[QuestionStatus, ...] = ("DRAFT", "PUBLISHED", "HIDDEN")
 
 
 #
@@ -79,7 +89,7 @@ class LocalState:
     slots: tuple[TimeSlot, ...] = ()
     events: tuple[Event, ...] = ()
     resources: tuple[ResourceFile, ...] = ()
-    questions: tuple[QuestionFile, ...] = ()
+    questions: tuple[QuestionFile | InvalidQuestion, ...] = ()
     grade_columns: tuple[GradeColumn, ...] | None = ()
     repositories: tuple[RepositoryTree, ...] = ()
     #: Files left out by `[push] exclude`: never written, never pruned.
@@ -104,15 +114,27 @@ class ServerEvent:
 
 
 @dataclass(frozen=True)
+class ServerQuestion:
+    """
+    What the sync preflight reports about one question.
+    """
+
+    version: str
+    status: QuestionStatus = "DRAFT"
+
+
+@dataclass(frozen=True)
 class ServerState:
     """
     What the server currently holds for a course, as markers only.
     """
 
     course_exists: bool = False
+    #: The `rev` the course row carries: the `course_ref` of its last push.
+    course_rev: str | None = None
     resources: Mapping[str, str] = field(default_factory=dict)
     resource_events: Mapping[str, EventKey | None] = field(default_factory=dict)
-    questions: Mapping[str, str] = field(default_factory=dict)
+    questions: Mapping[str, ServerQuestion] = field(default_factory=dict)
     time_slots: Mapping[str, str] = field(default_factory=dict)
     calendar_events: Mapping[tuple[int, str], ServerEvent] = field(default_factory=dict)
     grade_columns: Mapping[str, str] = field(default_factory=dict)
@@ -135,6 +157,8 @@ class UpsertCourse:
     description: str
     start_at: str
     end_at: str
+    #: The `course_ref` the row is stored with, as its `rev`.
+    ref: str
 
 
 @dataclass(frozen=True)
@@ -179,6 +203,31 @@ class UpsertQuestion:
     slug: str
     version: str
     question: AnyQuestion
+    path: Path
+    status: QuestionStatus = "PUBLISHED"
+
+
+@dataclass(frozen=True)
+class RejectQuestion:
+    """
+    Not a write: a question file `mdq` refused. It fails on its own, and the
+    server keeps what it holds under the slug.
+    """
+
+    slug: str
+    path: Path
+    reason: str
+
+
+@dataclass(frozen=True)
+class WarnQuestionPublished:
+    """
+    Not a write: a question whose file marks it a draft, kept as the server
+    has it because a push never moves a question back down its status.
+    """
+
+    slug: str
+    status: QuestionStatus
     path: Path
 
 
@@ -331,6 +380,8 @@ PushOp = (
     | UpsertResource
     | DeleteResource
     | UpsertQuestion
+    | RejectQuestion
+    | WarnQuestionPublished
     | DeleteQuestion
     | UpsertTimeSlot
     | DeleteTimeSlot
@@ -355,11 +406,9 @@ def plan_push(
     """
     Diff a repository against the server's current state and yield a plan.
 
-    The course row is always `PUT`, since every write is idempotent and
-    the course carries no comparable hash of its own -- see `push.md`,
-    "Every write is a `PUT`". `server.course_exists` mirrors what the
-    shell already fetched (`fetch_server_state`) so a future check has
-    somewhere to plug in; it does not gate this call, on purpose.
+    The course row is `PUT` when it does not exist or its `rev` is not the
+    `course_ref` of the description and dates, so a push with nothing new
+    plans nothing.
 
     A resource is planned when its `ref` differs from (or is absent from)
     `server.resources`; a server slug absent locally is planned for
@@ -373,13 +422,17 @@ def plan_push(
     needs the event to exist first. Resources, questions and grade columns
     follow.
     """
-    yield UpsertCourse(
-        discipline=local.discipline,
-        course=local.course,
-        description=local.description,
-        start_at=_timestamp(local.start),
-        end_at=_timestamp(local.end),
-    )
+    start_at, end_at = _timestamp(local.start), _timestamp(local.end)
+    ref = course_ref(local.description, start_at, end_at)
+    if not server.course_exists or server.course_rev != ref:
+        yield UpsertCourse(
+            discipline=local.discipline,
+            course=local.course,
+            description=local.description,
+            start_at=start_at,
+            end_at=end_at,
+            ref=ref,
+        )
 
     yield from plan_repositories(
         local, server, drop_repositories=drop_repositories, message=message
@@ -413,20 +466,50 @@ def plan_push(
     seen_question_slugs: set[str] = set()
     for question in local.questions:
         seen_question_slugs.add(question.slug)
-        if server.questions.get(question.slug) == question.version:
+        if isinstance(question, InvalidQuestion):
+            yield RejectQuestion(
+                slug=question.slug, path=question.path, reason=question.reason
+            )
             continue
-        yield UpsertQuestion(
-            slug=question.slug,
-            version=question.version,
-            question=question.question,
-            path=question.path,
-        )
+        yield from plan_question(question, server.questions.get(question.slug))
 
     for slug in server.questions:
         if slug not in seen_question_slugs and ("question", slug) not in excluded:
             yield DeleteQuestion(slug=slug)
 
     yield from plan_grades(local, server)
+
+
+def plan_question(
+    question: QuestionFile, remote: ServerQuestion | None
+) -> Iterator[UpsertQuestion | WarnQuestionPublished]:
+    """
+    Plan one question: upsert it when its file or its status moved, and warn
+    when its file still marks a draft the server has moved past.
+
+    The status only moves forward, `DRAFT` to `PUBLISHED` to `HIDDEN`: the
+    file can publish a draft, and only the web hides a question or brings it
+    back. So a push never undoes what the web did, and needs no memory of
+    the previous push to tell which side changed.
+    """
+    if remote is None:
+        status: QuestionStatus = question.status
+    else:
+        status = max(question.status, remote.status, key=STATUS_ORDER.index)
+        if question.status == "DRAFT" and remote.status == "PUBLISHED":
+            yield WarnQuestionPublished(
+                slug=question.slug, status=remote.status, path=question.path
+            )
+        if remote.version == question.version and remote.status == status:
+            return
+
+    yield UpsertQuestion(
+        slug=question.slug,
+        version=question.version,
+        question=question.question,
+        path=question.path,
+        status=status,
+    )
 
 
 def plan_calendar(
@@ -564,6 +647,20 @@ def plan_grades(local: LocalState, server: ServerState) -> Iterator[PushOp]:
 #
 # Utilities
 #
+def course_ref(description: str, start_at: str, end_at: str) -> str:
+    """
+    Digest the fields a push writes on the course row into the `rev` it
+    stores, the way `resource.content_ref` digests a resource.
+    """
+    canonical = json.dumps(
+        {"v": "v1", "description": description, "startAt": start_at, "endAt": end_at},
+        separators=(",", ":"),
+        sort_keys=True,
+        ensure_ascii=False,
+    )
+    return f"v1:{hashlib.sha256(canonical.encode('utf-8')).hexdigest()}"
+
+
 def _timestamp(day: date) -> str:
     """
     A date as the UTC midnight timestamp the server's `startAt`/`endAt`

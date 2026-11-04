@@ -1188,35 +1188,29 @@
           },
           "maxUses": {
             "type": "integer",
-            "nullable": true
+            "nullable": true,
+            "minimum": 1
           },
           "token": {
             "type": "string"
           },
           "course": {
-            "anyOf": [
-              {
-                "type": "integer"
+            "type": "object",
+            "properties": {
+              "discipline": {
+                "type": "string"
               },
-              {
-                "type": "object",
-                "properties": {
-                  "discipline": {
-                    "type": "string"
-                  },
-                  "instructor": {
-                    "type": "string"
-                  },
-                  "edition": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "discipline",
-                  "instructor",
-                  "edition"
-                ]
+              "instructor": {
+                "type": "string"
+              },
+              "edition": {
+                "type": "string"
               }
+            },
+            "required": [
+              "discipline",
+              "instructor",
+              "edition"
             ]
           },
           "expiresInMs": {
@@ -1797,7 +1791,9 @@
         "properties": {
           "slug": {
             "type": "string",
-            "minLength": 1
+            "maxLength": 200,
+            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+            "example": "intro-to-recursion"
           },
           "title": {
             "type": "string",
@@ -1866,15 +1862,16 @@
                       "FILE"
                     ]
                   },
-                  "buffer": {
+                  "hash": {
                     "type": "string",
-                    "format": "binary"
+                    "pattern": "^[0-9a-f]{64}$",
+                    "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
                   }
                 },
                 "required": [
                   "filename",
                   "type",
-                  "buffer"
+                  "hash"
                 ]
               },
               {
@@ -1945,6 +1942,7 @@
                 "enum": [
                   "DRAFT",
                   "PUBLISHED",
+                  "HIDDEN",
                   "ARCHIVED"
                 ]
               },
@@ -3360,6 +3358,7 @@
                 "enum": [
                   "DRAFT",
                   "PUBLISHED",
+                  "HIDDEN",
                   "ARCHIVED"
                 ]
               },
@@ -4256,6 +4255,7 @@
             "enum": [
               "DRAFT",
               "PUBLISHED",
+              "HIDDEN",
               "ARCHIVED"
             ]
           },
@@ -5995,6 +5995,26 @@
             "type": "string",
             "nullable": true
           },
+          "blanks": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "comment": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "score"
+              ]
+            }
+          },
           "createdAt": {
             "type": "string",
             "format": "date-time"
@@ -6011,6 +6031,7 @@
           "grader",
           "bot",
           "feedback",
+          "blanks",
           "createdAt",
           "updatedAt"
         ]
@@ -6042,6 +6063,26 @@
           "feedback": {
             "type": "string",
             "nullable": true
+          },
+          "blanks": {
+            "type": "object",
+            "nullable": true,
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "score": {
+                  "type": "number",
+                  "minimum": 0,
+                  "maximum": 1
+                },
+                "comment": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "score"
+              ]
+            }
           }
         },
         "required": [
@@ -12285,29 +12326,22 @@
           },
           {
             "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
+              "type": "object",
+              "properties": {
+                "discipline": {
+                  "type": "string"
                 },
-                {
-                  "type": "object",
-                  "properties": {
-                    "discipline": {
-                      "type": "string"
-                    },
-                    "instructor": {
-                      "type": "string"
-                    },
-                    "edition": {
-                      "type": "string"
-                    }
-                  },
-                  "required": [
-                    "discipline",
-                    "instructor",
-                    "edition"
-                  ]
+                "instructor": {
+                  "type": "string"
+                },
+                "edition": {
+                  "type": "string"
                 }
+              },
+              "required": [
+                "discipline",
+                "instructor",
+                "edition"
               ]
             },
             "required": false,
@@ -13665,6 +13699,25 @@
               "schema": {
                 "$ref": "#/components/schemas/ResourceCreate"
               }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "string",
+                    "description": "The `application/json` body, as text."
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "additionalProperties": {
+                  "type": "string",
+                  "format": "binary"
+                },
+                "description": "Every other part is a file named after the sha-256 of its bytes."
+              }
             }
           }
         },
@@ -13933,7 +13986,9 @@
                 "properties": {
                   "slug": {
                     "type": "string",
-                    "minLength": 1
+                    "maxLength": 200,
+                    "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                    "example": "intro-to-recursion"
                   },
                   "title": {
                     "type": "string",
@@ -14002,15 +14057,16 @@
                               "FILE"
                             ]
                           },
-                          "buffer": {
+                          "hash": {
                             "type": "string",
-                            "format": "binary"
+                            "pattern": "^[0-9a-f]{64}$",
+                            "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
                           }
                         },
                         "required": [
                           "filename",
                           "type",
-                          "buffer"
+                          "hash"
                         ]
                       },
                       {
@@ -14064,6 +14120,25 @@
                   "title",
                   "data"
                 ]
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "string",
+                    "description": "The `application/json` body, as text."
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "additionalProperties": {
+                  "type": "string",
+                  "format": "binary"
+                },
+                "description": "Every other part is a file named after the sha-256 of its bytes."
               }
             }
           }
@@ -14537,15 +14612,16 @@
                               "FILE"
                             ]
                           },
-                          "buffer": {
+                          "hash": {
                             "type": "string",
-                            "format": "binary"
+                            "pattern": "^[0-9a-f]{64}$",
+                            "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
                           }
                         },
                         "required": [
                           "filename",
                           "type",
-                          "buffer"
+                          "hash"
                         ]
                       },
                       {
@@ -14594,6 +14670,25 @@
                     ]
                   }
                 }
+              }
+            },
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "json": {
+                    "type": "string",
+                    "description": "The `application/json` body, as text."
+                  }
+                },
+                "required": [
+                  "json"
+                ],
+                "additionalProperties": {
+                  "type": "string",
+                  "format": "binary"
+                },
+                "description": "Every other part is a file named after the sha-256 of its bytes."
               }
             }
           }
@@ -14901,6 +14996,7 @@
                 "enum": [
                   "DRAFT",
                   "PUBLISHED",
+                  "HIDDEN",
                   "ARCHIVED"
                 ]
               }
@@ -14973,6 +15069,7 @@
                             "enum": [
                               "DRAFT",
                               "PUBLISHED",
+                              "HIDDEN",
                               "ARCHIVED"
                             ]
                           },
@@ -16388,6 +16485,7 @@
                             "enum": [
                               "DRAFT",
                               "PUBLISHED",
+                              "HIDDEN",
                               "ARCHIVED"
                             ]
                           },
@@ -17317,6 +17415,7 @@
                     "enum": [
                       "DRAFT",
                       "PUBLISHED",
+                      "HIDDEN",
                       "ARCHIVED"
                     ]
                   },
@@ -18731,6 +18830,7 @@
                           "enum": [
                             "DRAFT",
                             "PUBLISHED",
+                            "HIDDEN",
                             "ARCHIVED"
                           ]
                         },
@@ -20146,6 +20246,7 @@
                           "enum": [
                             "DRAFT",
                             "PUBLISHED",
+                            "HIDDEN",
                             "ARCHIVED"
                           ]
                         },
@@ -21096,6 +21197,7 @@
                           "enum": [
                             "DRAFT",
                             "PUBLISHED",
+                            "HIDDEN",
                             "ARCHIVED"
                           ]
                         },
@@ -22511,6 +22613,7 @@
                           "enum": [
                             "DRAFT",
                             "PUBLISHED",
+                            "HIDDEN",
                             "ARCHIVED"
                           ]
                         },
@@ -23441,6 +23544,7 @@
                     "enum": [
                       "DRAFT",
                       "PUBLISHED",
+                      "HIDDEN",
                       "ARCHIVED"
                     ]
                   },
@@ -24849,6 +24953,7 @@
                           "enum": [
                             "DRAFT",
                             "PUBLISHED",
+                            "HIDDEN",
                             "ARCHIVED"
                           ]
                         },
@@ -26264,6 +26369,7 @@
                           "enum": [
                             "DRAFT",
                             "PUBLISHED",
+                            "HIDDEN",
                             "ARCHIVED"
                           ]
                         },
@@ -28814,6 +28920,26 @@
                         "type": "string",
                         "nullable": true
                       },
+                      "blanks": {
+                        "type": "object",
+                        "nullable": true,
+                        "additionalProperties": {
+                          "type": "object",
+                          "properties": {
+                            "score": {
+                              "type": "number",
+                              "minimum": 0,
+                              "maximum": 1
+                            },
+                            "comment": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "score"
+                          ]
+                        }
+                      },
                       "createdAt": {
                         "type": "string",
                         "format": "date-time"
@@ -28830,6 +28956,7 @@
                       "grader",
                       "bot",
                       "feedback",
+                      "blanks",
                       "createdAt",
                       "updatedAt"
                     ]
@@ -28902,6 +29029,26 @@
                   "feedback": {
                     "type": "string",
                     "nullable": true
+                  },
+                  "blanks": {
+                    "type": "object",
+                    "nullable": true,
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "score": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "comment": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "score"
+                      ]
+                    }
                   }
                 },
                 "required": [
@@ -28951,6 +29098,26 @@
                       "type": "string",
                       "nullable": true
                     },
+                    "blanks": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "score": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                          },
+                          "comment": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "score"
+                        ]
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -28967,6 +29134,7 @@
                     "grader",
                     "bot",
                     "feedback",
+                    "blanks",
                     "createdAt",
                     "updatedAt"
                   ]
@@ -29057,6 +29225,26 @@
                       "type": "string",
                       "nullable": true
                     },
+                    "blanks": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "score": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                          },
+                          "comment": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "score"
+                        ]
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -29073,6 +29261,7 @@
                     "grader",
                     "bot",
                     "feedback",
+                    "blanks",
                     "createdAt",
                     "updatedAt"
                   ]
@@ -29136,6 +29325,26 @@
                   "feedback": {
                     "type": "string",
                     "nullable": true
+                  },
+                  "blanks": {
+                    "type": "object",
+                    "nullable": true,
+                    "additionalProperties": {
+                      "type": "object",
+                      "properties": {
+                        "score": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 1
+                        },
+                        "comment": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "score"
+                      ]
+                    }
                   }
                 }
               }
@@ -29181,6 +29390,26 @@
                       "type": "string",
                       "nullable": true
                     },
+                    "blanks": {
+                      "type": "object",
+                      "nullable": true,
+                      "additionalProperties": {
+                        "type": "object",
+                        "properties": {
+                          "score": {
+                            "type": "number",
+                            "minimum": 0,
+                            "maximum": 1
+                          },
+                          "comment": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "score"
+                        ]
+                      }
+                    },
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
@@ -29197,6 +29426,7 @@
                     "grader",
                     "bot",
                     "feedback",
+                    "blanks",
                     "createdAt",
                     "updatedAt"
                   ]
@@ -30721,7 +30951,7 @@
       "post": {
         "operationId": "logout",
         "summary": "Logs out the current user.",
-        "description": "Logs out the current user by invalidating their session.",
+        "description": "Logs out the current user by invalidating their sessions and revoking the API key the request used, if any.",
         "tags": [
           "Authentication"
         ],

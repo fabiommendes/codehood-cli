@@ -15,7 +15,7 @@ without an admin creating anything first.
 | Fixture      | Course                | Login       | Pushes clean? |
 | :----------- | :-------------------- | :---------- | :------------ |
 | `ada-basic`  | `cs101/ada_2026-1`    | `ada`/`ada` | yes           |
-| `ada-full`   | `cs101/ada_2026-2`    | `ada`/`ada` | no, 2 blocked |
+| `ada-full`   | `cs101/ada_2026-2`    | `ada`/`ada` | yes           |
 | `alan-small` | `cs201/alan_2026-1`   | `alan`/`alan` | yes         |
 | `bob`        | --                    | `bob`/`bob` | n/a           |
 
@@ -76,24 +76,13 @@ than `.md`; both are question extensions.
 `push.question.scan_questions`. It must not become a question and must
 not abort the push.
 
-**Blocked on the server.** `resources/handout.pdf` is a `FILE` resource,
-whose upload the server does not accept (see `ROADBLOCKS.md`).
-
-So a full `ch push` here reports exactly one failure and exits 1:
-
-```
-summary: 17 operation(s) executed, 1 failed, 0 skipped
-failures:
-  resource handout (FILE): blocked: the server accepts no FILE upload yet (...)
-```
-
-That is the point of the fixture: it proves a failure does not stop the
-push. A second `ch push --dry-run` replans the course row and that blocked
-item, and nothing else.
+**Files.** `resources/handout.pdf` is a `FILE` resource. Push asks
+`POST /api/blob/missing` for its sha-256 and sends the bytes in the same
+`PUT` as the resource only when the server lacks them.
 
 **Resources.** `MD` with front-matter title and description
 (`syllabus.md`), `CODE` in three languages across two subdirectories
-(`week1/hello.py`, `week1/greet.js`, `week2/schema.sql`), and the blocked
+(`week1/hello.py`, `week1/greet.js`, `week2/schema.sql`), and the
 `FILE`. Note `week1/greet.js` is named so it does *not* collide with
 `week1/hello.py`: both `hello.*` would flatten to `week1-hello` and abort
 the whole push. Slug collisions belong in unit tests with `tmp_path`, not

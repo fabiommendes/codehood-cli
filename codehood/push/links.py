@@ -10,6 +10,7 @@ the disk: `plan.py` and `run.py` only carry the result.
 
 from __future__ import annotations
 
+import posixpath
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, replace
@@ -19,7 +20,7 @@ from urllib.parse import quote, unquote
 from .calendar import Event, EventKey
 from .errors import ResourceLinkError
 from .repository import RepositoryTree
-from .resource import ResourceFile, content_ref
+from .resource import MdData, ResourceFile, content_ref
 
 __all__ = [
     "RepositoryLink",
@@ -27,6 +28,7 @@ __all__ = [
     "attach_resources",
     "extract_repository_links",
     "extract_resource_links",
+    "rewrite_body_links",
     "rewrite_repository_links",
     "rewrite_event_links",
     "rewrite_resource_links",
@@ -153,6 +155,91 @@ def rewrite_event_links(
         replace(event, description=rewrite_resource_links(event.description, targets))
         for event in events
     )
+
+
+def rewrite_body_links(
+    resources: Sequence[ResourceFile],
+    root: Path,
+    discipline: str,
+    course: str,
+) -> tuple[ResourceFile, ...]:
+    """
+    Return `resources`, same order, with every link in an `MD` body that
+    names another resource rewritten to `/<discipline>/<course>/resources/<slug>`.
+
+    A target resolves against the folder of the file that holds it, as a
+    Markdown viewer reads it (`![](repl.png)`, `[rubrica](../projeto/rubrica.md)`);
+    a `resources/...` target that names no file there is tried from the
+    course root, as in a lesson. Images count: the address of a `FILE`
+    redirects to its bytes. The `ref` follows the rewritten body.
+
+    Raises:
+        ResourceLinkError: A relative target lands under `resources/` but
+            names no resource.
+    """
+    by_path = {
+        PurePosixPath(resource.path.relative_to(root).as_posix()): resource.slug
+        for resource in resources
+    }
+    rewritten: list[ResourceFile] = []
+    for resource in resources:
+        if not isinstance(resource.data, MdData):
+            rewritten.append(resource)
+            continue
+        source = PurePosixPath(resource.path.relative_to(root).as_posix())
+        content = _rewrite_relative(
+            resource.data.content, source, by_path, f"/{discipline}/{course}/resources"
+        )
+        if content == resource.data.content:
+            rewritten.append(resource)
+            continue
+        data = MdData(content=content)
+        ref = content_ref(resource.title, resource.description, data, resource.event)
+        rewritten.append(replace(resource, data=data, ref=ref))
+    return tuple(rewritten)
+
+
+def _rewrite_relative(
+    markdown: str,
+    source: PurePosixPath,
+    by_path: Mapping[PurePosixPath, str],
+    base_url: str,
+) -> str:
+    out = markdown
+    for start, end in reversed(_link_targets(markdown)):
+        raw = markdown[start:end]
+        target = _relative_target(raw, source, by_path)
+        if target is None:
+            continue
+        fragment = f"#{raw.split('#', 1)[1]}" if "#" in raw else ""
+        out = out[:start] + f"{base_url}/{by_path[target]}" + fragment + out[end:]
+    return out
+
+
+def _relative_target(
+    raw: str, source: PurePosixPath, by_path: Mapping[PurePosixPath, str]
+) -> PurePosixPath | None:
+    """
+    The resource path a body link names, or `None` for a link outside
+    `resources/` (a URL, an anchor, another tree).
+
+    Raises:
+        ResourceLinkError: The link lands under `resources/` on no resource.
+    """
+    if "://" in raw or raw.startswith(("#", "/", "mailto:")):
+        return None
+    cleaned = unquote(raw.split("#", 1)[0].split("?", 1)[0])
+    if not cleaned:
+        return None
+    resolved = PurePosixPath(posixpath.normpath((source.parent / cleaned).as_posix()))
+    if resolved in by_path:
+        return resolved
+    from_root = _resources_target(raw)
+    if from_root is not None and from_root in by_path:
+        return from_root
+    if resolved.parts[:1] == ("resources",):
+        raise ResourceLinkError(f"{source} links to {cleaned}, which is not a resource")
+    return None
 
 
 @dataclass(frozen=True)

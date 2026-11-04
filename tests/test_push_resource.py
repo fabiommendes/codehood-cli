@@ -14,15 +14,18 @@ from pathlib import Path
 
 import pytest
 
-from codehood.push.errors import SlugCollisionError
+from codehood.push.errors import ResourceFileError, SlugCollisionError
 from codehood.push.resource import (
     REF_PREFIX,
     CodeData,
     FileData,
+    LinkData,
     MdData,
     content_ref,
     scan_resources,
     slugify,
+    slugify_text,
+    title_from_filename,
 )
 
 #
@@ -38,6 +41,14 @@ SLUGIFY_CASES = [
     # Path separators and punctuation both collapse to a single '-', and
     # the result is trimmed, not left with a trailing dash.
     ("Week 1/My File!!.md", "week-1-my-file"),
+    # Accents drop the way the server's `src/utils/slugify.ts` drops them.
+    ("laços/passos-do-range.md", "lacos-passos-do-range"),
+    ("classes/herança.md", "classes-heranca"),
+    ("condicionais/condição-dupla.md", "condicionais-condicao-dupla"),
+    ("Érico Veríssimo.pdf", "erico-verissimo"),
+    # NFKD does not decompose these, and the server does not transliterate.
+    ("straße.md", "stra-e"),
+    ("smørrebrød.md", "sm-rrebr-d"),
 ]
 
 
@@ -181,10 +192,41 @@ def test_scan_resources_md_title_falls_back_to_first_h1(tmp_path):
     assert resource.description is None
 
 
-def test_scan_resources_md_title_falls_back_to_filename_stem(tmp_path):
+def test_scan_resources_md_title_falls_back_to_the_title_cased_filename(tmp_path):
     _write(tmp_path, "week1/slides.md", "Just a paragraph, no heading.\n")
     [resource] = list(scan_resources(tmp_path))
-    assert resource.title == "slides"
+    assert resource.title == "Slides"
+
+
+@pytest.mark.parametrize(
+    "stem, expected",
+    [
+        ("janela-minima", "Janela Minima"),
+        ("bola_jogavel", "Bola Jogavel"),
+        ("bigONotation", "Big O Notation"),
+        ("slides-PDF", "Slides PDF"),
+        ("HTTPServer", "HTTP Server"),
+        ("aula 01", "Aula 01"),
+    ],
+)
+def test_title_from_filename(stem: str, expected: str) -> None:
+    assert title_from_filename(stem) == expected
+
+
+def test_scan_resources_code_and_file_titles_fall_back_to_the_title_cased_filename(
+    tmp_path,
+):
+    _write(tmp_path, "w1/janela-minima.py", "print(1)\n")
+    _write(tmp_path, "w1/paleta_oficial.png", "png")
+    titles = {r.slug: r.title for r in scan_resources(tmp_path)}
+    assert titles == {
+        "w1-janela-minima.py": "Janela Minima",
+        "w1-paleta_oficial.png": "Paleta Oficial",
+    }
+
+
+def test_slugify_text_matches_the_server_on_free_text():
+    assert slugify_text("Herança Múltipla") == "heranca-multipla"
 
 
 def test_scan_resources_infers_code_type_and_language(tmp_path):
@@ -233,20 +275,21 @@ def test_collision_week1_slides_md_vs_flattened_sibling(tmp_path):
     }
 
 
-def test_collision_week1_slides_pdf_vs_week1_slides_md(tmp_path):
-    """The spec's second collision example: extension alone doesn't disambiguate."""
+def test_week1_slides_pdf_and_week1_slides_md_are_two_resources(tmp_path):
+    """Only Markdown drops its extension, so a page and its PDF coexist."""
     _write(tmp_path, "week1/slides.pdf", "%PDF\n")
     _write(tmp_path, "week1/slides.md", "# B\n")
+    slugs = sorted(r.slug for r in scan_resources(tmp_path))
+    assert slugs == ["week1-slides", "week1-slides.pdf"]
+
+
+def test_collision_of_names_that_differ_only_in_punctuation(tmp_path):
+    _write(tmp_path, "week1/Slides (final).pdf", "%PDF\n")
+    _write(tmp_path, "week1/slides-final.PDF", "%PDF\n")
 
     with pytest.raises(SlugCollisionError) as excinfo:
         list(scan_resources(tmp_path))
-
-    collisions = excinfo.value.collisions
-    assert set(collisions) == {"week1-slides"}
-    assert set(collisions["week1-slides"]) == {
-        Path("week1/slides.pdf"),
-        Path("week1/slides.md"),
-    }
+    assert set(excinfo.value.collisions) == {"week1-slides-final.pdf"}
 
 
 def test_collision_is_raised_eagerly_before_any_valid_resource_is_used(tmp_path):
@@ -260,4 +303,99 @@ def test_collision_is_raised_eagerly_before_any_valid_resource_is_used(tmp_path)
     _write(tmp_path, "week2/notes.md", "# Notes\n")
 
     with pytest.raises(SlugCollisionError):
+        list(scan_resources(tmp_path))
+
+
+#
+# .url files: LINK
+#
+def test_scan_resources_reads_a_url_file_as_a_link_titled_by_its_comments(tmp_path):
+    _write(
+        tmp_path,
+        "w1/docs.url",
+        "# Pyxel docs\n#  The official README.  \n#\n# With examples.\n"
+        "https://github.com/kitao/pyxel\nhttps://ignored.example\n",
+    )
+    [resource] = list(scan_resources(tmp_path))
+    assert resource.data == LinkData(url="https://github.com/kitao/pyxel")
+    assert resource.title == "Pyxel docs"
+    assert resource.description == "The official README.\nWith examples."
+    assert resource.ref == content_ref(
+        "Pyxel docs", "The official README.\nWith examples.", resource.data
+    )
+
+
+def test_scan_resources_url_file_without_comments_uses_the_filename(tmp_path):
+    _write(tmp_path, "w1/formato-json.url", "https://docs.python.org/3/\n")
+    [resource] = list(scan_resources(tmp_path))
+    assert (resource.title, resource.description) == ("Formato Json", None)
+
+
+@pytest.mark.parametrize(
+    "text, reason",
+    [
+        ("# Only a title\n", "no URI"),
+        ("javascript:alert(1)\n", r"not an http\(s\) URL"),
+    ],
+)
+def test_scan_resources_refuses_a_url_file_with_no_http_uri(tmp_path, text, reason):
+    _write(tmp_path, "w1/bad.url", text)
+    with pytest.raises(ResourceFileError, match=reason):
+        list(scan_resources(tmp_path))
+
+
+#
+# info.yaml
+#
+def test_info_yaml_is_metadata_and_overrides_titles_and_descriptions(tmp_path):
+    _write(tmp_path, "w1/notes.md", "---\ntitle: From front matter\n---\nBody\n")
+    _write(tmp_path, "w1/janela.png", "png")
+    _write(tmp_path, "w2/other.png", "png")
+    _write(
+        tmp_path,
+        "w1/info.yaml",
+        "notes.md:\n  title: From info\n"
+        "janela.png:\n  title: Janela do Pyxel\n  description: Primeira janela.\n",
+    )
+    resources = {r.slug: r for r in scan_resources(tmp_path)}
+    assert set(resources) == {"w1-notes", "w1-janela.png", "w2-other.png"}
+    assert resources["w1-notes"].title == "From info"
+    assert resources["w1-janela.png"].title == "Janela do Pyxel"
+    assert resources["w1-janela.png"].description == "Primeira janela."
+    # Another folder's info.yaml does not reach here.
+    assert resources["w2-other.png"].title == "Other"
+
+
+def test_info_yaml_language_forces_code_and_mime_forces_file(tmp_path):
+    _write(tmp_path, "w1/rules.txt", "fact(1).\n")
+    _write(tmp_path, "w1/game.html", "<canvas></canvas>\n")
+    _write(
+        tmp_path,
+        "w1/info.yaml",
+        "rules.txt:\n  language: prolog\ngame.html:\n  mime: text/html\n",
+    )
+    resources = {r.slug: r for r in scan_resources(tmp_path)}
+    assert resources["w1-rules.txt"].data == CodeData(
+        content="fact(1).\n", language="prolog"
+    )
+    assert resources["w1-game.html"].data == FileData(
+        filename="game.html", blob=b"<canvas></canvas>\n"
+    )
+
+
+@pytest.mark.parametrize(
+    "text, reason",
+    [
+        ("- a\n- b\n", "expected a mapping of file names"),
+        ("notes.md: just a string\n", "expected a mapping"),
+        ("notes.md:\n  titel: typo\n", "unknown keys titel"),
+        ("notes.md:\n  title: [a, b]\n", "values must be strings"),
+        ("ghost.md:\n  title: Gone\n", "no such file"),
+        ("notes.md: [unclosed\n", "not valid YAML"),
+    ],
+)
+def test_info_yaml_malformed_stops_the_scan(tmp_path, text, reason):
+    _write(tmp_path, "w1/notes.md", "Body\n")
+    _write(tmp_path, "w1/info.yaml", text)
+    with pytest.raises(ResourceFileError, match=reason):
         list(scan_resources(tmp_path))

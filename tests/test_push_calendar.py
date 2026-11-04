@@ -219,6 +219,33 @@ def test_parse_calendar_fixed_date_section():
     assert section.description == "Body text."
 
 
+def test_parse_calendar_struck_through_title_is_a_cancelled_lesson():
+    text = _calendar_text(
+        ["Mon 14:00 2h, Lecture"],
+        extra="\n## ~~Functions~~ (2026-03-09)\n\nMoved.\n\n## ~~ ~~\n\n## Loops\n",
+    )
+    cancelled, odd, regular = parse_calendar(text).sections
+    assert (cancelled.title, cancelled.cancelled) == ("Functions", True)
+    assert cancelled.fixed_date == date(2026, 3, 9)
+    assert (odd.title, odd.cancelled) == ("~~ ~~", False)
+    assert regular.cancelled is False
+
+
+def test_allocate_gives_a_cancelled_lesson_its_date_and_kind():
+    text = _calendar_text(
+        ["Mon 14:00 2h, Lecture"],
+        extra="\n## Intro\n\n## ~~Functions~~\n\n## Loops\n",
+        start="2026-01-05",
+        end="2026-01-19",
+    )
+    events = allocate(parse_calendar(text)).events
+    assert [(e.week, e.title, e.kind) for e in events] == [
+        (0, "Intro", "REGULAR"),
+        (1, "Functions", "CANCELLED"),
+        (2, "Loops", "REGULAR"),
+    ]
+
+
 def test_parse_calendar_section_without_a_date_has_no_fixed_date():
     text = _calendar_text(["Mon 14:00 2h, Lecture"], extra="\n## Intro\n\nBody.\n")
     [section] = parse_calendar(text).sections

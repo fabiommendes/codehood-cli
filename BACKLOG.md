@@ -69,13 +69,6 @@ Backlog items are categorized in sections, not on priority.
   Either `FileLoader` grows `.md` and a recursive walk, or the CLI ships
   its own loader over `push.question.scan_questions`.
 
-* **Resource manifest.** `codehood push` infers a resource's type from its
-  extension and its title from the filename or an `.md` file's front matter.
-  A `resources/resources.toml` manifest could declare the rest: explicit
-  type, title, description, display order, and `LINK` resources, which have
-  no natural file shape. Additive -- a repository with no manifest keeps
-  working.
-
 * **`resources/` refs are sha-256, the mapping says md5.**
   `docs/design/mapping-local-filesystem.md` states that every content hash in
   Codehood is md5; `push/resource.content_ref` predates that line and uses

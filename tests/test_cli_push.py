@@ -184,7 +184,7 @@ def _question_json(slug: str, version: str, **overrides) -> dict:
     body = {
         "slug": slug,
         "id": 1,
-        "status": "DRAFT",
+        "status": "PUBLISHED",
         "version": version,
         "rev": None,
         "createdAt": "2026-01-01T00:00:00Z",
@@ -822,15 +822,47 @@ def _writes_to(calls: list[tuple[str, str]], kind: str) -> list[tuple[str, str]]
     ]
 
 
-def test_a_broken_question_blocks_the_push_unless_excluded(
+def test_a_broken_question_fails_alone_and_keeps_its_server_copy(
+    repo_with_question, monkeypatch
+):
+    _add_question(repo_with_question, "broken.mdq", "not a valid question {{")
+    calls: list[tuple[str, str]] = []
+    _install_transport(
+        monkeypatch,
+        _server_with(calls, questions=[_question_json("broken", "md5:old")]),
+    )
+
+    result = runner.invoke(app, ["push", str(repo_with_question)])
+
+    assert result.exit_code == 1, result.output
+    assert "failed  question broken (broken.mdq): invalid:" in result.output
+    assert "1 failed" in result.output
+    # The good question still goes out, and the broken one is not pruned.
+    assert _writes_to(calls, "question") == [("PUT", f"{BASE}/question")]
+
+
+def test_dry_run_reports_a_broken_question_and_exits_nonzero(
     repo_with_question, monkeypatch
 ):
     _add_question(repo_with_question, "broken.mdq", "not a valid question {{")
     calls: list[tuple[str, str]] = []
     _install_transport(monkeypatch, _server_with(calls))
 
-    blocked = runner.invoke(app, ["push", str(repo_with_question)])
-    assert blocked.exit_code == 1, blocked.output
+    result = runner.invoke(app, ["push", str(repo_with_question), "--dry-run"])
+
+    assert result.exit_code == 1, result.output
+    assert "invalid  question broken (broken.mdq):" in result.output
+    assert "planned  question big-o" in result.output
+    assert ", 1 invalid" in result.output
+    assert _writes_to(calls, "question") == []
+
+
+def test_a_broken_question_blocks_nothing_once_excluded(
+    repo_with_question, monkeypatch
+):
+    _add_question(repo_with_question, "broken.mdq", "not a valid question {{")
+    calls: list[tuple[str, str]] = []
+    _install_transport(monkeypatch, _server_with(calls))
 
     (repo_with_question / "codehood.toml").write_text(
         _exclude_toml("questions/broken.mdq"), encoding="utf-8"

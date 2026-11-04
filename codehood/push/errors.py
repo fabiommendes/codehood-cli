@@ -11,6 +11,7 @@ __all__ = [
     "CalendarError",
     "QuestionParseError",
     "RepositoryError",
+    "ResourceFileError",
     "ResourceLinkError",
     "SlugCollisionError",
 ]
@@ -44,10 +45,8 @@ class QuestionParseError(Exception):
     """
     `mdq` refused to parse a file under `questions/`.
 
-    Raised by `scan_questions` on the first file `mdq.parse`
-    refuses, refusing the whole push for the same reason a slug collision
-    does: push does not upload half a question bank on the way to an
-    error.
+    Raised by `question.read_question`; `scan_questions` turns it into an
+    `InvalidQuestion`, so one bad file fails alone.
     """
 
     def __init__(self, path: Path, cause: Exception) -> None:
@@ -93,3 +92,18 @@ class RepositoryError(Exception):
     a file over the upload limit, or a folder with nothing to publish. The
     message names the offending path.
     """
+
+
+class ResourceFileError(Exception):
+    """
+    A file under `resources/` cannot be read as its kind says it should.
+
+    Raised by `resource.scan_resources` before any network call: an
+    `info.yaml` that is not a mapping of existing file names to known keys,
+    or a `.url` file with no `http(s)` URI. The message names the file.
+    """
+
+    def __init__(self, path: Path, reason: str) -> None:
+        self.path = path
+        self.reason = reason
+        super().__init__(f"{path}: {reason}")

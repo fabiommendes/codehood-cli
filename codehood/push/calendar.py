@@ -55,10 +55,13 @@ type Weekday = Literal[
     "SATURDAY",
 ]
 
-#: The kinds a push writes. `CANCELLED` is set server-side by an
-#: instructor and has no local spelling -- see the mapping's "Calendar
-#: events".
-type EventKind = Literal["REGULAR", "HOLIDAY"]
+#: The kinds a push writes. `CANCELLED` comes from a struck-through h2
+#: (`## ~~Title~~`) or from the web, and a push never undoes it -- see the
+#: mapping's "Calendar events".
+type EventKind = Literal["REGULAR", "HOLIDAY", "CANCELLED"]
+
+#: Wraps an h2 title to mark the lesson cancelled.
+CANCELLED_MARK = "~~"
 
 #: Weekday spellings a `days:`/`## Title` entry may use, keyed
 #: case-insensitively, both the three-letter abbreviation and the full name.
@@ -201,6 +204,7 @@ class Section:
     title: str
     description: str
     fixed_date: date | None = None
+    cancelled: bool = False
 
 
 @dataclass(frozen=True)
@@ -396,7 +400,7 @@ def allocate(calendar: Calendar) -> Allocation:
 
         candidate_date, slot = pool.pop(index)
         emitted.append(
-            (candidate_date, slot, "REGULAR", section.title, section.description)
+            (candidate_date, slot, _kind(section), section.title, section.description)
         )
 
     # 5. Assign the remaining sections, in file order, to the remaining
@@ -406,7 +410,7 @@ def allocate(calendar: Calendar) -> Allocation:
         candidate_date, slot = pool[index]
         section = queue[index]
         emitted.append(
-            (candidate_date, slot, "REGULAR", section.title, section.description)
+            (candidate_date, slot, _kind(section), section.title, section.description)
         )
 
     if len(pool) > allocated:
@@ -603,11 +607,22 @@ def _parse_sections(body: str) -> tuple[Section, ...]:
     """
     Parse every h2 (`## Title`, optionally `## Title (YYYY-MM-DD)`) into a
     `Section`, its description running to the next h2 or the end of file.
+    A title struck through (`## ~~Title~~`) is a cancelled lesson.
     """
     matches = list(_SECTION_RE.finditer(body))
     sections = []
     for index, match in enumerate(matches):
         title = match.group("title").strip()
+        mark = CANCELLED_MARK
+        inner = title.removeprefix(mark).removesuffix(mark).strip()
+        cancelled = (
+            len(title) > 2 * len(mark)
+            and title.startswith(mark)
+            and title.endswith(mark)
+            and bool(inner)
+        )
+        if cancelled:
+            title = inner
         fixed_date = (
             date.fromisoformat(match.group("date")) if match.group("date") else None
         )
@@ -615,9 +630,18 @@ def _parse_sections(body: str) -> tuple[Section, ...]:
         end = matches[index + 1].start() if index + 1 < len(matches) else len(body)
         description = body[start:end].strip()
         sections.append(
-            Section(title=title, description=description, fixed_date=fixed_date)
+            Section(
+                title=title,
+                description=description,
+                fixed_date=fixed_date,
+                cancelled=cancelled,
+            )
         )
     return tuple(sections)
+
+
+def _kind(section: Section) -> EventKind:
+    return "CANCELLED" if section.cancelled else "REGULAR"
 
 
 def _date_range(start: date, end: date) -> Iterator[date]:

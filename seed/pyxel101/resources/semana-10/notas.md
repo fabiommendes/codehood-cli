@@ -24,7 +24,7 @@ AABB quer dizer *axis-aligned bounding box*: retângulo cujos lados são
 paralelos aos eixos. Dois deles **se sobrepõem** quando seus intervalos se
 sobrepõem **nos dois eixos**.
 
-![Retângulos que se sobrepõem e retângulos separados](aabb-diagrama.png)
+![Retângulos que se sobrepõem e retângulos separados](aabb.png)
 
 ```python
 def overlaps(a, b):

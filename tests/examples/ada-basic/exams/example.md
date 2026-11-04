@@ -1,10 +1,7 @@
 ---
 course: cs101
-meta:
-  codehood:
-    type: quiz
-    scheduled_at: 2026-01-01T09:00:00
-    duration_min: 60
+start: 2026-01-01T09:00:00
+duration: 1h
 ---
 
 # Example Exam

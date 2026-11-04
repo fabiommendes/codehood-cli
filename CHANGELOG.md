@@ -4,6 +4,45 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- A resource that is not Markdown keeps its extension in the slug
+  (`aabb.py`, `aabb.png`), so files that differ only in extension coexist.
+  Existing non-Markdown resources move to the new slug on the next push.
+- A struck-through h2 in `calendar.md` (`## ~~Title~~`) is a cancelled
+  lesson, pushed as `CANCELLED`. A push never undoes a cancellation.
+- The course row carries a `rev` and is skipped when unchanged, so a push with
+  nothing new executes nothing.
+- The course description is the README's first paragraph, or `description`
+  in `[course]` of `codehood.toml`. The rest of the README goes up as the
+  `MD` resource `readme`, titled by its H1.
+- `codehood push` rewrites the links and images inside an `MD` resource that
+  point to other resources (`![](repl.png)`, `[rubrica](../projeto/rubrica.md)`)
+  to their pages on the server. A failed resource upload names the lesson
+  whose link it breaks.
+- `codehood push` no longer aborts on a question `mdq` refuses: the file
+  fails alone, the rest goes up, the server copy is kept, and the push exits
+  non-zero (`--dry-run` lists it as `invalid`).
+- `codehood push` sends a question's status: `DRAFT` for a `_` file or
+  directory, `PUBLISHED` otherwise, without the `_` in the slug. It never
+  moves a status back, so a question published or hidden on the web stays
+  that way, and a `_` file over a published question only warns.
+- `codehood push` reads `.url` files as `LINK` resources (a text/uri-list:
+  the first URI is the link, the first comment the title, the others the
+  description) and a folder's `info.yaml` as the metadata of its files
+  (`title`, `description`, and `language` or `mime` to force `CODE` or
+  `FILE`). A malformed one stops the push before any request.
+- A resource with no declared title gets its file name in title case
+  (`janela-minima.py` is "Janela Minima").
+- Slugs drop accents the way the server does (`laços/herança.md` is
+  `lacos-heranca`). The next push archives the old accented slugs and
+  creates the new ones.
+- A question's `id` in its front matter is its slug, for excluded files too.
+- `ch init` writes the example exam with `start` and `duration`, which push
+  reads, instead of `meta.codehood.scheduled_at`/`duration_min`.
+
+- `codehood push` uploads `FILE` resources (PDF, images, any opaque file).
+  It asks the server which blobs it lacks and sends the bytes only then, in
+  the same request as the resource.
+
 - `CODEHOOD_TOKEN`: when set, the CLI uses it as the API key for any server
   and does not read `~/.codehood/credentials.toml`.
 - `codehood push` lists the files it did not push because no stage reads

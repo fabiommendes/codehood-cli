@@ -54,8 +54,8 @@ def read_course_name(text: str) -> tuple[str, str] | None:
     """
     Parse a README's H1 and description.
 
-    The H1 is the course name; everything after it, up to the next
-    heading, is the description.
+    The H1 is the course name; the first paragraph after it, up to a
+    blank line or a heading, is the description.
 
     Args:
         text: The README's full content.
@@ -77,11 +77,11 @@ def read_course_name(text: str) -> tuple[str, str] | None:
     name = lines[index][2:].strip()
     description_lines: list[str] = []
     for line in lines[index + 1 :]:
-        if line.startswith("#"):
+        if line.startswith("#") or (description_lines and not line.strip()):
             break
-        description_lines.append(line)
-    description = "\n".join(description_lines).strip()
-    return name, description
+        if line.strip():
+            description_lines.append(line)
+    return name, "\n".join(description_lines)
 
 
 def render_calendar() -> str:
@@ -149,11 +149,8 @@ def render_example_exam(discipline: str) -> str:
     return (
         "---\n"
         f"course: {discipline}\n"
-        "meta:\n"
-        "  codehood:\n"
-        "    type: quiz\n"
-        "    scheduled_at: 2026-01-01T09:00:00\n"
-        "    duration_min: 60\n"
+        "start: 2026-01-01T09:00:00\n"
+        "duration: 1h\n"
         "---\n"
         "\n"
         "# Example Exam\n"

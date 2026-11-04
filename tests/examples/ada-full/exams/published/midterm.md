@@ -1,11 +1,8 @@
 ---
 course: cs101
 author: Ada Lovelace
-meta:
-  codehood:
-    type: exam
-    scheduled_at: 2026-10-08T10:00:00
-    duration_min: 120
+start: 2026-10-08T10:00:00
+duration: 2h
 ---
 
 # [midterm] Midterm Exam

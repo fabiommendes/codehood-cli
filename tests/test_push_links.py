@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import importlib
 import json
+from dataclasses import replace
 from datetime import date
 from pathlib import Path, PurePosixPath
 
@@ -19,10 +20,11 @@ from typer.testing import CliRunner
 from codehood.api import base as base_module
 from codehood.cli.base import app
 from codehood.push.calendar import Event, EventKey
-from codehood.push.errors import ResourceLinkError
+from codehood.push.errors import ResourceLinkError, SlugCollisionError
 from codehood.push.links import (
     attach_resources,
     extract_resource_links,
+    rewrite_body_links,
     rewrite_event_links,
     rewrite_resource_links,
 )
@@ -982,3 +984,99 @@ def test_dry_run_plans_the_resource_whose_server_event_was_lost(tmp_path, monkey
         line for line in result.output.splitlines() if line.startswith("planned")
     ]
     assert any(local.slug in line and "resource" in line for line in planned), planned
+
+
+#
+# Links inside an MD resource resolve against the file's folder.
+#
+def _md(rel: str, content: str) -> ResourceFile:
+    resource = _resource(rel)
+    data = MdData(content=content)
+    return replace(resource, data=data, ref=content_ref(rel, None, data))
+
+
+def test_rewrite_body_links_resolves_relative_targets_from_the_file_folder():
+    notes = _md(
+        "resources/w01/notes.md",
+        "![REPL](repl.png)\n[rubric](../project/rubric.md#criteria)\n"
+        "[root](resources/w01/repl.png) [web](https://example.com) [top](#top)\n"
+        "`[code](repl.png)`\n",
+    )
+    resources = [
+        notes,
+        _resource("resources/w01/repl.png"),
+        _resource("resources/project/rubric.md"),
+    ]
+    rewritten = rewrite_body_links(resources, ROOT, "cs101", "ada_2026-1")
+    assert rewritten[0].data == MdData(
+        content="![REPL](/cs101/ada_2026-1/resources/w01-repl)\n"
+        "[rubric](/cs101/ada_2026-1/resources/project-rubric#criteria)\n"
+        "[root](/cs101/ada_2026-1/resources/w01-repl) [web](https://example.com)"
+        " [top](#top)\n"
+        "`[code](repl.png)`\n"
+    )
+    assert rewritten[0].ref == content_ref(
+        notes.title, None, rewritten[0].data, notes.event
+    )
+    assert rewritten[1:] == tuple(resources[1:])
+
+
+def test_rewrite_body_links_leaves_a_body_without_resource_links_alone():
+    notes = _md("resources/w01/notes.md", "[web](https://example.com)\n")
+    assert rewrite_body_links([notes], ROOT, "cs101", "c") == (notes,)
+
+
+def test_rewrite_body_links_refuses_a_link_to_a_missing_resource():
+    notes = _md("resources/w01/notes.md", "![gone](missing.png)\n")
+    with pytest.raises(ResourceLinkError, match="missing.png"):
+        rewrite_body_links([notes], ROOT, "cs101", "c")
+
+
+#
+# The README: its first paragraph describes the course, and the whole file
+# goes up as the `readme` resource when it holds more.
+#
+README = "# CS101\n\nA description.\n\n## Grading\n\nSee [notes](resources/w03/recursion.md).\n"
+
+
+def test_read_local_state_pushes_a_longer_readme_as_a_resource(tmp_path):
+    repo = _repo(tmp_path, _calendar("Nothing linked."))
+    (repo / "README.md").write_text(README, encoding="utf-8")
+    local = push_module.read_local_state(repo)
+    assert local.description == "A description."
+    readme = next(r for r in local.resources if r.slug == "readme")
+    assert readme.title == "CS101"
+    assert readme.data == MdData(
+        content="A description.\n\n## Grading\n\n"
+        "See [notes](/cs101/ada_2026-1/resources/w03-recursion).\n"
+    )
+
+
+def test_read_local_state_skips_a_readme_holding_only_the_description(tmp_path):
+    repo = _repo(tmp_path, _calendar("Nothing linked."))
+    slugs = [r.slug for r in push_module.read_local_state(repo).resources]
+    assert slugs == ["w03-recursion"]
+
+
+def test_config_description_replaces_the_readme_paragraph(tmp_path):
+    repo = _repo(tmp_path, _calendar("Nothing linked."))
+    (repo / "codehood.toml").write_text(
+        TOML.replace(
+            'edition = "2026-1"\n', 'edition = "2026-1"\ndescription = "Set here."\n'
+        ),
+        encoding="utf-8",
+    )
+    local = push_module.read_local_state(repo)
+    assert local.description == "Set here."
+    readme = next(r for r in local.resources if r.slug == "readme")
+    assert readme.data == MdData(content="A description.\n")
+
+
+def test_a_resource_slugged_readme_collides_with_the_readme(tmp_path):
+    repo = _repo(tmp_path, _calendar("Nothing linked."), files=("resources/readme.md",))
+    (repo / "README.md").write_text(
+        README.replace("resources/w03/recursion.md", "resources/readme.md"),
+        encoding="utf-8",
+    )
+    with pytest.raises(SlugCollisionError, match="readme"):
+        push_module.read_local_state(repo)

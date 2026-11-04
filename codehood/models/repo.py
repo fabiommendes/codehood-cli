@@ -37,12 +37,15 @@ __all__ = [
 
 class CourseIdentity(Model):
     """
-    The three values that name a course: `(discipline, instructor, edition)`.
+    The `[course]` table: the three values that name a course,
+    `(discipline, instructor, edition)`, and an optional description.
     """
 
     discipline: DisciplineSlug
     instructor: InstructorUsername
     edition: EditionSlug
+    #: Replaces the README's first paragraph as the course description.
+    description: str | None = None
 
 
 class ServerConfig(Model):

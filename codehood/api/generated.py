@@ -352,7 +352,7 @@ class RepositoryDeleted(Model):
 class ResourceCreateDataFile(Model):
     filename: str
     type: Literal["FILE"]
-    buffer: str
+    hash: str
 
 
 class ResourceDataFile(Model):
@@ -1007,7 +1007,7 @@ class Question2(Model):
     model_config = ConfigDict(populate_by_name=True)
 
     slug: str
-    status: Literal["DRAFT", "PUBLISHED", "ARCHIVED"]
+    status: Literal["DRAFT", "PUBLISHED", "HIDDEN", "ARCHIVED"]
     version: str
     rev: str | None
     created_at: str = Field(alias="createdAt")
@@ -1028,7 +1028,7 @@ class Question3(Model):
     model_config = ConfigDict(populate_by_name=True)
 
     slug: str
-    status: Literal["DRAFT", "PUBLISHED", "ARCHIVED"]
+    status: Literal["DRAFT", "PUBLISHED", "HIDDEN", "ARCHIVED"]
     version: str
     rev: str | None
     created_at: str = Field(alias="createdAt")
@@ -1047,7 +1047,7 @@ class Question3(Model):
 
 class QuestionCreate(Model):
     slug: str
-    status: Literal["DRAFT", "PUBLISHED", "ARCHIVED"]
+    status: Literal["DRAFT", "PUBLISHED", "HIDDEN", "ARCHIVED"]
     version: str
     rev: str | None = None
     question: (
@@ -1063,7 +1063,7 @@ class QuestionCreate(Model):
 
 
 class UpdateQuestionRequest(Model):
-    status: Literal["DRAFT", "PUBLISHED", "ARCHIVED"] | None = None
+    status: Literal["DRAFT", "PUBLISHED", "HIDDEN", "ARCHIVED"] | None = None
     version: str | None = None
     rev: str | None = None
     question: (
@@ -1758,7 +1758,7 @@ def list_question(
     discipline: str,
     course: str,
     slugs: list[str] | None = None,
-    statuses: list[Literal["DRAFT", "PUBLISHED", "ARCHIVED"]] | None = None,
+    statuses: list[Literal["DRAFT", "PUBLISHED", "HIDDEN", "ARCHIVED"]] | None = None,
     types: list[
         Literal[
             "multiple-choice",

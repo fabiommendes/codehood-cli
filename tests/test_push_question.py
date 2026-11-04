@@ -14,8 +14,13 @@ from pathlib import Path
 import mdq
 import pytest
 
-from codehood.push.errors import QuestionParseError, SlugCollisionError
-from codehood.push.question import QuestionFile, question_version, scan_questions
+from codehood.push.errors import SlugCollisionError
+from codehood.push.question import (
+    InvalidQuestion,
+    QuestionFile,
+    question_version,
+    scan_questions,
+)
 from codehood.push.resource import slugify
 
 EXAMPLE_MDQ = """---
@@ -195,33 +200,88 @@ def test_scan_questions_no_collision_across_unrelated_slugs(tmp_path: Path):
 #
 # scan_questions: malformed MDQ.
 #
-def test_scan_questions_raises_question_parse_error_for_malformed_mdq(
-    tmp_path: Path,
-):
+def test_scan_questions_reports_malformed_mdq_as_invalid(tmp_path: Path):
     questions = tmp_path / "questions"
     questions.mkdir()
     bad_path = questions / "broken.md"
     bad_path.write_text(MALFORMED_MDQ, encoding="utf-8")
 
-    with pytest.raises(QuestionParseError) as excinfo:
-        list(scan_questions(tmp_path))
-    assert excinfo.value.path == bad_path
-    assert isinstance(excinfo.value.cause, mdq.InvalidDocument)
+    [invalid] = list(scan_questions(tmp_path))
+    assert isinstance(invalid, InvalidQuestion)
+    assert invalid.slug == "broken"
+    assert invalid.path == bad_path
+    assert invalid.reason
 
 
-def test_scan_questions_parse_error_does_not_stop_at_an_earlier_good_file(
-    tmp_path: Path,
-):
+def test_scan_questions_invalid_file_does_not_stop_the_others(tmp_path: Path):
     """
-    A good question earlier in the walk does not swallow a later parse
-    error -- push refuses the whole batch, per "push does not upload half
-    a question bank on the way to an error".
+    One malformed file fails alone: the files before and after it still
+    parse.
     """
     questions = tmp_path / "questions"
     questions.mkdir()
     (questions / "aaa-good.md").write_text(EXAMPLE_MDQ, encoding="utf-8")
-    (questions / "zzz-bad.md").write_text(MALFORMED_MDQ, encoding="utf-8")
+    (questions / "mmm-bad.md").write_text(MALFORMED_MDQ, encoding="utf-8")
+    (questions / "zzz-good.md").write_text(FACTORIAL_MDQ, encoding="utf-8")
 
-    with pytest.raises(QuestionParseError) as excinfo:
+    found = {q.slug: type(q).__name__ for q in scan_questions(tmp_path)}
+    assert found == {
+        "aaa-good": "QuestionFile",
+        "mmm-bad": "InvalidQuestion",
+        "zzz-good": "QuestionFile",
+    }
+
+
+#
+# `id` in the front matter
+#
+def test_scan_questions_id_in_front_matter_is_the_slug(tmp_path: Path):
+    questions = tmp_path / "questions" / "classes"
+    questions.mkdir(parents=True)
+    (questions / "herança.md").write_text(
+        EXAMPLE_MDQ.replace("---\n", "---\nid: heranca-entre-inimigos\n", 1),
+        encoding="utf-8",
+    )
+    (questions / "self.md").write_text(FACTORIAL_MDQ, encoding="utf-8")
+    slugs = sorted(q.slug for q in scan_questions(tmp_path))
+    assert slugs == ["classes-self", "heranca-entre-inimigos"]
+
+
+def test_scan_questions_id_colliding_with_a_path_slug_is_refused_before_parsing(
+    tmp_path: Path,
+):
+    questions = tmp_path / "questions"
+    questions.mkdir()
+    (questions / "a.md").write_text(
+        EXAMPLE_MDQ.replace("---\n", "---\nid: b\n", 1), encoding="utf-8"
+    )
+    (questions / "b.md").write_text(MALFORMED_MDQ, encoding="utf-8")
+    with pytest.raises(SlugCollisionError):
         list(scan_questions(tmp_path))
-    assert excinfo.value.path == questions / "zzz-bad.md"
+
+
+def test_scan_questions_underscore_marks_a_draft_and_leaves_the_slug(tmp_path: Path):
+    questions = tmp_path / "questions"
+    (questions / "_rascunhos").mkdir(parents=True)
+    (questions / "_laco.md").write_text(EXAMPLE_MDQ, encoding="utf-8")
+    (questions / "_rascunhos" / "fatorial.md").write_text(
+        FACTORIAL_MDQ, encoding="utf-8"
+    )
+    (questions / "pronta.md").write_text(EXAMPLE_MDQ, encoding="utf-8")
+    found = {q.slug: q.status for q in scan_questions(tmp_path)}
+    assert found == {
+        "laco": "DRAFT",
+        "rascunhos-fatorial": "DRAFT",
+        "pronta": "PUBLISHED",
+    }
+
+
+def test_scan_questions_draft_and_published_copies_of_one_slug_collide(
+    tmp_path: Path,
+):
+    questions = tmp_path / "questions"
+    questions.mkdir()
+    (questions / "_laco.md").write_text(EXAMPLE_MDQ, encoding="utf-8")
+    (questions / "laco.md").write_text(EXAMPLE_MDQ, encoding="utf-8")
+    with pytest.raises(SlugCollisionError):
+        list(scan_questions(tmp_path))

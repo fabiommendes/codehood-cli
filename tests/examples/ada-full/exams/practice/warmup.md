@@ -1,9 +1,6 @@
 ---
 course: cs101
-meta:
-  codehood:
-    type: quiz
-    duration_min: 20
+duration: 20m
 ---
 
 # [warmup] Warm-up

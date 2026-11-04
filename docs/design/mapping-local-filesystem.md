@@ -62,10 +62,19 @@ Course payload is shown bellow:
 It maps to the following local information:
 
 - `discipline` and `edition` correspond to config fields.
-- `description` is the content of the local README.md file. Error if the file is missing.
+- `description` is the first paragraph of the local README.md after its H1,
+  or `description` in the `[course]` table of `codehood.toml` when set. Error
+  if README.md is missing.
+- The README itself, without its H1 and titled by it, is pushed as the `MD`
+  resource `readme`, so grading, bibliography and policies reach the server
+  too. Its links are rewritten like any `MD` resource's. A README holding
+  only the paragraph that describes the course is not pushed. A file under
+  `resources/` that also slugs to `readme` is a slug collision.
 - `startAt` and `endAt` are read from the calendar.md file. Error if the file is missing.
 
-At every push, course is upserted from current local state.
+The course row is pushed with a `rev` that digests its description and dates,
+and skipped when the server's `rev` matches, so a push with nothing new
+writes nothing.
 
 
 
@@ -87,8 +96,14 @@ All entries are derived from the contents of the `resources/` directory. Each fi
 in this folder or subdirectories represents a resource. The mechanism is
 shown bellow:
 
-- The slug is extracted from the relative path, excluding the extension:
-  For example, `resources/foo/bar.md` would have a slug of `foo-bar`.
+- The slug is extracted from the relative path. A Markdown file
+  (`.md`, `.markdown`) drops its extension, so `resources/foo/bar.md` is
+  `foo-bar`; any other file keeps it, so `resources/foo/bar.py` and
+  `resources/foo/bar.png` are `foo-bar.py` and `foo-bar.png` and live side by
+  side.
+  Accents are dropped as the server drops them (NFKD, then the combining
+  marks removed), so `laços/herança.md` is `lacos-heranca`. Letters NFKD
+  does not decompose (`ß`, `æ`, `ø`) are not transliterated.
 - Slug collisions are errors and stop the sync process, as everywhere else.
 - The data field is derived from the contents of the resource file, by extension:
   - `.md` files are treated as Markdown content (`MD`).
@@ -104,6 +119,10 @@ shown bellow:
 #### Resource metadata (`info.yaml`)
 
 `info.yaml` is a mapping from local files to their corresponding metadata (title/description).
+It is never a resource itself. Keys are file names in the same directory, and
+each entry may only set `title`, `description`, `language` and `mime`, all
+strings. Anything else, or an entry for a file that does not exist, is an
+error that stops the sync process.
 
 Example `info.yaml`:
 
@@ -120,12 +139,27 @@ foo.txt:
     mime: "text/plain"
 ```
 
+`mime` only forces the type to `FILE`: the server derives the type it serves
+from the filename, so the value itself is not sent.
+
 #### Inference based on file name/data
 
 **MD**
 
 If the markdown has a frontmatter section, strip it before sending to the server.
 If the frontmatter defines `title` or `description`, use them to override the corresponding fields in the resource metadata.
+
+A link or image whose target is another resource points at that resource's
+page, `/<discipline>/<course>/resources/<slug>`, once pushed. The target is
+read from the file's own folder, as a Markdown viewer reads it
+(`![](repl.png)`, `[rubrica](../projeto/rubrica.md)`); a `resources/...`
+target that names no file there is read from the course root, as in a
+lesson. The address of a `FILE` or `LINK` redirects to its bytes or URL, so
+images and `.url` links work. A relative target under `resources/` that names
+no resource is an error that stops the sync process.
+
+If a resource fails to upload, the push says which lesson links to it: the
+lesson goes out first, and its link is broken until the resource uploads.
 
 **CODE**
 
@@ -143,8 +177,10 @@ wrong or the file belongs in FILE, and both are the instructor's to fix.
 Encoded as a [text/uri-list](https://mamund.com/hypermedia/urilist/). Takes the
 first URI listed in the file and sends it as `{"type": "LINK", "url": ...}`.
 uri-lists accept comments (lines starting with `#`). The first comment line is
-the title. The following comment lines are the description. Strip the leading
-`#`, then any leading and trailing whitespace, from both.
+the title. The following comment lines, joined by newlines, are the
+description. Strip the leading `#`, then any leading and trailing whitespace,
+from both, and drop comment lines left empty. A file with no URI, or whose
+first URI is not `http(s)`, is an error that stops the sync process.
 
 
 **Fallback**
@@ -230,17 +266,20 @@ Each h2 section corresponds to a CalendarEvent. The mapping is done as follows:
   line. Strip any leading and trailing whitespace.
 - `ref` is the md5 hash of the string constructed as `${title}#${description}`.
 - Events carry no duration of their own: it is derived from their time slot.
-- `kind` is `REGULAR` for every event derived from an h2 section. The only other
-  kind a push ever writes is `HOLIDAY`, for the events derived from the
-  `holidays:` list.
+- `kind` is `REGULAR` for an event derived from an h2 section, `CANCELLED` when
+  the title is struck through (`## ~~Functions~~`, the `~~` left out of the
+  title), and `HOLIDAY` for the events derived from the `holidays:` list. A
+  cancelled lesson takes its date like any other; the makeup class is an h2 of
+  its own, usually with a fixed date.
 
-`CANCELLED` is set on the server, by an instructor, and has no local
-representation. Nothing server-side stops a push from overwriting it, so not
+A push only moves an event forward to `CANCELLED`, never back, the way a
+question's status only moves forward: the web cancels too, and a push must
+not undo it. Nothing server-side stops a push from overwriting it, so not
 overwriting it is the CLI's job: an event the sync preflight reports as
-`CANCELLED` is never written and never pruned. Note the consequence: a
-cancelled date stays occupied, so the local allocation and the server's
-disagree from that date on until the instructor restores the event or edits
-`calendar.md`.
+`CANCELLED` is never written and never pruned, and dropping the `~~` does not
+restore it. Note the consequence: a cancelled date stays occupied, so the
+local allocation and the server's disagree from that date on until the
+instructor restores the event on the web or edits `calendar.md`.
 
 How to allocate CalendarEvent instances:
 
@@ -453,14 +492,27 @@ The table summarizes the mapping between the question file's fields and the REST
 | `id`                | `slug`          | The slug of the question[^question-slug].            |
 | `*`                 | `question`      | The parsed MDQ content of the question, verbatim.    |
 | `version`           | `version`       | MD5 hash of the file content.                        |
-| --                  | `status`        | `DRAFT` for a `_`-prefixed file or directory, `PUBLISHED` otherwise. |
+| --                  | `status`        | `DRAFT` for a `_`-prefixed file or directory, `PUBLISHED` otherwise[^question-status]. |
 
 The question has no top-level `title` field: in the REST payload the title
 lives inside the MDQ `question` object, which is sent whole. In MDQ, the `title`
 is optional. If not provided, we use a title cased version of the question's
 filename as the title where hyphens and underscores are replaced with spaces.
 
+A question file that `mdq` refuses fails on its own: push reports it, sends
+the rest, and exits non-zero. Whatever the server holds under that slug is
+kept, not pruned.
+
 [^question-slug]: If not provided, use the slug algorithm described above.
+
+[^question-status]: The web also writes the status, so a push only moves a
+    question forward through `DRAFT`, `PUBLISHED` and `HIDDEN`: the status
+    sent is the later of the file's and the server's. Dropping the `_`
+    publishes a draft. Only the web hides a question (to withdraw one
+    published by mistake) or brings it back, and no file undoes either. A
+    `_` file whose question the server holds `PUBLISHED` stays published,
+    and the push warns. `ARCHIVED` is a deleted question, outside this
+    order: it comes back when its file does.
 
 
 ## Sync preflight

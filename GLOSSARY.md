@@ -291,7 +291,7 @@ Code: `QuestionRef`
 
 The stable identity of a question once pushed to the server: its author,
 discipline, type (`MULTIPLE_CHOICE`, `MULTIPLE_SELECTION`, `TRUE_FALSE`,
-`ESSAY`), status (`DRAFT`, `PUBLISHED`, `ARCHIVED`), and tags. The text lives
+`ESSAY`), status (`DRAFT`, `PUBLISHED`, `HIDDEN`, `ARCHIVED`), and tags. The text lives
 in its [versions](#remote-question-version) instead, so the reference stays
 lightweight and editing never rewrites history. Contrast
 [Local question](#local-question), the MDQ file it is pushed from.

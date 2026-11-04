@@ -15,18 +15,42 @@ from collections import defaultdict
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 import mdq
 
 from ..repo.diff import FileType
 from ..repo.file_tracker import scan_files
 from .errors import QuestionParseError, SlugCollisionError
-from .resource import slugify
+from .resource import front_matter_str, slugify, slugify_text, split_front_matter
 
-__all__ = ["AnyQuestion", "QuestionFile", "question_version", "scan_questions"]
+__all__ = [
+    "DRAFT_MARK",
+    "AnyQuestion",
+    "InvalidQuestion",
+    "LocalQuestionStatus",
+    "QuestionFile",
+    "QuestionStatus",
+    "peek_id",
+    "question_slug",
+    "question_status",
+    "question_version",
+    "scan_questions",
+]
 
 #: The discriminated union `mdq.parse` returns for a question.
 type AnyQuestion = mdq.Question
+
+#: The statuses a push reads from the server, in the order a push only moves
+#: forward through: `HIDDEN` is set on the web and no file can undo it.
+type QuestionStatus = Literal["DRAFT", "PUBLISHED", "HIDDEN"]
+
+#: The statuses a file can declare, through `DRAFT_MARK`.
+type LocalQuestionStatus = Literal["DRAFT", "PUBLISHED"]
+
+#: A leading `_` on the file or on any directory above it marks a draft, and
+#: is left out of the slug.
+DRAFT_MARK = "_"
 
 
 @dataclass(frozen=True)
@@ -39,6 +63,19 @@ class QuestionFile:
     version: str
     question: AnyQuestion
     path: Path
+    status: LocalQuestionStatus = "PUBLISHED"
+
+
+@dataclass(frozen=True)
+class InvalidQuestion:
+    """
+    A file under `questions/` that `mdq` refused, kept so the push reports it
+    as a failure and leaves what the server holds under its slug alone.
+    """
+
+    slug: str
+    path: Path
+    reason: str
 
 
 def question_version(raw: bytes) -> str:
@@ -55,19 +92,23 @@ def question_version(raw: bytes) -> str:
     return f"md5:{hashlib.md5(raw).hexdigest()}"
 
 
-def scan_questions(root: Path, exclude: Sequence[str] = ()) -> Iterator[QuestionFile]:
+def scan_questions(
+    root: Path, exclude: Sequence[str] = ()
+) -> Iterator[QuestionFile | InvalidQuestion]:
     """
-    Walk `questions/` and yield one `QuestionFile` per file.
+    Walk `questions/` and yield one `QuestionFile` per file, or an
+    `InvalidQuestion` for a file `mdq` refuses.
 
     Reuses the (fixed) `repo.file_tracker.scan_files` for the walk, so a
     subdirectory never becomes a question of its own. Files matching an
-    `exclude` pattern are skipped without being read.
+    `exclude` pattern are skipped without being read. The `id` in a
+    question's front matter is its slug; without one, the slug is the
+    flattened path, without the `_` that marks a draft.
 
     Raises:
-        SlugCollisionError: two or more files flatten to the same slug.
-            Raised eagerly, before any file is parsed or any network call
-            is made.
-        QuestionParseError: the first file `mdq.parse` refuses.
+        SlugCollisionError: two or more files want the same slug. Raised
+            eagerly, after reading front matter but before any file is
+            parsed or any network call is made.
     """
     base = root / "questions"
     by_slug: dict[str, list[Path]] = defaultdict(list)
@@ -77,7 +118,7 @@ def scan_questions(root: Path, exclude: Sequence[str] = ()) -> Iterator[Question
         if file.type is not FileType.QUESTION or file.excluded:
             continue
         rel_path = Path(file.name)
-        slug = slugify(rel_path)
+        slug = question_slug(peek_id(base / rel_path), rel_path)
         by_slug[slug].append(rel_path)
         entries.append((slug, rel_path))
 
@@ -86,15 +127,57 @@ def scan_questions(root: Path, exclude: Sequence[str] = ()) -> Iterator[Question
         raise SlugCollisionError(collisions)
 
     for slug, rel_path in entries:
-        yield _read_question(base, slug, rel_path)
+        try:
+            yield read_question(base, slug, rel_path)
+        except QuestionParseError as exc:
+            yield InvalidQuestion(slug=slug, path=exc.path, reason=str(exc.cause))
+
+
+def question_slug(question_id: str | None, rel_path: Path) -> str:
+    """
+    The slug a question file pushes under: its `id`, slugified, or else its
+    flattened path under `questions/` without draft marks.
+
+    `_rascunhos/_laco.md` and `rascunhos/laco.md` share the slug
+    `rascunhos-laco`, so publishing by renaming keeps the question.
+    """
+    if question_id:
+        return slugify_text(question_id)
+    return slugify(Path(*(part.removeprefix(DRAFT_MARK) for part in rel_path.parts)))
+
+
+def question_status(rel_path: Path) -> LocalQuestionStatus:
+    """
+    `DRAFT` when the file or a directory under `questions/` starts with `_`,
+    `PUBLISHED` otherwise.
+    """
+    if any(part.startswith(DRAFT_MARK) for part in rel_path.parts):
+        return "DRAFT"
+    return "PUBLISHED"
+
+
+def peek_id(path: Path) -> str | None:
+    """
+    The `id` in a question file's front matter, read without `mdq`; `None`
+    when absent or the file cannot be read as text.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return None
+    front_matter, _ = split_front_matter(text)
+    return front_matter_str(front_matter, "id")
 
 
 #
 # Utilities
 #
-def _read_question(base: Path, slug: str, rel_path: Path) -> QuestionFile:
+def read_question(base: Path, slug: str, rel_path: Path) -> QuestionFile:
     """
     Read, parse, and hash one question file off disk.
+
+    Raises:
+        QuestionParseError: `mdq.parse` refuses the file.
     """
     path = base / rel_path
     raw = path.read_bytes()
@@ -107,4 +190,5 @@ def _read_question(base: Path, slug: str, rel_path: Path) -> QuestionFile:
         version=question_version(raw),
         question=question,
         path=path,
+        status=question_status(rel_path),
     )

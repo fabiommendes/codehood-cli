@@ -17,9 +17,11 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import unicodedata
 from collections import defaultdict
 from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
+from itertools import takewhile
 from pathlib import Path
 from typing import Literal
 
@@ -28,26 +30,45 @@ import yaml
 from ..repo.diff import FileType
 from ..repo.file_tracker import scan_files
 from .calendar import EventKey
-from .errors import SlugCollisionError
+from .errors import ResourceFileError, SlugCollisionError
 
 __all__ = [
-    "ResourceFile",
-    "ResourceData",
-    "MdData",
+    "INFO_FILE",
+    "README_SLUG",
     "CodeData",
     "FileData",
-    "slugify",
+    "LinkData",
+    "MdData",
+    "ResourceData",
+    "ResourceFile",
     "content_ref",
+    "read_readme",
+    "resource_slug",
     "scan_resources",
+    "slugify",
+    "slugify_text",
+    "title_from_filename",
 ]
 
 #: `.md`/`.markdown` files become `MD` resources -- see `push.md`, "Type is
 #: inferred from the extension".
 MD_SUFFIXES = (".md", ".markdown")
 
-#: Extension -> the language a `CODE` resource reports. No manifest to
-#: declare this explicitly yet (see `BACKLOG.md`, "Resource manifest"), so
-#: this is a reasonable-effort table, not a spec-pinned one.
+#: `.url` files become `LINK` resources, read as a text/uri-list.
+LINK_SUFFIX = ".url"
+
+#: The per-directory metadata file: never a resource itself.
+INFO_FILE = "info.yaml"
+
+#: The slug the course README pushes under, as an `MD` resource.
+README_SLUG = "readme"
+
+#: Keys an `info.yaml` entry may set.
+INFO_KEYS = frozenset({"title", "description", "language", "mime"})
+
+#: Extension -> the language a `CODE` resource reports. An `info.yaml`
+#: `language` overrides it, so this is a reasonable-effort table, not a
+#: spec-pinned one.
 CODE_LANGUAGES: dict[str, str] = {
     ".py": "python",
     ".js": "javascript",
@@ -89,6 +110,16 @@ CODE_LANGUAGES: dict[str, str] = {
 #: slug -- see `push.md`, "A resource's slug is its flattened path".
 SLUG_INVALID_RUN = re.compile(r"[^a-z0-9._-]+")
 
+#: The combining marks NFKD splits off accented Latin letters; the server's
+#: `src/utils/slugify.ts` strips the same range.
+COMBINING_MARKS = re.compile("[\u0300-\u036f]")
+
+#: Where a file name splits into words for its fallback title: hyphens,
+#: underscores, whitespace, and camel case humps.
+TITLE_WORD_BREAK = re.compile(
+    r"[-_\s]+|(?<=[a-z0-9])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])"
+)
+
 H1_RE = re.compile(r"^#\s+(.+?)\s*$")
 
 #: Leads every `ref` this CLI writes. `ref` is a free-form string the
@@ -129,11 +160,26 @@ class FileData:
     blob: bytes
     type: Literal["FILE"] = "FILE"
 
+    @property
+    def sha256(self) -> str:
+        """
+        The hex sha-256 of `blob`, the name the server stores it under.
+        """
+        return hashlib.sha256(self.blob).hexdigest()
 
-#: What a resource holds, tagged the way the server tags it. `LINK` is
-#: absent: a link has no file to scan, so it cannot exist until the
-#: resource manifest does (see `BACKLOG.md`).
-type ResourceData = MdData | CodeData | FileData
+
+@dataclass(frozen=True)
+class LinkData:
+    """
+    An external `http(s)` URL, read from a `.url` file.
+    """
+
+    url: str
+    type: Literal["LINK"] = "LINK"
+
+
+#: What a resource holds, tagged the way the server tags it.
+type ResourceData = MdData | CodeData | FileData | LinkData
 
 
 @dataclass(frozen=True)
@@ -151,18 +197,55 @@ class ResourceFile:
     event: EventKey | None = None
 
 
+def resource_slug(rel_path: Path) -> str:
+    """
+    The slug a file under `resources/` pushes under: `slugify`, keeping the
+    extension of anything but Markdown.
+
+    `aabb.py` and `aabb.png` in one folder are two resources, `aabb.py` and
+    `aabb.png`, while `notas.md` stays `notas`, so a lesson's page reads
+    like a page. `week1/Slides (final).PDF` becomes `week1-slides-final.pdf`.
+    """
+    if rel_path.suffix.lower() in MD_SUFFIXES or not rel_path.suffix:
+        return slugify(rel_path)
+    return slugify(rel_path) + slugify_text(rel_path.suffix)
+
+
 def slugify(rel_path: Path) -> str:
     """
-    Flatten a path under `resources/` into the slug the server stores.
+    Flatten a path into a slug without its extension.
 
-    Drops the extension, lowercases, replaces every run of characters
-    outside `[a-z0-9._-]` with a single `-`, and strips leading and
-    trailing `-`. `week1/Slides (final).pdf` becomes `week1-slides-final`.
+    Joins the parts with `-`, then applies `slugify_text`.
+    `week1/Slides (final).pdf` becomes `week1-slides-final` and
+    `laços/herança.md` becomes `lacos-heranca`.
     """
-    stem_path = rel_path.with_suffix("")
-    flattened = "-".join(stem_path.parts).lower()
-    flattened = SLUG_INVALID_RUN.sub("-", flattened)
-    return flattened.strip("-")
+    return slugify_text("-".join(rel_path.with_suffix("").parts))
+
+
+def slugify_text(text: str) -> str:
+    """
+    Turn free text into a slug: accents dropped, lowercase, runs outside
+    `[a-z0-9._-]` collapsed to `-`, no leading or trailing `-`.
+
+    Accents go the way the server's `src/utils/slugify.ts` drops them: NFKD,
+    then the combining marks removed. Letters NFKD does not decompose (`ß`,
+    `æ`, `ø`) are not transliterated and become `-`, as on the server.
+    """
+    plain = COMBINING_MARKS.sub("", unicodedata.normalize("NFKD", text))
+    return SLUG_INVALID_RUN.sub("-", plain.lower()).strip("-")
+
+
+def title_from_filename(stem: str) -> str:
+    """
+    The fallback title of a file: its name split on hyphens, underscores
+    and camel case, each word capitalised.
+
+    `janela-minima` becomes `Janela Minima` and `bigONotation` becomes
+    `Big O Notation`. Letters after the first keep their case, so `PDF`
+    stays `PDF`.
+    """
+    words = [word for word in TITLE_WORD_BREAK.split(stem) if word]
+    return " ".join(word[:1].upper() + word[1:] for word in words) or stem
 
 
 def content_ref(
@@ -213,22 +296,28 @@ def scan_resources(root: Path, exclude: Sequence[str] = ()) -> Iterator[Resource
 
     Reuses the (fixed) `repo.file_tracker.scan_files` for the walk, so a
     subdirectory never becomes a resource of its own. Files matching an
-    `exclude` pattern are skipped without being read.
+    `exclude` pattern are skipped without being read. An `info.yaml` is
+    read as the metadata of its directory's files, not pushed.
 
     Raises:
         SlugCollisionError: two or more files flatten to the same slug.
             Raised eagerly, before any file is read or any network call is
             made.
+        ResourceFileError: an `info.yaml` or a `.url` file is malformed.
     """
     base = root / "resources"
     by_slug: dict[str, list[Path]] = defaultdict(list)
     entries: list[tuple[str, Path]] = []
+    info_dirs: set[Path] = set()
 
     for file in scan_files(root, exclude):
         if file.type is not FileType.RESOURCE or file.excluded:
             continue
         rel_path = Path(file.name)
-        slug = slugify(rel_path)
+        if rel_path.name == INFO_FILE:
+            info_dirs.add(rel_path.parent)
+            continue
+        slug = resource_slug(rel_path)
         by_slug[slug].append(rel_path)
         entries.append((slug, rel_path))
 
@@ -236,73 +325,144 @@ def scan_resources(root: Path, exclude: Sequence[str] = ()) -> Iterator[Resource
     if collisions:
         raise SlugCollisionError(collisions)
 
+    infos = {folder: read_info(base / folder / INFO_FILE) for folder in info_dirs}
     for slug, rel_path in entries:
-        yield _read_resource(base, slug, rel_path)
+        info = infos.get(rel_path.parent, {}).get(rel_path.name, ResourceInfo())
+        yield read_resource(base, slug, rel_path, info)
+
+
+def read_readme(path: Path, *, describes_course: bool) -> ResourceFile | None:
+    """
+    Read the course README as the `MD` resource `README_SLUG`, titled by its
+    H1 and without it, or `None` when it would add nothing.
+
+    The course has no room for more than a short description, so the rest of
+    the README (grading, bibliography, policies) goes up as a resource. When
+    its first paragraph `describes_course`, a README holding only that
+    paragraph is `None`, since the course already shows it.
+    """
+    text = path.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    title = "README"
+    for index, line in enumerate(lines):
+        if not line.strip():
+            continue
+        if line.startswith("# "):
+            title = line[2:].strip()
+            lines = lines[index + 1 :]
+        break
+    content = "\n".join(lines).strip()
+    first_paragraph = "\n".join(
+        takewhile(
+            lambda line: line.strip() and not line.startswith("#"),
+            content.splitlines(),
+        )
+    )
+    if not content or (describes_course and content == first_paragraph):
+        return None
+    data = MdData(content=content + "\n")
+    return ResourceFile(
+        slug=README_SLUG,
+        title=title,
+        description=None,
+        data=data,
+        ref=content_ref(title, None, data),
+        path=path,
+    )
 
 
 #
 # Utilities
 #
-def _data_payload(data: ResourceData) -> dict[str, str]:
+@dataclass(frozen=True)
+class ResourceInfo:
     """
-    One resource's data as the flat, JSON-safe mapping `content_ref`
-    digests.
+    One file's entry in its directory's `info.yaml`; `None` means unset.
     """
-    match data:
-        case MdData(content=content):
-            return {"type": data.type, "content": content}
-        case CodeData(content=content, language=language):
-            return {"type": data.type, "content": content, "language": language}
-        case FileData(filename=filename, blob=blob):
-            return {
-                "type": data.type,
-                "filename": filename,
-                "blob": hashlib.sha256(blob).hexdigest(),
-            }
+
+    title: str | None = None
+    description: str | None = None
+    #: Forces `CODE`, highlighted as this language.
+    language: str | None = None
+    #: Forces `FILE`. The server derives the served type from the filename,
+    #: so the value itself is not sent.
+    mime: str | None = None
 
 
-def _read_resource(base: Path, slug: str, rel_path: Path) -> ResourceFile:
+def read_info(path: Path) -> dict[str, ResourceInfo]:
+    """
+    Parse an `info.yaml` into each named file's `ResourceInfo`.
+
+    Raises:
+        ResourceFileError: the file is not a YAML mapping of file names to
+            mappings, an entry uses a key outside `INFO_KEYS` or a value
+            that is not a string, or it names a file that does not exist.
+    """
+    try:
+        raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        raise ResourceFileError(path, f"not valid YAML: {exc}") from exc
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ResourceFileError(path, "expected a mapping of file names")
+    infos: dict[str, ResourceInfo] = {}
+    for name, entry in raw.items():
+        if not isinstance(entry, dict):
+            raise ResourceFileError(path, f"{name!r}: expected a mapping")
+        unknown = set(entry) - INFO_KEYS
+        if unknown:
+            keys = ", ".join(sorted(map(str, unknown)))
+            raise ResourceFileError(path, f"{name!r}: unknown keys {keys}")
+        if not all(isinstance(value, str) for value in entry.values()):
+            raise ResourceFileError(path, f"{name!r}: values must be strings")
+        if not (path.parent / str(name)).is_file():
+            raise ResourceFileError(path, f"{name!r}: no such file in this folder")
+        infos[str(name)] = ResourceInfo(**entry)
+    return infos
+
+
+def read_resource(
+    base: Path, slug: str, rel_path: Path, info: ResourceInfo
+) -> ResourceFile:
     """
     Read one resource file off disk and infer its type, title, and ref.
+
+    The type comes from the extension unless `info` forces one; `info`'s
+    title and description win over anything the file declares, and the
+    file name is the last resort for the title.
+
+    Raises:
+        ResourceFileError: a `.url` file holds no `http(s)` URI.
     """
     path = base / rel_path
     suffix = path.suffix.lower()
+    title: str | None = None
+    description: str | None = None
+    data: ResourceData
 
-    if suffix in MD_SUFFIXES:
-        return _read_md_resource(path, slug)
-    if suffix in CODE_LANGUAGES:
-        return _read_code_resource(path, slug, CODE_LANGUAGES[suffix])
-    return _read_file_resource(path, slug)
+    if info.mime is not None:
+        data = FileData(filename=path.name, blob=path.read_bytes())
+    elif info.language is not None:
+        data = CodeData(
+            content=path.read_text(encoding="utf-8"), language=info.language
+        )
+    elif suffix in MD_SUFFIXES:
+        front_matter, body = split_front_matter(path.read_text(encoding="utf-8"))
+        title = front_matter_str(front_matter, "title") or first_h1(body)
+        description = front_matter_str(front_matter, "description")
+        data = MdData(content=body)
+    elif suffix == LINK_SUFFIX:
+        url, title, description = read_uri_list(path)
+        data = LinkData(url=url)
+    elif suffix in CODE_LANGUAGES:
+        content = path.read_text(encoding="utf-8")
+        data = CodeData(content=content, language=CODE_LANGUAGES[suffix])
+    else:
+        data = FileData(filename=path.name, blob=path.read_bytes())
 
-
-def _read_md_resource(path: Path, slug: str) -> ResourceFile:
-    raw = path.read_text(encoding="utf-8")
-    front_matter, body = _split_front_matter(raw)
-    title = _front_matter_str(front_matter, "title") or _first_h1(body) or path.stem
-    description = _front_matter_str(front_matter, "description")
-    return _build(slug, title, description, MdData(content=body), path)
-
-
-def _read_code_resource(path: Path, slug: str, language: str) -> ResourceFile:
-    data = CodeData(content=path.read_text(encoding="utf-8"), language=language)
-    return _build(slug, path.stem, None, data, path)
-
-
-def _read_file_resource(path: Path, slug: str) -> ResourceFile:
-    data = FileData(filename=path.name, blob=path.read_bytes())
-    return _build(slug, path.stem, None, data, path)
-
-
-def _build(
-    slug: str,
-    title: str,
-    description: str | None,
-    data: ResourceData,
-    path: Path,
-) -> ResourceFile:
-    """
-    Assemble a `ResourceFile`, deriving its `ref` from the rest.
-    """
+    title = info.title or title or title_from_filename(path.stem)
+    description = info.description if info.description is not None else description
     return ResourceFile(
         slug=slug,
         title=title,
@@ -313,7 +473,54 @@ def _build(
     )
 
 
-def _split_front_matter(text: str) -> tuple[dict[str, object], str]:
+def read_uri_list(path: Path) -> tuple[str, str | None, str | None]:
+    """
+    Read a text/uri-list into its first URI, title and description.
+
+    The first comment line is the title and the remaining ones, joined by
+    newlines, the description; each loses its `#` and surrounding
+    whitespace, and blank ones are dropped.
+
+    Raises:
+        ResourceFileError: the file has no URI, or the first one is not
+            `http(s)`, the only kind the server accepts for a `LINK`.
+    """
+    comments: list[str] = []
+    uris: list[str] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            comment = stripped[1:].strip()
+            if comment:
+                comments.append(comment)
+        elif stripped:
+            uris.append(stripped)
+    if not uris:
+        raise ResourceFileError(path, "no URI in this text/uri-list")
+    if not re.match(r"https?://", uris[0], re.IGNORECASE):
+        raise ResourceFileError(path, f"{uris[0]!r} is not an http(s) URL")
+    title = comments[0] if comments else None
+    description = "\n".join(comments[1:]) or None
+    return uris[0], title, description
+
+
+def _data_payload(data: ResourceData) -> dict[str, str]:
+    """
+    One resource's data as the flat, JSON-safe mapping `content_ref`
+    digests.
+    """
+    match data:
+        case MdData(content=content):
+            return {"type": data.type, "content": content}
+        case CodeData(content=content, language=language):
+            return {"type": data.type, "content": content, "language": language}
+        case FileData(filename=filename):
+            return {"type": data.type, "filename": filename, "blob": data.sha256}
+        case LinkData(url=url):
+            return {"type": data.type, "url": url}
+
+
+def split_front_matter(text: str) -> tuple[dict[str, object], str]:
     """
     Split a Markdown file's leading `---`-delimited YAML front matter from
     its body.
@@ -341,12 +548,12 @@ def _split_front_matter(text: str) -> tuple[dict[str, object], str]:
     return {}, text
 
 
-def _front_matter_str(front_matter: dict[str, object], key: str) -> str | None:
+def front_matter_str(front_matter: dict[str, object], key: str) -> str | None:
     value = front_matter.get(key)
     return None if value is None else str(value)
 
 
-def _first_h1(body: str) -> str | None:
+def first_h1(body: str) -> str | None:
     for line in body.splitlines():
         match = H1_RE.match(line)
         if match:

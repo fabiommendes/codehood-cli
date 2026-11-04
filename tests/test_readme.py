@@ -34,6 +34,11 @@ def test_description_stops_at_next_heading() -> None:
     assert description == "First paragraph."
 
 
+def test_description_is_only_the_first_paragraph() -> None:
+    text = "# Name\n\nFirst line,\nsame paragraph.\n\nSecond paragraph.\n"
+    assert read_course_name(text) == ("Name", "First line,\nsame paragraph.")
+
+
 def test_name_flag_becomes_the_h1(tmp_path):
     """The H1 is the course name init was given, not the discipline slug."""
     from codehood.models.repo import CourseIdentity, ServerConfig

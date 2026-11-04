@@ -35,7 +35,9 @@ from codehood.push.plan import (
     DeleteRollCall,
     DeleteTimeSlot,
     LocalState,
+    RejectQuestion,
     ServerEvent,
+    ServerQuestion,
     ServerState,
     UpsertCalendarEvent,
     UpsertCourse,
@@ -43,11 +45,13 @@ from codehood.push.plan import (
     UpsertResource,
     UpsertTimeSlot,
     WarnEventHasRollCall,
+    WarnQuestionPublished,
     WarnTimeSlotPinned,
+    course_ref,
     plan_calendar,
     plan_push,
 )
-from codehood.push.question import QuestionFile, question_version
+from codehood.push.question import InvalidQuestion, QuestionFile, question_version
 from codehood.push.resource import MdData, ResourceFile, content_ref
 
 EXAMPLE_MDQ = """---
@@ -94,6 +98,7 @@ def _local(
 def _server(
     *,
     course_exists=True,
+    course_rev=None,
     resources=None,
     questions=None,
     time_slots=None,
@@ -101,8 +106,13 @@ def _server(
 ) -> ServerState:
     return ServerState(
         course_exists=course_exists,
+        course_rev=course_rev,
         resources=resources or {},
-        questions=questions or {},
+        # A bare version is a published question, as an unmarked file is.
+        questions={
+            slug: v if isinstance(v, ServerQuestion) else ServerQuestion(v, "PUBLISHED")
+            for slug, v in (questions or {}).items()
+        },
         time_slots=time_slots or {},
         calendar_events=calendar_events or {},
     )
@@ -143,18 +153,22 @@ def _course_op(*, plan) -> UpsertCourse:
     return course_op
 
 
-def _question(slug: str, body: str = EXAMPLE_MDQ) -> QuestionFile:
+def _question(
+    slug: str, body: str = EXAMPLE_MDQ, *, draft: bool = False
+) -> QuestionFile:
     raw = body.encode("utf-8")
     return QuestionFile(
         slug=slug,
         version=question_version(raw),
         question=mdq.parse(body, kind="question", ids="fill"),
-        path=Path(f"questions/{slug}.md"),
+        path=Path(f"questions/{'_' if draft else ''}{slug}.md"),
+        status="DRAFT" if draft else "PUBLISHED",
     )
 
 
 #
-# UpsertCourse: unconditional, every push; dates come from `calendar.md`.
+# UpsertCourse: when the course is new or its rev is stale; dates come from
+# `calendar.md`.
 #
 def test_plan_always_upserts_the_course():
     """
@@ -318,6 +332,79 @@ def test_changed_question_is_upserted():
     )
     question_ops = [op for op in plan if isinstance(op, UpsertQuestion)]
     assert [op.slug for op in question_ops] == ["week1-big-o"]
+
+
+#
+# Status: a push moves a question forward through DRAFT, PUBLISHED, HIDDEN,
+# never back, so what the web did survives the next push.
+#
+def _status_plan(question: QuestionFile, server: ServerQuestion | None):
+    server_questions = {} if server is None else {question.slug: server}
+    plan = _plan([], True, {}, questions=[question], server_questions=server_questions)
+    return [
+        op for op in plan if isinstance(op, (UpsertQuestion, WarnQuestionPublished))
+    ]
+
+
+def test_new_question_takes_the_status_of_its_file():
+    for draft, status in [(True, "DRAFT"), (False, "PUBLISHED")]:
+        [op] = _status_plan(_question("q", draft=draft), None)
+        assert isinstance(op, UpsertQuestion)
+        assert op.status == status
+
+
+def test_dropping_the_draft_mark_publishes_an_unchanged_question():
+    question = _question("q")
+    [op] = _status_plan(question, ServerQuestion(question.version, "DRAFT"))
+    assert isinstance(op, UpsertQuestion)
+    assert op.status == "PUBLISHED"
+
+
+def test_hidden_question_stays_hidden_whatever_its_file_says():
+    for draft in (True, False):
+        question = _question("q", draft=draft)
+        assert _status_plan(question, ServerQuestion(question.version, "HIDDEN")) == []
+
+        changed = _question("q", EXAMPLE_MDQ.replace("2 + 2", "3 + 3"), draft=draft)
+        [op] = _status_plan(changed, ServerQuestion(question.version, "HIDDEN"))
+        assert isinstance(op, UpsertQuestion)
+        assert op.status == "HIDDEN"
+
+
+def test_draft_file_keeps_a_published_question_published_and_warns():
+    question = _question("q", draft=True)
+    [warn] = _status_plan(question, ServerQuestion(question.version, "PUBLISHED"))
+    assert warn == WarnQuestionPublished(
+        slug="q", status="PUBLISHED", path=question.path
+    )
+
+    changed = _question("q", EXAMPLE_MDQ.replace("2 + 2", "3 + 3"), draft=True)
+    warn, upsert = _status_plan(changed, ServerQuestion(question.version, "PUBLISHED"))
+    assert isinstance(warn, WarnQuestionPublished)
+    assert isinstance(upsert, UpsertQuestion)
+    assert upsert.status == "PUBLISHED"
+
+
+def test_draft_on_both_sides_is_left_alone():
+    question = _question("q", draft=True)
+    assert _status_plan(question, ServerQuestion(question.version, "DRAFT")) == []
+
+
+def test_invalid_question_is_rejected_and_its_server_copy_kept():
+    invalid = InvalidQuestion(
+        slug="broken", path=Path("questions/broken.md"), reason="bad stem"
+    )
+    plan = _plan(
+        [], True, {}, questions=[invalid], server_questions={"broken": "md5:old"}
+    )
+    question_ops = [
+        op
+        for op in plan
+        if isinstance(op, (UpsertQuestion, RejectQuestion, DeleteQuestion))
+    ]
+    assert question_ops == [
+        RejectQuestion(slug="broken", path=invalid.path, reason="bad stem")
+    ]
 
 
 def test_question_missing_locally_is_deleted():
@@ -488,6 +575,30 @@ def test_cancelled_calendar_event_is_neither_upserted_nor_pruned():
     assert not any(
         isinstance(o, (UpsertCalendarEvent, DeleteCalendarEvent)) for o in plan
     )
+
+
+def test_struck_through_lesson_cancels_a_regular_server_event():
+    cancelled = Event(
+        week=0, time_slot="mon", title="Intro", description="Welcome.", kind="CANCELLED"
+    )
+    server = _server(
+        time_slots={"mon": MON.ref},
+        calendar_events={
+            (0, "mon"): ServerEvent(ref=REGULAR_EVENT.ref, kind="REGULAR")
+        },
+    )
+    plan = list(plan_calendar(_local(slots=[MON], events=[cancelled]), server))
+    assert [o for o in plan if isinstance(o, UpsertCalendarEvent)] == [
+        UpsertCalendarEvent(event=cancelled)
+    ]
+
+    # Once cancelled, it stays so: restoring the title does not undo it.
+    server = _server(
+        time_slots={"mon": MON.ref},
+        calendar_events={(0, "mon"): ServerEvent(ref=cancelled.ref, kind="CANCELLED")},
+    )
+    plan = list(plan_calendar(_local(slots=[MON], events=[REGULAR_EVENT]), server))
+    assert [o for o in plan if isinstance(o, UpsertCalendarEvent)] == []
 
 
 def test_calendar_event_missing_locally_is_deleted():
@@ -746,11 +857,11 @@ def test_replanning_the_calendar_after_applying_converges_to_no_calendar_ops(
     assert calendar_ops == []
 
 
-def test_plan_push_after_applying_its_own_plan_yields_only_upsert_course():
+def test_plan_push_after_applying_its_own_plan_yields_nothing():
     """
-    Acceptance criterion 6, verbatim: "A second `plan_push` against the
-    state the first one wrote yields only `UpsertCourse`." Exercised with
-    resources, questions and the calendar all present at once.
+    A second `plan_push` against the state the first one wrote yields
+    nothing, the course row included. Exercised with resources, questions
+    and the calendar all present at once.
     """
     resource = _resource("week1-slides")
     question = _question("week1-big-o")
@@ -760,15 +871,18 @@ def test_plan_push_after_applying_its_own_plan_yields_only_upsert_course():
 
     first_plan = list(plan_push(local, _server()))
 
+    course_rev: str | None = None
     server_resources: dict[str, str] = {}
     server_questions: dict[str, str] = {}
     server_time_slots: dict[str, str] = {}
     server_calendar_events: dict[tuple[int, str], ServerEvent] = {}
     for op in first_plan:
-        if isinstance(op, UpsertResource):
+        if isinstance(op, UpsertCourse):
+            course_rev = op.ref
+        elif isinstance(op, UpsertResource):
             server_resources[op.slug] = op.ref
         elif isinstance(op, UpsertQuestion):
-            server_questions[op.slug] = op.version
+            server_questions[op.slug] = ServerQuestion(op.version, op.status)
         elif isinstance(op, UpsertTimeSlot):
             server_time_slots[op.slot.slug] = op.slot.ref
         elif isinstance(op, UpsertCalendarEvent):
@@ -781,6 +895,7 @@ def test_plan_push_after_applying_its_own_plan_yields_only_upsert_course():
             local,
             _server(
                 course_exists=True,
+                course_rev=course_rev,
                 resources=server_resources,
                 questions=server_questions,
                 time_slots=server_time_slots,
@@ -788,7 +903,7 @@ def test_plan_push_after_applying_its_own_plan_yields_only_upsert_course():
             ),
         )
     )
-    assert [type(op).__name__ for op in second_plan] == ["UpsertCourse"]
+    assert second_plan == []
 
 
 #
@@ -862,3 +977,23 @@ def test_event_with_a_roll_call_still_local_with_new_content_is_upserted_without
 
     assert UpsertCalendarEvent(event=REGULAR_EVENT) in plan
     assert not any(isinstance(op, WarnEventHasRollCall | DeleteRollCall) for op in plan)
+
+
+def test_course_with_a_matching_rev_is_not_upserted():
+    [course] = [
+        op for op in plan_push(_local(), _server()) if isinstance(op, UpsertCourse)
+    ]
+    assert course.ref == course_ref(DESCRIPTION, course.start_at, course.end_at)
+
+    again = plan_push(_local(), _server(course_rev=course.ref))
+    assert [op for op in again if isinstance(op, UpsertCourse)] == []
+
+
+def test_course_with_a_new_description_is_upserted_again():
+    [course] = [
+        op for op in plan_push(_local(), _server()) if isinstance(op, UpsertCourse)
+    ]
+    changed = plan_push(_local(description="Other."), _server(course_rev=course.ref))
+    assert [type(op) for op in changed if isinstance(op, UpsertCourse)] == [
+        UpsertCourse
+    ]

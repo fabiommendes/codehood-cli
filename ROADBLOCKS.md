@@ -15,20 +15,6 @@ matters.
 
 ## REST API Roadblocks
 
-- [ ] A `FILE` resource cannot be uploaded over JSON. **Blocks `codehood push`
-  for every `FILE` resource.** `ResourceCreate.data`'s `FILE` member is
-  documented as `{"type": "string", "format": "binary"}`, but
-  `src/core/schemas/base.ts` defines it as `z.instanceof(Buffer)`, which
-  rejects every value `JSON.parse` can produce. The multipart route is gone
-  too: `inMultipart`/`readMultipart` do not exist in `src/`, and no operation
-  documents `multipart/form-data`. Only in-process callers can hand the service
-  a real `Buffer`, which is why the seeded `syllabus` resource exists and
-  nothing the CLI sends can join it. **Unblocks it**: decode before
-  validating (`z.string().base64().transform(Buffer.from)`), or add and
-  document a multipart branch. Base64 is the smaller change and matches what
-  the spec already advertises. Until then push plans `FILE` resources and
-  refuses to execute them, naming the blocker. (Verified 2026-09-20.)
-
 - [ ] `cli.course.preSync` is a stub, and is not in the OpenAPI document at
   all. **Not blocking any more, but it costs a round trip per entity type.**
   `src/rpc/cli.ts` resolves the course, has its only query commented out, and

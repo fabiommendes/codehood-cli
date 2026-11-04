@@ -84,10 +84,10 @@ server takes a parsed question, not Markdown. The `mdq` package (a
 sibling project, already a dependency) is the parser of record.
 
 `push/question.py` is pure: it reads files, parses them, hashes them, and
-yields `QuestionFile`s. A `mdq.ParseError` is reported against the file
-that caused it and refuses the whole push, for the same reason a slug
-collision does: push does not upload half a question bank on the way to
-an error.
+yields `QuestionFile`s. Superseded: a file `mdq` refuses becomes an
+`InvalidQuestion`, which fails on its own as a `RejectQuestion` while the
+rest of the push goes on; the server keeps what it holds under that slug.
+A slug collision still refuses the whole push.
 
 ### `weight` and `grading` are dropped on the wire
 
@@ -109,13 +109,11 @@ Every other `mdq` field already serializes to the name the server wants —
 `mdq` sets a camelCase alias generator, so `model_dump(by_alias=True)`
 gives `answerKey`, `decimalPlaces`, `openEnded`, and friends for free.
 
-### Status defaults to `DRAFT`
+### Status comes from the `_` prefix
 
-`QuestionCreate.status` is one of `DRAFT`/`PUBLISHED`/`ARCHIVED`. A
-repository has no vocabulary for it yet, so every pushed question is
-`DRAFT`, and a question already `PUBLISHED` on the server stays that way
-unless its content changed. Promoting a question is a server-side action
-until the repository grows a way to say so.
+Superseded: a `_` file or directory is `DRAFT`, anything else `PUBLISHED`,
+and a push only moves a status forward through `DRAFT`, `PUBLISHED`,
+`HIDDEN`. See the mapping doc, "Question".
 
 ### `[push] exclude` keeps files out of a push
 

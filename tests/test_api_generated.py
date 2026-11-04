@@ -135,7 +135,7 @@ def test_resource_data_request_members_keep_their_names_and_fields():
     assert set(generated.ResourceCreateDataFile.model_fields) == {
         "type",
         "filename",
-        "buffer",
+        "hash",
     }
 
 

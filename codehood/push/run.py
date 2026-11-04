@@ -34,7 +34,9 @@ from .plan import (
     DeleteRollCall,
     DeleteTimeSlot,
     PushOp,
+    RejectQuestion,
     ServerEvent,
+    ServerQuestion,
     ServerState,
     UpsertCalendarEvent,
     UpsertCourse,
@@ -44,11 +46,12 @@ from .plan import (
     UpsertResource,
     UpsertTimeSlot,
     WarnEventHasRollCall,
+    WarnQuestionPublished,
     WarnRepositoryKept,
     WarnTimeSlotPinned,
 )
 from .repository import RepositoryEntry, batch_entries
-from .resource import CodeData, FileData, MdData, ResourceData
+from .resource import CodeData, FileData, LinkData, MdData, ResourceData
 from .wire import wire_question
 
 __all__ = [
@@ -67,7 +70,10 @@ __all__ = [
 #: generator qualifies both by the schema that owns them:
 #: `ResourceCreateDataFile` is the one a push sends.
 type RequestData = (
-    generated.DataMd | generated.DataCode | generated.ResourceCreateDataFile
+    generated.DataMd
+    | generated.DataCode
+    | generated.ResourceCreateDataFile
+    | generated.DataLink
 )
 
 #: What each cell of the server's grades table is called in `ExamResult`.
@@ -269,7 +275,9 @@ def fetch_server_state(
         regardless of what those listings themselves would say.
     """
     try:
-        generated.read_course(discipline=discipline, course=course, client=client)
+        remote_course = generated.read_course(
+            discipline=discipline, course=course, client=client
+        )
     except httpx.HTTPStatusError as exc:
         if exc.response.status_code != 404:
             raise
@@ -281,13 +289,13 @@ def fetch_server_state(
     # `deleteQuestion` archives rather than removes a row -- see
     # `ROADBLOCKS.md` -- so an archived question would otherwise look
     # "current" forever and get re-planned for deletion on every push.
-    # Filtering to the statuses a repository can still produce keeps a
-    # deleted question gone for good, which is what `plan_push`'s
-    # convergence (a second push plans nothing) requires.
+    # Filtering to the live statuses keeps a deleted question gone for good,
+    # which is what `plan_push`'s convergence (a second push plans nothing)
+    # requires.
     questions = generated.list_question(
         discipline=discipline,
         course=course,
-        statuses=["DRAFT", "PUBLISHED"],
+        statuses=["DRAFT", "PUBLISHED", "HIDDEN"],
         client=client,
     )
     time_slots = generated.list_timeslot(
@@ -312,6 +320,7 @@ def fetch_server_state(
     )
     return ServerState(
         course_exists=True,
+        course_rev=remote_course.rev,
         resources={resource.slug: resource.rev or "" for resource in resources},
         resource_events={
             resource.slug: (
@@ -321,7 +330,13 @@ def fetch_server_state(
             )
             for resource in resources
         },
-        questions={question.slug: question.version for question in questions},
+        questions={
+            question.slug: ServerQuestion(
+                version=question.version, status=question.status
+            )
+            for question in questions
+            if question.status != "ARCHIVED"
+        },
         time_slots={slot.slug: _time_slot_ref(slot) for slot in time_slots},
         calendar_events={
             (event.week, event.time_slot.slug): _server_event(
@@ -431,6 +446,14 @@ def _run_op(
             return run_upsert_repository(op, repositories)
         case WarnRepositoryKept():
             return run_warn_repository_kept(op)
+        case RejectQuestion():
+            return OpResult(op=op, ok=False, message=f"invalid: {op.reason}")
+        case WarnQuestionPublished():
+            return OpResult(
+                op=op,
+                ok=True,
+                message=f"kept {op.status}; hide it on the web or drop the `_`",
+            )
         case DeleteRepository():
             return run_delete_repository(op, repositories)
         case UpsertResource():
@@ -560,6 +583,7 @@ def _run_upsert_course(op: UpsertCourse, *, client: httpx.Client) -> OpResult:
         description=op.description,
         startAt=op.start_at,
         endAt=op.end_at,
+        rev=op.ref,
     )
     try:
         generated.upsert_course(body=body, client=client)
@@ -573,16 +597,6 @@ def _run_upsert_course(op: UpsertCourse, *, client: httpx.Client) -> OpResult:
 def _run_upsert_resource(
     op: UpsertResource, *, discipline: str, course: str, client: httpx.Client
 ) -> OpResult:
-    if isinstance(op.data, FileData):
-        # ROADBLOCKS.md item 1: the server's `buffer` is `z.instanceof(Buffer)`,
-        # which no JSON body can satisfy, and no multipart branch exists.
-        # Planned, never executed.
-        return OpResult(
-            op=op,
-            ok=False,
-            message=f"blocked: the server accepts no FILE upload yet ({op.path})",
-        )
-
     body = generated.ResourceCreate(
         slug=op.slug,
         title=op.title,
@@ -596,12 +610,64 @@ def _run_upsert_resource(
         data=_request_data(op.data),
     )
     try:
-        generated.upsert_resource(
-            discipline=discipline, course=course, body=body, client=client
-        )
+        if isinstance(op.data, FileData) and _blob_missing(op.data, client):
+            _upsert_resource_with_file(
+                body, op.data, discipline=discipline, course=course, client=client
+            )
+        else:
+            generated.upsert_resource(
+                discipline=discipline, course=course, body=body, client=client
+            )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
-        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
+        message = f"failed: {describe_failure(exc)}"
+        # Events go out before resources, so the lesson already links here.
+        if op.event is not None:
+            message += (
+                f"; event {op.event.week}/{op.event.time_slot} links to it, "
+                "and the link is broken until it uploads"
+            )
+        return OpResult(op=op, ok=False, message=message)
     return OpResult(op=op, ok=True, message=f"upserted {op.slug}")
+
+
+def _blob_missing(data: FileData, client: httpx.Client) -> bool:
+    """
+    Whether the server lacks the bytes of `data`, per `POST /api/blob/missing`.
+    """
+    result = generated.blob_missing(
+        body=generated.BlobMissingInput(hashes=[data.sha256]), client=client
+    )
+    return data.sha256 in result.missing
+
+
+def _upsert_resource_with_file(
+    body: generated.ResourceCreate,
+    data: FileData,
+    *,
+    discipline: str,
+    course: str,
+    client: httpx.Client,
+) -> None:
+    """
+    `PUT .../resource` as multipart: the JSON body in a `json` part and the
+    file's bytes in a part named by its sha-256.
+
+    Hand-written because the generator only builds JSON bodies.
+    """
+    url = "/api/course/{}/{}/resource".format(
+        quote(discipline, safe=""), quote(course, safe="")
+    )
+    payload = body.model_dump_json(by_alias=True)
+    # Built apart from the client: its default `Content-Type: application/json`
+    # would hide the multipart boundary `httpx` computes.
+    request = httpx.Request(
+        "PUT",
+        client.base_url.join(url),
+        data={"json": payload},
+        files=[(data.sha256, (data.filename, data.blob, "application/octet-stream"))],
+        headers=auth_headers(client),
+    )
+    client.send(request).raise_for_status()
 
 
 def _run_delete_resource(
@@ -629,7 +695,7 @@ def _run_upsert_question(
     # `question` as the plain dict `generated.upsert_question`'s own
     # `model_dump(by_alias=True)` then serializes verbatim.
     body = generated.QuestionCreate.model_construct(
-        slug=op.slug, status="DRAFT", version=op.version, question=payload
+        slug=op.slug, status=op.status, version=op.version, question=payload
     )
     try:
         with warnings.catch_warnings():
@@ -867,17 +933,15 @@ def _time_slot_ref(item: generated.TimeSlot) -> str:
 def _request_data(data: ResourceData) -> RequestData:
     """
     Translate the core's `ResourceData` into the generated union member.
-
-    Raises:
-        NotImplementedError: `data` is a `FileData`, whose upload the
-            server does not accept yet. `_run_upsert_resource` refuses
-            those before reaching here; this is the guard for a caller
-            that does not.
     """
     match data:
         case MdData(content=content):
             return generated.DataMd(type="MD", content=content)
         case CodeData(content=content, language=language):
             return generated.DataCode(type="CODE", content=content, language=language)
-        case FileData():
-            raise NotImplementedError("FILE upload is blocked server-side")
+        case FileData(filename=filename):
+            return generated.ResourceCreateDataFile(
+                type="FILE", filename=filename, hash=data.sha256
+            )
+        case LinkData(url=url):
+            return generated.DataLink(type="LINK", url=url)

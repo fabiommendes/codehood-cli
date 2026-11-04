@@ -18,8 +18,8 @@ from ..models.repo import RepoConfig
 from ..push.calendar import allocate, parse_calendar
 from ..push.errors import (
     CalendarError,
-    QuestionParseError,
     RepositoryError,
+    ResourceFileError,
     ResourceLinkError,
     SlugCollisionError,
 )
@@ -28,6 +28,7 @@ from ..push.grades import GradesError
 from ..push.links import (
     attach_repositories,
     attach_resources,
+    rewrite_body_links,
     rewrite_event_links,
     rewrite_repository_links,
 )
@@ -41,6 +42,7 @@ from ..push.plan import (
     DeleteTimeSlot,
     LocalState,
     PushOp,
+    RejectQuestion,
     UpsertCalendarEvent,
     UpsertCourse,
     UpsertGradeColumn,
@@ -49,13 +51,14 @@ from ..push.plan import (
     UpsertResource,
     UpsertTimeSlot,
     WarnEventHasRollCall,
+    WarnQuestionPublished,
     WarnRepositoryKept,
     WarnTimeSlotPinned,
     plan_push,
 )
 from ..push.question import scan_questions
 from ..push.repository import scan_repositories
-from ..push.resource import scan_resources
+from ..push.resource import README_SLUG, read_readme, scan_resources
 from ..push.run import HttpRepositoryApi, OpResult, fetch_server_state, run_plan
 from ..push.unconsumed import (
     consumed_paths,
@@ -137,7 +140,7 @@ def push(
         CalendarError,
         SlugCollisionError,
         ResourceLinkError,
-        QuestionParseError,
+        ResourceFileError,
         RepositoryError,
     ) as exc:
         typer.echo(f"error: {exc}", err=True)
@@ -223,13 +226,18 @@ def sync(
         typer.echo(f"not pushed (no handler): {unconsumed}")
 
     if dry_run:
+        rejected = [op for op in ops if isinstance(op, RejectQuestion)]
         for op in ops:
-            typer.echo(f"planned  {describe(op)}")
+            if isinstance(op, RejectQuestion):
+                typer.echo(f"invalid  {describe(op)}: {op.reason}")
+            else:
+                typer.echo(f"planned  {describe(op)}")
         typer.echo(
-            f"summary: {len(ops)} operation(s) planned, 0 executed (--dry-run)"
+            f"summary: {len(ops) - len(rejected)} operation(s) planned, "
+            f"0 executed (--dry-run){f', {len(rejected)} invalid' if rejected else ''}"
             f"{excluded_note}"
         )
-        if grades_failed:
+        if grades_failed or rejected:
             raise typer.Exit(code=1)
         return
 
@@ -290,9 +298,9 @@ def read_local_state(path: Path) -> LocalState:
             are the only source of the course's description and dates.
         CalendarError: `calendar.md` does not parse.
         SlugCollisionError: Two resources or two questions want one slug.
-        QuestionParseError: `mdq` refused a file under `questions/`.
         RepositoryError: A folder under `repositories/` cannot be pushed.
         ResourceLinkError: A lesson links a missing resource or repository.
+        ResourceFileError: An `info.yaml` or a `.url` file is malformed.
     """
     config = RepoConfig.open(path)
 
@@ -302,7 +310,7 @@ def read_local_state(path: Path) -> LocalState:
             f"no README.md at {path} -- it is the course description"
         )
     parsed = read_course_name(readme_path.read_text(encoding="utf-8"))
-    description = parsed[1] if parsed is not None else ""
+    description = config.course.description or (parsed[1] if parsed else "")
 
     calendar_path = path / "calendar.md"
     if not calendar_path.exists():
@@ -321,7 +329,19 @@ def read_local_state(path: Path) -> LocalState:
     files, gitignore = list_files(path)
     trees = tuple(scan_repositories(path, exclude))
     linked = attach_repositories(allocation.events, trees)
-    resources = attach_resources(linked, tuple(scan_resources(path, exclude)), path)
+    scanned = tuple(scan_resources(path, exclude))
+    readme = read_readme(readme_path, describes_course=not config.course.description)
+    if readme is not None:
+        clash = [file.path for file in scanned if file.slug == README_SLUG]
+        if clash:
+            raise SlugCollisionError({README_SLUG: [readme_path, *clash]})
+        scanned = (readme, *scanned)
+    resources = rewrite_body_links(
+        attach_resources(linked, scanned, path),
+        path,
+        discipline,
+        course,
+    )
 
     return LocalState(
         discipline=discipline,
@@ -361,6 +381,10 @@ def describe(op: PushOp) -> str:
             return f"delete resource {op.slug}"
         case UpsertQuestion():
             return f"question {op.slug}"
+        case RejectQuestion():
+            return f"question {op.slug} ({op.path.name})"
+        case WarnQuestionPublished():
+            return f"question {op.slug} (its file marks a draft)"
         case DeleteQuestion():
             return f"delete question {op.slug}"
         case UpsertTimeSlot():

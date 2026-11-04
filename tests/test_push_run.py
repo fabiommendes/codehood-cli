@@ -12,6 +12,7 @@ real wire shapes, not just that it calls some function.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -21,7 +22,7 @@ import pytest
 
 from codehood.api import base as base_module
 from codehood.grades import ExamResult
-from codehood.push.calendar import Duration, Event, TimeOfDay, TimeSlot
+from codehood.push.calendar import Duration, Event, EventKey, TimeOfDay, TimeSlot
 from codehood.push.grades import GradeColumn
 from codehood.push.plan import (
     DeleteCalendarEvent,
@@ -30,6 +31,7 @@ from codehood.push.plan import (
     DeleteResource,
     DeleteTimeSlot,
     ServerEvent,
+    ServerQuestion,
     UpsertCalendarEvent,
     UpsertCourse,
     UpsertGradeColumn,
@@ -38,7 +40,7 @@ from codehood.push.plan import (
     UpsertTimeSlot,
     WarnTimeSlotPinned,
 )
-from codehood.push.resource import CodeData, FileData, MdData
+from codehood.push.resource import CodeData, FileData, LinkData, MdData
 from codehood.push.run import fetch_server_state, fetch_students, run_plan
 
 EXAMPLE_MDQ = """---
@@ -191,7 +193,7 @@ def _question_json(slug: str, version: str, **overrides) -> dict:
     body = {
         "slug": slug,
         "id": 1,
-        "status": "DRAFT",
+        "status": "PUBLISHED",
         "version": version,
         "rev": None,
         "createdAt": "2026-01-01T00:00:00Z",
@@ -258,7 +260,8 @@ def test_fetch_server_state_reports_question_versions():
                 200,
                 json=[
                     _question_json("week1-big-o", "md5:aaa"),
-                    _question_json("week1-sorting", "md5:bbb"),
+                    _question_json("week1-sorting", "md5:bbb", status="HIDDEN"),
+                    _question_json("week1-draft", "md5:ccc", status="DRAFT"),
                 ],
             )
         if request.url.path == f"{BASE}/time-slot":
@@ -271,8 +274,9 @@ def test_fetch_server_state_reports_question_versions():
 
     state = fetch_server_state(DISCIPLINE, COURSE, _client(handler))
     assert dict(state.questions) == {
-        "week1-big-o": "md5:aaa",
-        "week1-sorting": "md5:bbb",
+        "week1-big-o": ServerQuestion("md5:aaa", "PUBLISHED"),
+        "week1-sorting": ServerQuestion("md5:bbb", "HIDDEN"),
+        "week1-draft": ServerQuestion("md5:ccc", "DRAFT"),
     }
 
 
@@ -428,6 +432,7 @@ def test_run_plan_upsert_course_puts_the_natural_key_in_the_body():
         description="A course.",
         start_at="2026-01-01T00:00:00Z",
         end_at="2026-06-01T00:00:00Z",
+        ref="v1:abc",
     )
     [result] = list(
         run_plan([op], discipline=DISCIPLINE, course=COURSE, client=_client(handler))
@@ -458,6 +463,7 @@ def test_run_plan_upsert_course_404_yields_a_failed_result_not_a_raise():
         description="A course.",
         start_at="2026-01-01T00:00:00Z",
         end_at="2026-06-01T00:00:00Z",
+        ref="v1:abc",
     )
     results = list(
         run_plan([op], discipline=DISCIPLINE, course=COURSE, client=_client(handler))
@@ -484,6 +490,7 @@ def test_run_plan_after_a_failed_upsert_course_attempts_nothing_else():
             description="A course.",
             start_at="2026-01-01T00:00:00Z",
             end_at="2026-06-01T00:00:00Z",
+            ref="v1:abc",
         ),
         DeleteResource(slug="a"),
         DeleteResource(slug="b"),
@@ -548,6 +555,29 @@ def test_run_plan_upsert_resource_md_sends_the_tagged_union():
     }
 
 
+def test_run_plan_failed_resource_names_the_lesson_whose_link_breaks():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(500, json={"message": "disk full"})
+
+    op = UpsertResource(
+        slug="week1-slides",
+        title="Slides",
+        description=None,
+        data=MdData(content="# Slides\n"),
+        ref="ref-a",
+        path=Path("resources/week1/slides.md"),
+        event=EventKey(week=1, time_slot="mon"),
+    )
+    [result] = list(
+        run_plan([op], discipline=DISCIPLINE, course=COURSE, client=_client(handler))
+    )
+    assert result.ok is False
+    assert result.message == (
+        "failed: 500 disk full; event 1/mon links to it, "
+        "and the link is broken until it uploads"
+    )
+
+
 def test_run_plan_upsert_resource_code_carries_its_language():
     sent: dict = {}
 
@@ -589,31 +619,103 @@ def test_run_plan_delete_resource_succeeds():
     assert result.ok is True
 
 
-def test_run_plan_file_resource_is_blocked_without_any_http_call():
-    """
-    ROADBLOCKS.md item 1: the server types a `FILE`'s `buffer` as
-    `z.instanceof(Buffer)`, which no JSON body can satisfy, and offers no
-    multipart branch. So a `FILE` `UpsertResource` must fail cleanly and
-    touch no endpoint at all -- a request reaching the transport is itself
-    the failure.
-    """
+def test_run_plan_upsert_resource_link_sends_the_url():
+    sent: dict = {}
 
     def handler(request: httpx.Request) -> httpx.Response:
-        raise AssertionError(f"FILE upload must not call the network: {request.url}")
+        sent.update(json.loads(request.content))
+        return httpx.Response(200, json=_resource_json("docs", "ref-l"))
 
     op = UpsertResource(
-        slug="handout",
-        title="Handout",
-        description=None,
-        data=FileData(filename="handout.pdf", blob=b"%PDF-not-really\n"),
-        ref="ref-file",
-        path=Path("resources/handout.pdf"),
+        slug="docs",
+        title="Docs",
+        description="Official README.",
+        data=LinkData(url="https://github.com/kitao/pyxel"),
+        ref="ref-l",
+        path=Path("resources/docs.url"),
     )
     [result] = list(
         run_plan([op], discipline=DISCIPLINE, course=COURSE, client=_client(handler))
     )
-    assert result.ok is False
-    assert "blocked" in result.message
+    assert result.ok is True, result.message
+    assert sent["data"] == {"type": "LINK", "url": "https://github.com/kitao/pyxel"}
+
+
+def _file_op(blob: bytes = b"%PDF-not-really\n") -> UpsertResource:
+    return UpsertResource(
+        slug="handout",
+        title="Handout",
+        description=None,
+        data=FileData(filename="handout.pdf", blob=blob),
+        ref="ref-file",
+        path=Path("resources/handout.pdf"),
+    )
+
+
+def test_run_plan_file_resource_sends_its_bytes_when_the_server_lacks_them():
+    """
+    The bytes go in the same `PUT` as the resource, as multipart: the JSON
+    body in a `json` part and the file in a part named by its sha-256.
+    """
+    op = _file_op()
+    sha = hashlib.sha256(op.data.blob).hexdigest()
+    calls: list[str] = []
+    sent: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(f"{request.method} {request.url.path}")
+        if request.url.path == "/api/blob/missing":
+            assert json.loads(request.content) == {"hashes": [sha]}
+            return httpx.Response(200, json={"missing": [sha]})
+        assert request.headers["content-type"].startswith("multipart/form-data")
+        sent.update(_multipart_parts(request))
+        return httpx.Response(200, json=_resource_json("handout", "ref-file"))
+
+    [result] = list(
+        run_plan([op], discipline=DISCIPLINE, course=COURSE, client=_client(handler))
+    )
+    assert result.ok is True, result.message
+    assert calls == ["POST /api/blob/missing", f"PUT {BASE}/resource"]
+    assert set(sent) == {"json", sha}
+    assert sent[sha] == op.data.blob
+    assert json.loads(sent["json"])["data"] == {
+        "type": "FILE",
+        "filename": "handout.pdf",
+        "hash": sha,
+    }
+
+
+def test_run_plan_file_resource_names_the_blob_by_hash_when_the_server_has_it():
+    op = _file_op()
+    sha = hashlib.sha256(op.data.blob).hexdigest()
+    sent: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/api/blob/missing":
+            return httpx.Response(200, json={"missing": []})
+        assert request.headers["content-type"] == "application/json"
+        sent.update(json.loads(request.content))
+        return httpx.Response(200, json=_resource_json("handout", "ref-file"))
+
+    [result] = list(
+        run_plan([op], discipline=DISCIPLINE, course=COURSE, client=_client(handler))
+    )
+    assert result.ok is True, result.message
+    assert sent["data"] == {"type": "FILE", "filename": "handout.pdf", "hash": sha}
+
+
+def _multipart_parts(request: httpx.Request) -> dict[str, bytes]:
+    """
+    The parts of a multipart request body, by name.
+    """
+    boundary = request.headers["content-type"].split("boundary=")[1].encode()
+    parts: dict[str, bytes] = {}
+    for chunk in request.content.split(b"--" + boundary)[1:-1]:
+        chunk = chunk.removeprefix(b"\r\n").removesuffix(b"\r\n")
+        head, _, body = chunk.partition(b"\r\n\r\n")
+        name = head.split(b'name="')[1].split(b'"')[0].decode()
+        parts[name] = body
+    return parts
 
 
 def test_run_plan_continues_after_a_failure():
@@ -679,6 +781,7 @@ def test_run_plan_upsert_question_sends_the_whole_document():
         version="md5:aaa",
         question=question,
         path=Path("questions/week1/big-o.md"),
+        status="DRAFT",
     )
     [result] = list(
         run_plan([op], discipline=DISCIPLINE, course=COURSE, client=_client(handler))

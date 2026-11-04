@@ -91,7 +91,7 @@ Dúvidas de laços e do Laboratório 3.
 Xadrez, listras e grades desenhados com laços aninhados. Repositório:
 [lab04-padroes](repositories/lab04-padroes).
 
-## Aula 5: Funções (cancelada)
+## ~~Aula 5: Funções~~
 
 Aula cancelada: a professora estava em congresso. O conteúdo será dado na
 reposição da quarta-feira seguinte, no horário do atendimento.

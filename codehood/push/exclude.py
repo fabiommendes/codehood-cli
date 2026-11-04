@@ -16,7 +16,8 @@ from typing import Literal
 
 from ..repo.diff import FileType
 from ..repo.file_tracker import scan_files
-from .resource import slugify
+from .question import peek_id, question_slug
+from .resource import INFO_FILE, resource_slug
 
 __all__ = ["ExcludedFile", "scan_excluded"]
 
@@ -36,12 +37,20 @@ class ExcludedFile:
 def scan_excluded(root: Path, exclude: Sequence[str]) -> Iterator[ExcludedFile]:
     """
     Yield every question and resource file the patterns exclude.
+
+    A question's slug may come from the `id` in its front matter, so that
+    much of an excluded question is read; an unreadable one falls back to
+    its path. An excluded `info.yaml` is metadata, not a resource, and is
+    not yielded.
     """
-    kinds = {FileType.QUESTION: "question", FileType.RESOURCE: "resource"}
     for file in scan_files(root, exclude):
-        if file.excluded and file.type in kinds:
+        if not file.excluded:
+            continue
+        rel_path = Path(file.name)
+        if file.type is FileType.QUESTION:
+            slug = question_slug(peek_id(root / file.path), rel_path)
+            yield ExcludedFile("question", slug, file.path.as_posix())
+        elif file.type is FileType.RESOURCE and rel_path.name != INFO_FILE:
             yield ExcludedFile(
-                kind=kinds[file.type],  # type: ignore[arg-type]
-                slug=slugify(Path(file.name)),
-                path=file.path.as_posix(),
+                "resource", resource_slug(rel_path), file.path.as_posix()
             )
