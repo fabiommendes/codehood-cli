@@ -48,3 +48,9 @@ def test_fill_in_short_answer_blank_keeps_its_patterns() -> None:
 def test_choices_carry_ids() -> None:
     payload = wire("What is 2 + 2?\n\n* [ ] 3\n* [*] 4\n")
     assert all(choice.get("id") for choice in payload["choices"])
+
+
+def test_ordering_without_alternatives_omits_empty_lists() -> None:
+    payload = wire("Sort the lines.\n\n[ordering]:\n* first\n* second\n")
+    assert payload["type"] == "ordering"
+    assert not {"extra", "accept", "reject"} & payload.keys()

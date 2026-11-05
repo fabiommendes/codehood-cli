@@ -4,6 +4,9 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- `codehood push` sends an ordering question with no `[extra]`, `[accept]` or
+  `[reject]` section. `mdq` models default those lists to `[]`, which the
+  server refused with `400 ... esperado que array tivesse >=1 itens`.
 - `Plan(writes, notices)` replaces the flat list of actions. `diff_keyed`
   compares entities by key and each entity has its own merge. A rejected
   question comes out as `invalid`, not `failed`, and notices print before the
