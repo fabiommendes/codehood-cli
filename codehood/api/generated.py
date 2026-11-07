@@ -196,6 +196,7 @@ class LogoutResponse(Model):
 class Question2QuestionEssay(Model):
     model_config = ConfigDict(populate_by_name=True)
 
+    field_schema: str | None = Field(default=None, alias="$schema")
     id: str | None = None
     uuid: str | None = None
     title: str | None = None
@@ -372,6 +373,75 @@ class RollCallShape(Model):
     note: str | None
     shared_with: list[str] = Field(alias="sharedWith")
     created_at: str = Field(alias="createdAt")
+
+
+class RubricItem(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    key: str
+    group: str | None
+    text: str
+    value: str
+    comment: str | None
+    feedback: str | None
+    position: int
+    retired_at: str | None = Field(alias="retiredAt")
+    uses: int
+
+
+class RubricItemCreate(Model):
+    key: str | None = None
+    group: str | None = None
+    text: str
+    value: str
+    comment: str | None = None
+    feedback: str | None = None
+
+
+class RubricItemDeleted(Model):
+    deleted: bool
+
+
+class RubricItemPut(Model):
+    group: str | None = None
+    text: str
+    value: str
+    comment: str | None = None
+    feedback: str | None = None
+
+
+class RubricItemUpdate(Model):
+    group: str | None = None
+    text: str | None = None
+    value: str | None = None
+    comment: str | None = None
+    feedback: str | None = None
+
+
+class RubricPreview(Model):
+    passes: int
+    released: int
+
+
+class RubricPreviewRequestDeleteItem(Model):
+    op: Literal["deleteItem"]
+    key: str
+
+
+class RubricRenameGroup(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    from_: str = Field(alias="from")
+    to: str
+
+
+class RubricRenameResult(Model):
+    renamed: int
+    warnings: list[str]
+
+
+class RubricUpdate(Model):
+    base: str
 
 
 class Start(Model):
@@ -588,6 +658,9 @@ class Question2QuestionFillInBlanksItemShortAnswer(Model):
 
 
 class Question2QuestionMultipleChoice(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    field_schema: str | None = Field(default=None, alias="$schema")
     id: str | None = None
     uuid: str | None = None
     title: str | None = None
@@ -606,6 +679,9 @@ class Question2QuestionMultipleChoice(Model):
 
 
 class Question2QuestionMultipleSelection(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    field_schema: str | None = Field(default=None, alias="$schema")
     id: str | None = None
     uuid: str | None = None
     title: str | None = None
@@ -626,6 +702,7 @@ class Question2QuestionMultipleSelection(Model):
 class Question2QuestionNumeric(Model):
     model_config = ConfigDict(populate_by_name=True)
 
+    field_schema: str | None = Field(default=None, alias="$schema")
     id: str | None = None
     uuid: str | None = None
     title: str | None = None
@@ -649,6 +726,7 @@ class Question2QuestionNumeric(Model):
 class Question2QuestionOrdering(Model):
     model_config = ConfigDict(populate_by_name=True)
 
+    field_schema: str | None = Field(default=None, alias="$schema")
     id: str | None = None
     uuid: str | None = None
     title: str | None = None
@@ -676,6 +754,7 @@ class Question2QuestionOrdering(Model):
 class Question2QuestionShortAnswer(Model):
     model_config = ConfigDict(populate_by_name=True)
 
+    field_schema: str | None = Field(default=None, alias="$schema")
     id: str | None = None
     uuid: str | None = None
     title: str | None = None
@@ -702,6 +781,9 @@ class Question2QuestionShortAnswer(Model):
 
 
 class Question2QuestionTrueFalse(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    field_schema: str | None = Field(default=None, alias="$schema")
     id: str | None = None
     uuid: str | None = None
     title: str | None = None
@@ -846,6 +928,31 @@ class RollCall(Model):
     updated_at: str = Field(alias="updatedAt")
 
 
+class Rubric(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    base: str
+    source_version: str | None = Field(alias="sourceVersion")
+    initial: bool
+    review: int
+    items: list[RubricItem]
+
+
+class RubricPreviewRequestUpdate(Model):
+    op: Literal["update"]
+    data: RubricUpdate
+
+
+class RubricPreviewRequestUpdateItem(Model):
+    op: Literal["updateItem"]
+    key: str
+    data: RubricItemUpdate
+
+
+class RubricSplit(Model):
+    children: list[RubricItemCreate]
+
+
 class TimeSlot(Model):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -954,6 +1061,9 @@ class CourseGradesResponse(Model):
 
 
 class Question2QuestionFillIn(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    field_schema: str | None = Field(default=None, alias="$schema")
     id: str | None = None
     uuid: str | None = None
     title: str | None = None
@@ -2191,6 +2301,242 @@ def repository_upsert(
     )
     if response.status_code == 200:
         return Repository.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def rubric_item_create(
+    *,
+    discipline: str,
+    course: str,
+    slug: str,
+    question: str,
+    body: RubricItemCreate,
+    client: httpx.Client | None = None,
+) -> RubricItem:
+    """
+    Add an item to a rubric.
+    """
+    client = client if client is not None else get_client()
+    response = client.post(
+        "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric/item".format(
+            discipline=discipline, course=course, slug=slug, question=question
+        ),
+        json=body.model_dump(mode="json", by_alias=True),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return RubricItem.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def rubric_item_delete(
+    *,
+    discipline: str,
+    course: str,
+    slug: str,
+    question: str,
+    key: str,
+    client: httpx.Client | None = None,
+) -> RubricItemDeleted:
+    """
+    Delete a rubric item.
+    """
+    client = client if client is not None else get_client()
+    response = client.delete(
+        "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric/item/{key}".format(
+            discipline=discipline, course=course, slug=slug, question=question, key=key
+        ),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return RubricItemDeleted.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def rubric_item_put(
+    *,
+    discipline: str,
+    course: str,
+    slug: str,
+    question: str,
+    key: str,
+    body: RubricItemPut,
+    client: httpx.Client | None = None,
+) -> RubricItem:
+    """
+    Create or replace a rubric item under the given key.
+    """
+    client = client if client is not None else get_client()
+    response = client.put(
+        "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric/item/{key}".format(
+            discipline=discipline, course=course, slug=slug, question=question, key=key
+        ),
+        json=body.model_dump(mode="json", by_alias=True),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return RubricItem.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def rubric_item_split(
+    *,
+    discipline: str,
+    course: str,
+    slug: str,
+    question: str,
+    key: str,
+    body: RubricSplit,
+    client: httpx.Client | None = None,
+) -> list[RubricItem]:
+    """
+    Split a rubric item into finer items.
+    """
+    client = client if client is not None else get_client()
+    response = client.post(
+        "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric/item/{key}/split".format(
+            discipline=discipline, course=course, slug=slug, question=question, key=key
+        ),
+        json=body.model_dump(mode="json", by_alias=True),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return TypeAdapter(list[RubricItem]).validate_python(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def rubric_item_update(
+    *,
+    discipline: str,
+    course: str,
+    slug: str,
+    question: str,
+    key: str,
+    body: RubricItemUpdate,
+    client: httpx.Client | None = None,
+) -> RubricItem:
+    """
+    Change some fields of a rubric item.
+    """
+    client = client if client is not None else get_client()
+    response = client.patch(
+        "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric/item/{key}".format(
+            discipline=discipline, course=course, slug=slug, question=question, key=key
+        ),
+        json=body.model_dump(mode="json", by_alias=True),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return RubricItem.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def rubric_preview(
+    *,
+    discipline: str,
+    course: str,
+    slug: str,
+    question: str,
+    body: RubricPreviewRequestUpdate
+    | RubricPreviewRequestUpdateItem
+    | RubricPreviewRequestDeleteItem,
+    client: httpx.Client | None = None,
+) -> RubricPreview:
+    """
+    Count the passes a rubric change would move.
+    """
+    client = client if client is not None else get_client()
+    response = client.post(
+        "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric/preview".format(
+            discipline=discipline, course=course, slug=slug, question=question
+        ),
+        json=body.model_dump(mode="json", by_alias=True),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return RubricPreview.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def rubric_read(
+    *,
+    discipline: str,
+    course: str,
+    slug: str,
+    question: str,
+    client: httpx.Client | None = None,
+) -> Rubric:
+    """
+    Read the grading rubric of a question in an exam.
+    """
+    client = client if client is not None else get_client()
+    response = client.get(
+        "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric".format(
+            discipline=discipline, course=course, slug=slug, question=question
+        ),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return Rubric.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def rubric_rename_group(
+    *,
+    discipline: str,
+    course: str,
+    slug: str,
+    question: str,
+    body: RubricRenameGroup,
+    client: httpx.Client | None = None,
+) -> RubricRenameResult:
+    """
+    Rename a group of rubric items.
+    """
+    client = client if client is not None else get_client()
+    response = client.post(
+        "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric/rename-group".format(
+            discipline=discipline, course=course, slug=slug, question=question
+        ),
+        json=body.model_dump(mode="json", by_alias=True),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return RubricRenameResult.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def rubric_update(
+    *,
+    discipline: str,
+    course: str,
+    slug: str,
+    question: str,
+    body: RubricUpdate,
+    client: httpx.Client | None = None,
+) -> Rubric:
+    """
+    Set the base score of a rubric.
+    """
+    client = client if client is not None else get_client()
+    response = client.patch(
+        "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric".format(
+            discipline=discipline, course=course, slug=slug, question=question
+        ),
+        json=body.model_dump(mode="json", by_alias=True),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return Rubric.model_validate(response.json())
     response.raise_for_status()
     raise CodehoodAPIError(response.status_code, Model())
 

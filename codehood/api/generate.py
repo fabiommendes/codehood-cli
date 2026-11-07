@@ -62,6 +62,15 @@ ENDPOINTS = {
     "repositoryUpsert",
     "repositoryDelete",
     "blobMissing",
+    "rubricRead",
+    "rubricUpdate",
+    "rubricItemCreate",
+    "rubricItemUpdate",
+    "rubricItemPut",
+    "rubricItemDelete",
+    "rubricItemSplit",
+    "rubricRenameGroup",
+    "rubricPreview",
     "listRoll-call",
     "readRoll-call",
     "updateRoll-call",
@@ -493,6 +502,8 @@ class ShapeRegistry:
         #: counting one per property hop. Used only to pick which owner
         #: qualifies a contested name.
         self._depths: dict[str, int] = {}
+        #: Components already walked by `_collect`, by identity.
+        self._visited: set[int] = set()
         #: Every `$ref`able object schema, by class name and by shape. An
         #: inline shape that matches one *is* it (`_assign_names`) or is a
         #: projection of it (`_projection_name`).
@@ -573,6 +584,11 @@ class ShapeRegistry:
             _, resolved = self.spec.resolve(schema)
             if _is_union_component(resolved):
                 self._collect(resolved, candidates, owner, depth, entity)
+            elif id(resolved) not in self._visited:
+                # A component that holds inline objects (`Rubric.items`)
+                # has them named here, since nothing else walks it.
+                self._visited.add(id(resolved))
+                self._collect(resolved, [], owner, depth, entity)
             return
 
         for member in schema.get("anyOf") or schema.get("oneOf") or []:

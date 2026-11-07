@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "info": {
     "title": "Codehood API",
-    "version": "0.2.0",
+    "version": "0.3.2",
     "description": "REST API for the Codehood CLI and grading bots. Authenticated with `Authorization: Bearer <key>`, except where noted — see src/urls/README.md."
   },
   "servers": [
@@ -1968,6 +1968,9 @@
                   {
                     "type": "object",
                     "properties": {
+                      "$schema": {
+                        "type": "string"
+                      },
                       "id": {
                         "type": "string",
                         "minLength": 1
@@ -2082,6 +2085,9 @@
                   {
                     "type": "object",
                     "properties": {
+                      "$schema": {
+                        "type": "string"
+                      },
                       "id": {
                         "type": "string",
                         "minLength": 1
@@ -2196,6 +2202,9 @@
                   {
                     "type": "object",
                     "properties": {
+                      "$schema": {
+                        "type": "string"
+                      },
                       "id": {
                         "type": "string",
                         "minLength": 1
@@ -2315,6 +2324,9 @@
                   {
                     "type": "object",
                     "properties": {
+                      "$schema": {
+                        "type": "string"
+                      },
                       "id": {
                         "type": "string",
                         "minLength": 1
@@ -2422,6 +2434,9 @@
                   {
                     "type": "object",
                     "properties": {
+                      "$schema": {
+                        "type": "string"
+                      },
                       "id": {
                         "type": "string",
                         "minLength": 1
@@ -2639,6 +2654,9 @@
                   {
                     "type": "object",
                     "properties": {
+                      "$schema": {
+                        "type": "string"
+                      },
                       "id": {
                         "type": "string",
                         "minLength": 1
@@ -2714,6 +2732,9 @@
                   {
                     "type": "object",
                     "properties": {
+                      "$schema": {
+                        "type": "string"
+                      },
                       "id": {
                         "type": "string",
                         "minLength": 1
@@ -3106,6 +3127,9 @@
                   {
                     "type": "object",
                     "properties": {
+                      "$schema": {
+                        "type": "string"
+                      },
                       "id": {
                         "type": "string",
                         "minLength": 1
@@ -4273,6 +4297,9 @@
               {
                 "type": "object",
                 "properties": {
+                  "$schema": {
+                    "type": "string"
+                  },
                   "id": {
                     "type": "string",
                     "minLength": 1
@@ -4387,6 +4414,9 @@
               {
                 "type": "object",
                 "properties": {
+                  "$schema": {
+                    "type": "string"
+                  },
                   "id": {
                     "type": "string",
                     "minLength": 1
@@ -4501,6 +4531,9 @@
               {
                 "type": "object",
                 "properties": {
+                  "$schema": {
+                    "type": "string"
+                  },
                   "id": {
                     "type": "string",
                     "minLength": 1
@@ -4620,6 +4653,9 @@
               {
                 "type": "object",
                 "properties": {
+                  "$schema": {
+                    "type": "string"
+                  },
                   "id": {
                     "type": "string",
                     "minLength": 1
@@ -4727,6 +4763,9 @@
               {
                 "type": "object",
                 "properties": {
+                  "$schema": {
+                    "type": "string"
+                  },
                   "id": {
                     "type": "string",
                     "minLength": 1
@@ -4944,6 +4983,9 @@
               {
                 "type": "object",
                 "properties": {
+                  "$schema": {
+                    "type": "string"
+                  },
                   "id": {
                     "type": "string",
                     "minLength": 1
@@ -5019,6 +5061,9 @@
               {
                 "type": "object",
                 "properties": {
+                  "$schema": {
+                    "type": "string"
+                  },
                   "id": {
                     "type": "string",
                     "minLength": 1
@@ -5411,6 +5456,9 @@
               {
                 "type": "object",
                 "properties": {
+                  "$schema": {
+                    "type": "string"
+                  },
                   "id": {
                     "type": "string",
                     "minLength": 1
@@ -5981,6 +6029,93 @@
             "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
             "example": "3/4"
           },
+          "adjustment": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+            "example": "3/4"
+          },
+          "rubric": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "type": "string"
+            }
+          },
+          "review": {
+            "type": "boolean"
+          },
+          "rubricItems": {
+            "type": "array",
+            "nullable": true,
+            "items": {
+              "anyOf": [
+                {
+                  "type": "object",
+                  "properties": {
+                    "group": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                      "example": "3/4"
+                    },
+                    "feedback": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "key": {
+                      "type": "string"
+                    },
+                    "comment": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "group",
+                    "text",
+                    "value",
+                    "feedback",
+                    "key",
+                    "comment"
+                  ]
+                },
+                {
+                  "type": "object",
+                  "properties": {
+                    "group": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "value": {
+                      "type": "string",
+                      "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                      "example": "3/4"
+                    },
+                    "feedback": {
+                      "type": "string",
+                      "nullable": true
+                    }
+                  },
+                  "required": [
+                    "group",
+                    "text",
+                    "value",
+                    "feedback"
+                  ]
+                }
+              ]
+            }
+          },
           "grader": {
             "type": "string",
             "nullable": true,
@@ -5992,6 +6127,10 @@
             "nullable": true
           },
           "feedback": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
             "type": "string",
             "nullable": true
           },
@@ -6028,6 +6167,8 @@
           "ref",
           "submission",
           "score",
+          "adjustment",
+          "rubricItems",
           "grader",
           "bot",
           "feedback",
@@ -6050,6 +6191,12 @@
             "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
             "example": "3/4"
           },
+          "adjustment": {
+            "type": "string",
+            "nullable": true,
+            "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+            "example": "3/4"
+          },
           "grader": {
             "type": "string",
             "nullable": true,
@@ -6061,6 +6208,10 @@
             "nullable": true
           },
           "feedback": {
+            "type": "string",
+            "nullable": true
+          },
+          "notes": {
             "type": "string",
             "nullable": true
           },
@@ -6083,11 +6234,16 @@
                 "score"
               ]
             }
+          },
+          "rubric": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
-          "ref",
-          "score"
+          "ref"
         ]
       },
       "TimeSlot": {
@@ -6323,6 +6479,449 @@
           "username",
           "role",
           "password"
+        ]
+      },
+      "Rubric": {
+        "type": "object",
+        "properties": {
+          "base": {
+            "type": "string",
+            "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+            "example": "0"
+          },
+          "sourceVersion": {
+            "type": "string",
+            "nullable": true
+          },
+          "initial": {
+            "type": "boolean"
+          },
+          "review": {
+            "type": "integer"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "group": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "text": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "string",
+                  "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                  "example": "3/4"
+                },
+                "comment": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "feedback": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "position": {
+                  "type": "integer"
+                },
+                "retiredAt": {
+                  "type": "string",
+                  "nullable": true,
+                  "format": "date-time"
+                },
+                "uses": {
+                  "type": "integer"
+                }
+              },
+              "required": [
+                "key",
+                "group",
+                "text",
+                "value",
+                "comment",
+                "feedback",
+                "position",
+                "retiredAt",
+                "uses"
+              ]
+            }
+          }
+        },
+        "required": [
+          "base",
+          "sourceVersion",
+          "initial",
+          "review",
+          "items"
+        ]
+      },
+      "RubricUpdate": {
+        "type": "object",
+        "properties": {
+          "base": {
+            "type": "string",
+            "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+            "example": "0"
+          }
+        },
+        "required": [
+          "base"
+        ]
+      },
+      "RubricItem": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "group": {
+            "type": "string",
+            "nullable": true
+          },
+          "text": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string",
+            "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+            "example": "3/4"
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true
+          },
+          "feedback": {
+            "type": "string",
+            "nullable": true
+          },
+          "position": {
+            "type": "integer"
+          },
+          "retiredAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
+          "uses": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "key",
+          "group",
+          "text",
+          "value",
+          "comment",
+          "feedback",
+          "position",
+          "retiredAt",
+          "uses"
+        ]
+      },
+      "RubricItemCreate": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "group": {
+            "type": "string",
+            "nullable": true
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {
+            "type": "string",
+            "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+            "example": "3/4"
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true
+          },
+          "feedback": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "text",
+          "value"
+        ]
+      },
+      "RubricItemUpdate": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string",
+            "nullable": true
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {
+            "type": "string",
+            "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+            "example": "3/4"
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true
+          },
+          "feedback": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "RubricItemPut": {
+        "type": "object",
+        "properties": {
+          "group": {
+            "type": "string",
+            "nullable": true
+          },
+          "text": {
+            "type": "string",
+            "minLength": 1
+          },
+          "value": {
+            "type": "string",
+            "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+            "example": "3/4"
+          },
+          "comment": {
+            "type": "string",
+            "nullable": true
+          },
+          "feedback": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "text",
+          "value"
+        ]
+      },
+      "RubricItemDeleted": {
+        "type": "object",
+        "properties": {
+          "deleted": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "deleted"
+        ]
+      },
+      "RubricSplit": {
+        "type": "object",
+        "properties": {
+          "children": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "key": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                "group": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "text": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "value": {
+                  "type": "string",
+                  "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                  "example": "3/4"
+                },
+                "comment": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "feedback": {
+                  "type": "string",
+                  "nullable": true
+                }
+              },
+              "required": [
+                "text",
+                "value"
+              ]
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "children"
+        ]
+      },
+      "RubricRenameResult": {
+        "type": "object",
+        "properties": {
+          "renamed": {
+            "type": "integer"
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "renamed",
+          "warnings"
+        ]
+      },
+      "RubricRenameGroup": {
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "from",
+          "to"
+        ]
+      },
+      "RubricPreview": {
+        "type": "object",
+        "properties": {
+          "passes": {
+            "type": "integer"
+          },
+          "released": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "passes",
+          "released"
+        ]
+      },
+      "RubricChange": {
+        "oneOf": [
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "enum": [
+                  "update"
+                ]
+              },
+              "data": {
+                "type": "object",
+                "properties": {
+                  "base": {
+                    "type": "string",
+                    "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                    "example": "0"
+                  }
+                },
+                "required": [
+                  "base"
+                ]
+              }
+            },
+            "required": [
+              "op",
+              "data"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "enum": [
+                  "updateItem"
+                ]
+              },
+              "key": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              },
+              "data": {
+                "type": "object",
+                "properties": {
+                  "group": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "text": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "value": {
+                    "type": "string",
+                    "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                    "example": "3/4"
+                  },
+                  "comment": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "feedback": {
+                    "type": "string",
+                    "nullable": true
+                  }
+                }
+              }
+            },
+            "required": [
+              "op",
+              "key",
+              "data"
+            ]
+          },
+          {
+            "type": "object",
+            "properties": {
+              "op": {
+                "type": "string",
+                "enum": [
+                  "deleteItem"
+                ]
+              },
+              "key": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 100
+              }
+            },
+            "required": [
+              "op",
+              "key"
+            ]
+          }
         ]
       },
       "LogoutResponse": {
@@ -15095,6 +15694,9 @@
                               {
                                 "type": "object",
                                 "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
                                   "id": {
                                     "type": "string",
                                     "minLength": 1
@@ -15209,6 +15811,9 @@
                               {
                                 "type": "object",
                                 "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
                                   "id": {
                                     "type": "string",
                                     "minLength": 1
@@ -15323,6 +15928,9 @@
                               {
                                 "type": "object",
                                 "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
                                   "id": {
                                     "type": "string",
                                     "minLength": 1
@@ -15442,6 +16050,9 @@
                               {
                                 "type": "object",
                                 "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
                                   "id": {
                                     "type": "string",
                                     "minLength": 1
@@ -15549,6 +16160,9 @@
                               {
                                 "type": "object",
                                 "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
                                   "id": {
                                     "type": "string",
                                     "minLength": 1
@@ -15766,6 +16380,9 @@
                               {
                                 "type": "object",
                                 "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
                                   "id": {
                                     "type": "string",
                                     "minLength": 1
@@ -15841,6 +16458,9 @@
                               {
                                 "type": "object",
                                 "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
                                   "id": {
                                     "type": "string",
                                     "minLength": 1
@@ -16233,6 +16853,9 @@
                               {
                                 "type": "object",
                                 "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
                                   "id": {
                                     "type": "string",
                                     "minLength": 1
@@ -17433,6 +18056,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -17547,6 +18173,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -17661,6 +18290,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -17780,6 +18412,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -17887,6 +18522,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -18104,6 +18742,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -18179,6 +18820,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -18571,6 +19215,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -18856,6 +19503,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -18970,6 +19620,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -19084,6 +19737,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -19203,6 +19859,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -19310,6 +19969,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -19527,6 +20189,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -19602,6 +20267,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -19994,6 +20662,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -21223,6 +21894,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -21337,6 +22011,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -21451,6 +22128,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -21570,6 +22250,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -21677,6 +22360,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -21894,6 +22580,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -21969,6 +22658,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -22361,6 +23053,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -23562,6 +24257,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -23676,6 +24374,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -23790,6 +24491,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -23909,6 +24613,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -24016,6 +24723,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -24233,6 +24943,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -24308,6 +25021,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -24700,6 +25416,9 @@
                       {
                         "type": "object",
                         "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
                           "id": {
                             "type": "string",
                             "minLength": 1
@@ -24979,6 +25698,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -25093,6 +25815,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -25207,6 +25932,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -25326,6 +26054,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -25433,6 +26164,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -25650,6 +26384,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -25725,6 +26462,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -26117,6 +26857,9 @@
                             {
                               "type": "object",
                               "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
                                 "id": {
                                   "type": "string",
                                   "minLength": 1
@@ -28906,6 +29649,93 @@
                         "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
                         "example": "3/4"
                       },
+                      "adjustment": {
+                        "type": "string",
+                        "nullable": true,
+                        "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                        "example": "3/4"
+                      },
+                      "rubric": {
+                        "type": "array",
+                        "nullable": true,
+                        "items": {
+                          "type": "string"
+                        }
+                      },
+                      "review": {
+                        "type": "boolean"
+                      },
+                      "rubricItems": {
+                        "type": "array",
+                        "nullable": true,
+                        "items": {
+                          "anyOf": [
+                            {
+                              "type": "object",
+                              "properties": {
+                                "group": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "text": {
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                                  "example": "3/4"
+                                },
+                                "feedback": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "key": {
+                                  "type": "string"
+                                },
+                                "comment": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "group",
+                                "text",
+                                "value",
+                                "feedback",
+                                "key",
+                                "comment"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "group": {
+                                  "type": "string",
+                                  "nullable": true
+                                },
+                                "text": {
+                                  "type": "string"
+                                },
+                                "value": {
+                                  "type": "string",
+                                  "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                                  "example": "3/4"
+                                },
+                                "feedback": {
+                                  "type": "string",
+                                  "nullable": true
+                                }
+                              },
+                              "required": [
+                                "group",
+                                "text",
+                                "value",
+                                "feedback"
+                              ]
+                            }
+                          ]
+                        }
+                      },
                       "grader": {
                         "type": "string",
                         "nullable": true,
@@ -28917,6 +29747,10 @@
                         "nullable": true
                       },
                       "feedback": {
+                        "type": "string",
+                        "nullable": true
+                      },
+                      "notes": {
                         "type": "string",
                         "nullable": true
                       },
@@ -28953,6 +29787,8 @@
                       "ref",
                       "submission",
                       "score",
+                      "adjustment",
+                      "rubricItems",
                       "grader",
                       "bot",
                       "feedback",
@@ -29016,6 +29852,12 @@
                     "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
                     "example": "3/4"
                   },
+                  "adjustment": {
+                    "type": "string",
+                    "nullable": true,
+                    "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                    "example": "3/4"
+                  },
                   "grader": {
                     "type": "string",
                     "nullable": true,
@@ -29027,6 +29869,10 @@
                     "nullable": true
                   },
                   "feedback": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "notes": {
                     "type": "string",
                     "nullable": true
                   },
@@ -29049,11 +29895,16 @@
                         "score"
                       ]
                     }
+                  },
+                  "rubric": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
                   }
                 },
                 "required": [
-                  "ref",
-                  "score"
+                  "ref"
                 ]
               }
             }
@@ -29084,6 +29935,93 @@
                       "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
                       "example": "3/4"
                     },
+                    "adjustment": {
+                      "type": "string",
+                      "nullable": true,
+                      "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                      "example": "3/4"
+                    },
+                    "rubric": {
+                      "type": "array",
+                      "nullable": true,
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "review": {
+                      "type": "boolean"
+                    },
+                    "rubricItems": {
+                      "type": "array",
+                      "nullable": true,
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "group": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "text": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "string",
+                                "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                                "example": "3/4"
+                              },
+                              "feedback": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "key": {
+                                "type": "string"
+                              },
+                              "comment": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "group",
+                              "text",
+                              "value",
+                              "feedback",
+                              "key",
+                              "comment"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "group": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "text": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "string",
+                                "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                                "example": "3/4"
+                              },
+                              "feedback": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "group",
+                              "text",
+                              "value",
+                              "feedback"
+                            ]
+                          }
+                        ]
+                      }
+                    },
                     "grader": {
                       "type": "string",
                       "nullable": true,
@@ -29095,6 +30033,10 @@
                       "nullable": true
                     },
                     "feedback": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "notes": {
                       "type": "string",
                       "nullable": true
                     },
@@ -29131,6 +30073,8 @@
                     "ref",
                     "submission",
                     "score",
+                    "adjustment",
+                    "rubricItems",
                     "grader",
                     "bot",
                     "feedback",
@@ -29211,6 +30155,93 @@
                       "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
                       "example": "3/4"
                     },
+                    "adjustment": {
+                      "type": "string",
+                      "nullable": true,
+                      "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                      "example": "3/4"
+                    },
+                    "rubric": {
+                      "type": "array",
+                      "nullable": true,
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "review": {
+                      "type": "boolean"
+                    },
+                    "rubricItems": {
+                      "type": "array",
+                      "nullable": true,
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "group": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "text": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "string",
+                                "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                                "example": "3/4"
+                              },
+                              "feedback": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "key": {
+                                "type": "string"
+                              },
+                              "comment": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "group",
+                              "text",
+                              "value",
+                              "feedback",
+                              "key",
+                              "comment"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "group": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "text": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "string",
+                                "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                                "example": "3/4"
+                              },
+                              "feedback": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "group",
+                              "text",
+                              "value",
+                              "feedback"
+                            ]
+                          }
+                        ]
+                      }
+                    },
                     "grader": {
                       "type": "string",
                       "nullable": true,
@@ -29222,6 +30253,10 @@
                       "nullable": true
                     },
                     "feedback": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "notes": {
                       "type": "string",
                       "nullable": true
                     },
@@ -29258,6 +30293,8 @@
                     "ref",
                     "submission",
                     "score",
+                    "adjustment",
+                    "rubricItems",
                     "grader",
                     "bot",
                     "feedback",
@@ -29326,6 +30363,10 @@
                     "type": "string",
                     "nullable": true
                   },
+                  "notes": {
+                    "type": "string",
+                    "nullable": true
+                  },
                   "blanks": {
                     "type": "object",
                     "nullable": true,
@@ -29345,6 +30386,18 @@
                         "score"
                       ]
                     }
+                  },
+                  "rubric": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    }
+                  },
+                  "adjustment": {
+                    "type": "string",
+                    "nullable": true,
+                    "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                    "example": "3/4"
                   }
                 }
               }
@@ -29376,6 +30429,93 @@
                       "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
                       "example": "3/4"
                     },
+                    "adjustment": {
+                      "type": "string",
+                      "nullable": true,
+                      "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                      "example": "3/4"
+                    },
+                    "rubric": {
+                      "type": "array",
+                      "nullable": true,
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "review": {
+                      "type": "boolean"
+                    },
+                    "rubricItems": {
+                      "type": "array",
+                      "nullable": true,
+                      "items": {
+                        "anyOf": [
+                          {
+                            "type": "object",
+                            "properties": {
+                              "group": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "text": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "string",
+                                "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                                "example": "3/4"
+                              },
+                              "feedback": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "key": {
+                                "type": "string"
+                              },
+                              "comment": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "group",
+                              "text",
+                              "value",
+                              "feedback",
+                              "key",
+                              "comment"
+                            ]
+                          },
+                          {
+                            "type": "object",
+                            "properties": {
+                              "group": {
+                                "type": "string",
+                                "nullable": true
+                              },
+                              "text": {
+                                "type": "string"
+                              },
+                              "value": {
+                                "type": "string",
+                                "pattern": "^-?(\\d+(\\.\\d+)?|\\d+\\/\\d+)$",
+                                "example": "3/4"
+                              },
+                              "feedback": {
+                                "type": "string",
+                                "nullable": true
+                              }
+                            },
+                            "required": [
+                              "group",
+                              "text",
+                              "value",
+                              "feedback"
+                            ]
+                          }
+                        ]
+                      }
+                    },
                     "grader": {
                       "type": "string",
                       "nullable": true,
@@ -29387,6 +30527,10 @@
                       "nullable": true
                     },
                     "feedback": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "notes": {
                       "type": "string",
                       "nullable": true
                     },
@@ -29423,6 +30567,8 @@
                     "ref",
                     "submission",
                     "score",
+                    "adjustment",
+                    "rubricItems",
                     "grader",
                     "bot",
                     "feedback",
@@ -30940,6 +32086,598 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Deleted"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric": {
+      "get": {
+        "operationId": "rubricRead",
+        "summary": "Read the grading rubric of a question in an exam.",
+        "description": "Without a stored rubric, answers the question's initial rubric flagged `initial`, and writes nothing.",
+        "tags": [
+          "Rubrics"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "question",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rubric"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "operationId": "rubricUpdate",
+        "summary": "Set the base score of a rubric.",
+        "tags": [
+          "Rubrics"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "question",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RubricUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Rubric"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric/item": {
+      "post": {
+        "operationId": "rubricItemCreate",
+        "summary": "Add an item to a rubric.",
+        "tags": [
+          "Rubrics"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "question",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RubricItemCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RubricItem"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric/item/{key}": {
+      "patch": {
+        "operationId": "rubricItemUpdate",
+        "summary": "Change some fields of a rubric item.",
+        "tags": [
+          "Rubrics"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "question",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RubricItemUpdate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RubricItem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "operationId": "rubricItemPut",
+        "summary": "Create or replace a rubric item under the given key.",
+        "description": "Idempotent. Optional fields left out are cleared; a changed value recomputes the passes that apply the item.",
+        "tags": [
+          "Rubrics"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "question",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RubricItemPut"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RubricItem"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "operationId": "rubricItemDelete",
+        "summary": "Delete a rubric item.",
+        "description": "Also removes the item from every pass that applied it and recomputes them. Resolves when the item is already gone.",
+        "tags": [
+          "Rubrics"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "question",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RubricItemDeleted"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric/item/{key}/split": {
+      "post": {
+        "operationId": "rubricItemSplit",
+        "summary": "Split a rubric item into finer items.",
+        "description": "The item is retired, not removed: passes that applied it keep their score.",
+        "tags": [
+          "Rubrics"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "question",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "key",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RubricSplit"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/RubricItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric/rename-group": {
+      "post": {
+        "operationId": "rubricRenameGroup",
+        "summary": "Rename a group of rubric items.",
+        "tags": [
+          "Rubrics"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "question",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RubricRenameGroup"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RubricRenameResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric/preview": {
+      "post": {
+        "operationId": "rubricPreview",
+        "summary": "Count the passes a rubric change would move.",
+        "description": "Writes nothing. `released` counts the passes students already read.",
+        "tags": [
+          "Rubrics"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "question",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RubricChange"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RubricPreview"
                 }
               }
             }
