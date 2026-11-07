@@ -145,3 +145,12 @@ def test_upsert_resource_request_carries_slug_rev_and_the_union():
     # twin of it.
     fields = generated.ResourceCreate.model_fields
     assert {"slug", "title", "rev", "description", "event", "data"} == set(fields)
+
+
+def test_exam_create_and_update_carry_allow_code_run():
+    for model in (generated.ExamCreate, generated.UpdateExamRequest):
+        field = model.model_fields["allow_code_run"]
+        assert field.alias == "allowCodeRun"
+        assert field.default is None
+    body = generated.ExamCreate(slug="e", title="E", allowCodeRun=True)
+    assert body.model_dump(by_alias=True, exclude_none=True)["allowCodeRun"] is True

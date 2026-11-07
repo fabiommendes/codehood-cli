@@ -571,6 +571,7 @@ class Exam(Model):
     scheduled_at: str | None = Field(alias="scheduledAt")
     duration: Duration | None
     extra_time: Duration | None = Field(alias="extraTime")
+    allow_code_run: bool | None = Field(alias="allowCodeRun")
     grades_released_at: str | None = Field(alias="gradesReleasedAt")
     author: str
     rev: str | None
@@ -594,6 +595,7 @@ class ExamCreate(Model):
     format: Literal["PLAINTEXT", "MARKDOWN", "HTML"] | None = None
     scheduled_at: str | None = Field(default=None, alias="scheduledAt")
     duration: Duration | None = None
+    allow_code_run: bool | None = Field(default=None, alias="allowCodeRun")
     rev: str | None = None
     tags: list[str] | None = None
     questions: list[ExamCreateQuestionsItem] | None = None
@@ -999,6 +1001,7 @@ class UpdateExamRequest(Model):
     format: Literal["PLAINTEXT", "MARKDOWN", "HTML"] | None = None
     scheduled_at: str | None = Field(default=None, alias="scheduledAt")
     duration: Duration | None = None
+    allow_code_run: bool | None = Field(default=None, alias="allowCodeRun")
     rev: str | None = None
     tags: list[str] | None = None
     questions: list[ExamCreateQuestionsItem] | None = None

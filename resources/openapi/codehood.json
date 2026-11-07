@@ -653,6 +653,10 @@
               }
             }
           },
+          "allowCodeRun": {
+            "type": "boolean",
+            "nullable": true
+          },
           "gradesReleasedAt": {
             "type": "string",
             "nullable": true,
@@ -716,6 +720,7 @@
           "scheduledAt",
           "duration",
           "extraTime",
+          "allowCodeRun",
           "gradesReleasedAt",
           "author",
           "rev",
@@ -789,6 +794,10 @@
                 "minimum": 0
               }
             }
+          },
+          "allowCodeRun": {
+            "type": "boolean",
+            "nullable": true
           },
           "rev": {
             "type": "string",
@@ -9824,6 +9833,10 @@
                           }
                         }
                       },
+                      "allowCodeRun": {
+                        "type": "boolean",
+                        "nullable": true
+                      },
                       "gradesReleasedAt": {
                         "type": "string",
                         "nullable": true,
@@ -9887,6 +9900,7 @@
                       "scheduledAt",
                       "duration",
                       "extraTime",
+                      "allowCodeRun",
                       "gradesReleasedAt",
                       "author",
                       "rev",
@@ -9993,6 +10007,10 @@
                         "minimum": 0
                       }
                     }
+                  },
+                  "allowCodeRun": {
+                    "type": "boolean",
+                    "nullable": true
                   },
                   "rev": {
                     "type": "string",
@@ -10122,6 +10140,10 @@
                         }
                       }
                     },
+                    "allowCodeRun": {
+                      "type": "boolean",
+                      "nullable": true
+                    },
                     "gradesReleasedAt": {
                       "type": "string",
                       "nullable": true,
@@ -10185,6 +10207,7 @@
                     "scheduledAt",
                     "duration",
                     "extraTime",
+                    "allowCodeRun",
                     "gradesReleasedAt",
                     "author",
                     "rev",
@@ -10318,6 +10341,10 @@
                         }
                       }
                     },
+                    "allowCodeRun": {
+                      "type": "boolean",
+                      "nullable": true
+                    },
                     "gradesReleasedAt": {
                       "type": "string",
                       "nullable": true,
@@ -10381,6 +10408,7 @@
                     "scheduledAt",
                     "duration",
                     "extraTime",
+                    "allowCodeRun",
                     "gradesReleasedAt",
                     "author",
                     "rev",
@@ -10488,6 +10516,10 @@
                         "minimum": 0
                       }
                     }
+                  },
+                  "allowCodeRun": {
+                    "type": "boolean",
+                    "nullable": true
                   },
                   "rev": {
                     "type": "string",
@@ -10627,6 +10659,10 @@
                         }
                       }
                     },
+                    "allowCodeRun": {
+                      "type": "boolean",
+                      "nullable": true
+                    },
                     "gradesReleasedAt": {
                       "type": "string",
                       "nullable": true,
@@ -10690,6 +10726,7 @@
                     "scheduledAt",
                     "duration",
                     "extraTime",
+                    "allowCodeRun",
                     "gradesReleasedAt",
                     "author",
                     "rev",

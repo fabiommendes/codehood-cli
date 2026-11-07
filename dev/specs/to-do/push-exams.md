@@ -122,6 +122,18 @@ and `{hours, minutes}` on the wire. The conversion is a plain total with no
 midnight; a naive datetime is read as UTC, the same convention
 `plan._timestamp` already uses for the course row.
 
+### `meta.codeRun` maps to `allowCodeRun`, and absence is `null`
+
+The repository declares whether the exam lets students run code in the
+browser with `meta: { codeRun: true|false }` in the exam's frontmatter. The
+mapper sends it as `allowCodeRun` (`ExamCreate`/`ExamUpdate`). Without
+`meta.codeRun` it sends `allowCodeRun: null`, which means "follow the exam
+type's default". Unlike `duration` and `scheduledAt`, the key is always
+present: the repository owns this value (ADR 0012), so removing the key from
+the file must clear a previous `true`/`false` on the server. Any non-boolean
+`meta.codeRun` is a local error that stops the push. `allowCodeRun` takes
+part in the `ref`.
+
 ### An exam's ref is computed from the local file alone
 
 Sha-256 over a canonical JSON rendering of the fields the local file
