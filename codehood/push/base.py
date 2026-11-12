@@ -123,15 +123,15 @@ def decode_collection(text: str, name: str) -> tuple[dict[str, BaseEntry], str |
     try:
         document = json.loads(text)
         if not isinstance(document, dict):
-            raise ValueError("not an object")
+            raise TypeError("not an object")
         version = document.get("version")
         if version != FORMAT_VERSION:
             return {}, f"base '{name}': unknown format version {version!r}, ignored"
         raw = document.get("entries")
         if not isinstance(raw, dict):
-            raise ValueError("'entries' is not an object")
+            raise TypeError("'entries' is not an object")
         return {key: _decode_entry(value) for key, value in raw.items()}, None
-    except ValueError as exc:
+    except (ValueError, TypeError) as exc:
         return {}, f"base '{name}': unreadable ({exc}), ignored"
 
 
@@ -198,14 +198,14 @@ def write_atomic(path: Path, text: str) -> None:
 
 def _decode_entry(value: object) -> BaseEntry:
     if not isinstance(value, dict):
-        raise ValueError("entry is not an object")
+        raise TypeError("entry is not an object")
     payload = value.get("payload")
     rev = value.get("rev")
     updated_at = value.get("updatedAt")
     if not isinstance(payload, dict):
-        raise ValueError("entry payload is not an object")
+        raise TypeError("entry payload is not an object")
     if rev is not None and not isinstance(rev, str):
-        raise ValueError("entry rev is not text")
+        raise TypeError("entry rev is not text")
     if updated_at is not None and not isinstance(updated_at, str):
-        raise ValueError("entry updatedAt is not text")
+        raise TypeError("entry updatedAt is not text")
     return BaseEntry(payload=payload, rev=rev, updated_at=updated_at)
