@@ -20,12 +20,17 @@ the exact course the spec's own "Proof" section names. Gated behind
 opting into the destructive suite is a separate, deliberate choice from
 opting into integration tests in general -- flagged to the orchestrator,
 not decided unilaterally here.
+
+The first push of each test passes `--ours '*'`: a fresh checkout has no base,
+so the seeded course differs from it and would otherwise be a conflict.
 """
 
 from __future__ import annotations
 
 import os
 import re
+import shutil
+from collections.abc import Iterator
 from pathlib import Path
 
 import httpx
@@ -36,7 +41,7 @@ from codehood.api import base as base_module
 from codehood.api import generated
 from codehood.cli.base import app
 from codehood.models.repo import CourseIdentity, RepoConfig, ServerConfig
-from codehood.repo import write_repo
+from codehood.repo import MACHINE_DIR, write_repo
 
 pytestmark = pytest.mark.integration
 
@@ -177,7 +182,7 @@ def test_push_writes_the_calendar_and_reconverges_on_a_second_run(
     lecture slot and one undated "Course overview" section, so a push
     always has exactly one `TimeSlot` and one `Event` to converge on.
     """
-    first = runner.invoke(app, ["push", str(course_repo)])
+    first = runner.invoke(app, ["push", str(course_repo), "--ours", "*"])
     assert first.exit_code == 0, first.output
     assert "mon" in _time_slot_slugs(client)
     # Start is Thu 2026-01-01, so the first Monday falls in the next ISO week.
@@ -195,7 +200,7 @@ def test_push_writes_the_calendar_and_reconverges_on_a_second_run(
 def test_push_then_delete_then_push_converges_on_the_real_server(
     course_repo: Path, client: httpx.Client
 ):
-    first = runner.invoke(app, ["push", str(course_repo)])
+    first = runner.invoke(app, ["push", str(course_repo), "--ours", "*"])
     assert first.exit_code == 0, first.output
     assert {"hello", "greet.py"} <= _slugs(client)
 
@@ -219,7 +224,7 @@ def test_push_questions_matches_the_repository_exactly_and_reconverges(
     and a second `ch push` immediately after plans zero question
     operations.
     """
-    first = runner.invoke(app, ["push", str(course_repo_with_questions)])
+    first = runner.invoke(app, ["push", str(course_repo_with_questions), "--ours", "*"])
     assert first.exit_code == 0, first.output
     assert _question_slugs(client) == {"example", "fat"}
     # The pre-seeded questions are gone from the live set but survive as
@@ -262,7 +267,7 @@ def test_push_attaches_a_linked_resource_to_its_lesson_and_reconverges(
     }["hello"]
     assert expected is not None, "the link in calendar.md did not attach hello.md"
 
-    first = runner.invoke(app, ["push", str(course_repo)])
+    first = runner.invoke(app, ["push", str(course_repo), "--ours", "*"])
     assert first.exit_code == 0, first.output
 
     server_resources = {
@@ -280,3 +285,237 @@ def test_push_attaches_a_linked_resource_to_its_lesson_and_reconverges(
     assert second.exit_code == 0, second.output
     writes = _planned_writes(second.output)
     assert [line for line in writes if " event " in line or "resource" in line] == []
+
+
+#
+# Sync with a server that changes behind the CLI's back
+#
+# These run on `cs101/ada_2026-2`, which each test clears of resources and
+# takes over with `--ours '*'`, so they never touch the course the tests above
+# use. `DELETE` of a course answers 500, so it cannot be rebuilt from scratch.
+#
+SCRATCH_EDITION = "2026-2"
+SCRATCH = f"{INSTRUCTOR}_{SCRATCH_EDITION}"
+WEB = "Edited on the web"
+
+
+@pytest.fixture
+def write_requests(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """
+    The `<METHOD> <path>` of every write the CLI sends from now on.
+    """
+    sent: list[str] = []
+    send = httpx.Client.send
+
+    def recording(
+        self: httpx.Client, request: httpx.Request, **kwargs
+    ) -> httpx.Response:
+        if request.method not in ("GET", "HEAD"):
+            sent.append(f"{request.method} {request.url.path}")
+        return send(self, request, **kwargs)
+
+    monkeypatch.setattr(httpx.Client, "send", recording)
+    return sent
+
+
+@pytest.fixture
+def synced(
+    tmp_path: Path, client: httpx.Client, logged_in: None, write_requests: list[str]
+) -> Iterator[Path]:
+    """
+    A scratch course repository, pushed once: the server holds exactly what
+    the repository holds, and the base records it.
+    """
+    for slug in _resource_slugs(client):
+        generated.delete_resource(
+            discipline=DISCIPLINE, course=SCRATCH, slug=slug, client=client
+        )
+    write_repo(
+        tmp_path,
+        CourseIdentity(
+            discipline=DISCIPLINE, instructor=INSTRUCTOR, edition=SCRATCH_EDITION
+        ),
+        ServerConfig(url=SERVER_URL),
+        git=False,
+        examples=False,
+    )
+    (tmp_path / "resources" / "hello.md").write_text("# Hello\n\nLocal.\n")
+    # Whatever the seed left on the course has no source here: take it over.
+    first = _push(tmp_path, "--ours", "*")
+    assert first.exit_code == 0, first.output
+    write_requests.clear()
+    yield tmp_path
+
+
+def _push(repo: Path, *args: str):
+    return runner.invoke(app, ["push", str(repo), *args])
+
+
+def _resource(client: httpx.Client, slug: str) -> generated.Resource:
+    return generated.read_resource(
+        discipline=DISCIPLINE, course=SCRATCH, slug=slug, client=client
+    )
+
+
+def _resource_slugs(client: httpx.Client) -> set[str]:
+    return {
+        r.slug
+        for r in generated.list_resource(
+            discipline=DISCIPLINE, course=SCRATCH, client=client
+        )
+    }
+
+
+def _patch(client: httpx.Client, path: str, body: dict) -> None:
+    """
+    `PATCH` only the given fields, as the web does. The generated request
+    models send every unset field as `null`, which the server rejects.
+    """
+    response = client.patch(
+        f"/api/course/{DISCIPLINE}/{SCRATCH}/{path}",
+        json=body,
+        headers=base_module.auth_headers(client),
+    )
+    response.raise_for_status()
+
+
+def _md(resource: generated.Resource) -> str:
+    assert isinstance(resource.data, generated.DataMd)
+    return resource.data.content
+
+
+def _event(client: httpx.Client) -> generated.CalendarEvent:
+    return generated.read_calendar_event(
+        discipline=DISCIPLINE, course=SCRATCH, week="1", time_slot="mon", client=client
+    )
+
+
+def test_a_resource_edited_on_the_web_stays_and_shows_as_a_pull(
+    synced: Path, client: httpx.Client
+):
+    before = _resource(client, "hello")
+    _patch(client, "resource/hello", {"data": {"type": "MD", "content": "# Web\n"}})
+    assert _resource(client, "hello").rev == before.rev
+
+    result = _push(synced)
+
+    assert result.exit_code == 0, result.output
+    assert _md(_resource(client, "hello")) == "# Web\n"
+    assert re.search(r"pull .*resource hello", result.output), result.output
+
+
+def test_an_event_edited_on_the_web_stays_and_shows_as_a_pull(
+    synced: Path, client: httpx.Client
+):
+    before = _event(client)
+    _patch(client, "calendar-event/1/mon", {"title": WEB})
+    assert _event(client).rev == before.rev
+
+    result = _push(synced)
+
+    assert result.exit_code == 0, result.output
+    assert _event(client).title == WEB
+    assert re.search(r"pull .*calendar event 1/mon", result.output), result.output
+
+
+def test_a_resource_created_on_the_web_is_kept_and_shows_as_a_pull(
+    synced: Path, client: httpx.Client
+):
+    generated.create_resource(
+        discipline=DISCIPLINE,
+        course=SCRATCH,
+        body=generated.ResourceCreate(
+            slug="web-made", title="Web", data=generated.DataMd(type="MD", content="x")
+        ),
+        client=client,
+    )
+
+    result = _push(synced)
+
+    assert result.exit_code == 0, result.output
+    assert "web-made" in _resource_slugs(client)
+    assert re.search(r"pull .*resource web-made", result.output), result.output
+
+
+def test_edits_on_both_sides_conflict_and_ours_sends_the_local_version(
+    synced: Path, client: httpx.Client, write_requests: list[str]
+):
+    _patch(client, "resource/hello", {"data": {"type": "MD", "content": "# Web\n"}})
+    (synced / "resources" / "hello.md").write_text("# Hello\n\nLocal edit.\n")
+    write_requests.clear()
+
+    conflicted = _push(synced)
+
+    assert conflicted.exit_code != 0, conflicted.output
+    assert re.search(r"^conflict .*resource hello", conflicted.output, re.MULTILINE)
+    assert _md(_resource(client, "hello")) == "# Web\n"
+    assert write_requests == []
+
+    ours = _push(synced, "--ours", "resource/hello")
+
+    assert ours.exit_code == 0, ours.output
+    assert "Local edit." in _md(_resource(client, "hello"))
+    clean = _push(synced, "--dry-run")
+    assert clean.exit_code == 0, clean.output
+    assert not re.search(r"^conflict ", clean.output, re.MULTILINE), clean.output
+    assert _planned_writes(clean.output) == []
+
+
+def test_a_course_in_sync_without_a_base_rebuilds_it_and_writes_nothing(
+    synced: Path, client: httpx.Client, write_requests: list[str]
+):
+    base = synced / MACHINE_DIR / "base"
+    assert (base / "resources.json").exists()
+    shutil.rmtree(synced / MACHINE_DIR)
+
+    result = _push(synced)
+
+    assert result.exit_code == 0, result.output
+    assert not re.search(r"^conflict ", result.output, re.MULTILINE), result.output
+    assert write_requests == []
+    assert (base / "resources.json").exists()
+
+
+def test_an_entity_only_the_server_has_with_a_rev_is_other_cli_until_ours(
+    synced: Path, client: httpx.Client
+):
+    generated.create_resource(
+        discipline=DISCIPLINE,
+        course=SCRATCH,
+        body=generated.ResourceCreate(
+            slug="theirs",
+            title="Theirs",
+            rev="somebody-else",
+            data=generated.DataMd(type="MD", content="x"),
+        ),
+        client=client,
+    )
+
+    result = _push(synced)
+
+    assert result.exit_code == 0, result.output
+    assert re.search(r"other cli .*resource theirs", result.output), result.output
+    assert "--ours resource/theirs" in result.output
+    assert "theirs" in _resource_slugs(client)
+
+    ours = _push(synced, "--ours", "resource/theirs")
+
+    assert ours.exit_code == 0, ours.output
+    assert "theirs" not in _resource_slugs(client)
+
+
+def test_a_second_push_without_changes_writes_nothing(
+    synced: Path, client: httpx.Client, write_requests: list[str]
+):
+    (synced / "resources" / "hello.md").write_text("# Hello\n\nChanged.\n")
+    first = _push(synced)
+    assert first.exit_code == 0, first.output
+    assert write_requests, "the edit should have been written"
+    stamp = _resource(client, "hello").updated_at
+    write_requests.clear()
+
+    second = _push(synced)
+
+    assert second.exit_code == 0, second.output
+    assert write_requests == []
+    assert _resource(client, "hello").updated_at == stamp

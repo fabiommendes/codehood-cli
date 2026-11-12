@@ -24,7 +24,14 @@ import pytest
 from codehood.api import base as base_module
 from codehood.api import generated
 from codehood.models.repo import CourseKey
-from codehood.push.calendar import Duration, Event, EventKey, TimeOfDay, TimeSlot
+from codehood.push.calendar import (
+    Duration,
+    Event,
+    EventKey,
+    EventKind,
+    TimeOfDay,
+    TimeSlot,
+)
 from codehood.push.grades import GradeColumn
 from codehood.push.plan import (
     DeleteCalendarEvent,
@@ -360,6 +367,57 @@ def test_resource_with_an_empty_description_and_a_padded_title(
         assert entry.payload == resource_payload(file)
     finally:
         _run(client, DeleteResource(slug=file.slug))
+
+
+@pytest.mark.parametrize(
+    "data",
+    [CodeData("print('x')\n", "python"), LinkData("https://example.org/empty")],
+    ids=["code", "link"],
+)
+def test_code_and_link_resources_with_an_empty_description(
+    client: httpx.Client, data: ResourceData
+) -> None:
+    file = ResourceFile(
+        slug="proj-empty-desc",
+        title="Empty description",
+        description="",
+        data=data,
+        ref=content_ref("Empty description", "", data, None),
+        path=Path("resources/proj-empty-desc"),
+        event=None,
+    )
+    try:
+        _run(
+            client,
+            UpsertResource(
+                slug=file.slug,
+                title=file.title,
+                description=file.description,
+                data=file.data,
+                ref=file.ref,
+                path=file.path,
+                event=None,
+            ),
+        )
+        entry = _entry(client, "resources", file.slug)
+        assert entry.payload["description"] == ""
+        assert entry.payload == resource_payload(file)
+    finally:
+        _run(client, DeleteResource(slug=file.slug))
+
+
+@pytest.mark.parametrize("kind", ["HOLIDAY", "CANCELLED"])
+def test_event_kinds_round_trip(
+    client: httpx.Client, slot: TimeSlot, kind: EventKind
+) -> None:
+    event = Event(week=92, time_slot=slot.slug, title="Not a class", kind=kind)
+    _run(client, UpsertCalendarEvent(event=event))
+    try:
+        entry = _entry(client, "calendar_events", (event.week, event.time_slot))
+        assert entry.payload["kind"] == kind
+        assert entry.payload == event_payload(event)
+    finally:
+        _run(client, DeleteCalendarEvent(week=event.week, time_slot=event.time_slot))
 
 
 def test_time_slot_title_with_padding_round_trips(client: httpx.Client) -> None:
