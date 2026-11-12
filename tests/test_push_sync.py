@@ -534,6 +534,11 @@ def test_a_draft_file_over_a_published_question_keeps_it_with_a_notice():
     assert [type(n) for n in plan.notices] == [KeptDraftPublished]
 
 
+def test_a_draft_file_over_a_hidden_question_does_not_notice():
+    plan = _q_plan(_question("a", draft=True), "HIDDEN")
+    assert plan.writes == () and plan.notices == ()
+
+
 def test_publishing_a_draft_is_a_put_with_the_new_status():
     plan = _q_plan(_question("a"), "DRAFT")
     [write] = plan.writes

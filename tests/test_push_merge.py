@@ -34,14 +34,11 @@ from codehood.push.plan import (
     DeleteTimeSlot,
     Keep,
     KeptCancelled,
-    KeptDraftPublished,
     KeptForRollCall,
     KeptPinnedSlot,
     LocalState,
     Plan,
     Prune,
-    Put,
-    Rejected,
     ServerEvent,
     ServerQuestion,
     ServerState,
@@ -56,8 +53,6 @@ from codehood.push.plan import (
     diff_keyed,
     join_status,
     merge_event,
-    merge_question,
-    protect,
 )
 from codehood.push.project import RemoteEntry
 from codehood.push.question import InvalidQuestion, QuestionFile
@@ -93,16 +88,8 @@ def test_diff_keyed_yields_what_merge_decides():
     assert decisions == [Skip()]
 
 
-def test_protect_skips_a_server_only_key_it_guards():
-    merge = protect(lambda key, local, server: Prune(DeleteResource(key)), {"keep"})
-
-    assert merge("keep", None, "ref") == Skip()
-    assert merge("drop", None, "ref") == Prune(DeleteResource("drop"))
-    assert merge("keep", object(), "ref") == Prune(DeleteResource("keep"))
-
-
 #
-# merge_question
+# join_status
 #
 def _question(version="v1", status="PUBLISHED") -> QuestionFile:
     return QuestionFile(
@@ -119,73 +106,6 @@ def test_join_status_is_the_higher_one():
     assert join_status("PUBLISHED", "DRAFT") == "PUBLISHED"
     assert join_status("PUBLISHED", "HIDDEN") == "HIDDEN"
     assert join_status("HIDDEN", "DRAFT") == "HIDDEN"
-
-
-def test_a_hidden_question_still_receives_new_content_and_stays_hidden():
-    decision = merge_question(
-        "q", _question("v2", "DRAFT"), ServerQuestion("v1", placeholder("v1"), "HIDDEN")
-    )
-    assert isinstance(decision, Put)
-    assert decision.op.status == "HIDDEN"
-    assert decision.notices == ()
-
-
-def test_a_draft_file_over_a_published_question_writes_and_notices():
-    decision = merge_question(
-        "q",
-        _question("v2", "DRAFT"),
-        ServerQuestion("v1", placeholder("v1"), "PUBLISHED"),
-    )
-    assert isinstance(decision, Put)
-    assert decision.op.status == "PUBLISHED"
-    assert decision.notices == (
-        KeptDraftPublished(slug="q", status="PUBLISHED", path=Path("questions/q.mdq")),
-    )
-
-
-def test_an_unchanged_draft_over_a_published_question_only_notices():
-    decision = merge_question(
-        "q",
-        _question("v1", "DRAFT"),
-        ServerQuestion("v1", placeholder("v1"), "PUBLISHED"),
-    )
-    assert isinstance(decision, Keep)
-    assert isinstance(decision.notice, KeptDraftPublished)
-
-
-def test_a_draft_file_over_a_hidden_question_does_not_notice():
-    decision = merge_question(
-        "q", _question("v1", "DRAFT"), ServerQuestion("v1", placeholder("v1"), "HIDDEN")
-    )
-    assert decision == Skip()
-
-
-def test_an_invalid_file_is_rejected_whatever_the_server_holds():
-    invalid = InvalidQuestion(slug="q", path=Path("q.mdq"), reason="bad")
-    for server in (None, ServerQuestion("v1", placeholder("v1"), "PUBLISHED")):
-        assert merge_question("q", invalid, server) == Keep(
-            Rejected(slug="q", path=Path("q.mdq"), reason="bad")
-        )
-
-
-@given(
-    local=st.sampled_from(("DRAFT", "PUBLISHED")),
-    remote=st.sampled_from(STATUS_ORDER),
-    same_version=st.booleans(),
-)
-def test_a_question_is_never_written_below_the_server_status(
-    local, remote, same_version
-):
-    server = ServerQuestion("v1", placeholder("v1"), remote)
-    decision = merge_question(
-        "q", _question("v1" if same_version else "v2", local), server
-    )
-    if isinstance(decision, Put):
-        assert STATUS_ORDER.index(decision.op.status) >= STATUS_ORDER.index(remote)
-    notices = decision.notices if isinstance(decision, Put) else ()
-    if isinstance(decision, Keep):
-        notices = (decision.notice,)
-    assert bool(notices) == (local == "DRAFT" and remote == "PUBLISHED")
 
 
 #

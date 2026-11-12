@@ -12,18 +12,15 @@ than a dozen loose mappings: `slug -> ref` and `slug -> version` are the
 same type and mean different things, and naming them as fields is what
 stops a caller from swapping them silently.
 
-Every keyed entity follows one shape: `diff_keyed` walks the keys of both
-sides and asks a pure `merge_*` function for a `Decision` per key. A merge
-only moves the server forward -- it writes what the repository holds that
-the server does not, and prunes what is gone locally unless something
-protects it.
+Each entity is decided by `three_way` from its local payload, its base entry
+and the server's, and `plan_sync` collects the decisions into a `Plan`.
 """
 
 from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Callable, Container, Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping
 from dataclasses import dataclass, field, replace
 from datetime import date
 from functools import partial
@@ -35,7 +32,7 @@ from .base import BaseEntry, BaseState
 from .calendar import Event, EventKey, TimeSlot
 from .exclude import ExcludedFile
 from .grades import GradeColumn
-from .project import RemoteEntry, resource_event_of, time_slot_of
+from .project import RemoteEntry, resource_event_of
 from .question import AnyQuestion, InvalidQuestion, QuestionFile, QuestionStatus
 from .repository import RepositoryTree
 from .resource import ResourceData, ResourceFile
@@ -99,19 +96,12 @@ __all__ = [
     "event_key",
     "join_status",
     "merge_event",
-    "merge_grade_column",
-    "merge_question",
     "merge_repository",
-    "merge_resource",
-    "merge_time_slot",
     "order_decisions",
     "order_writes",
     "parse_event_key",
-    "plan_calendar",
-    "plan_grades",
     "plan_repositories",
     "plan_sync",
-    "protect",
     "three_way",
     "write_rank",
 ]
@@ -476,7 +466,7 @@ class KeptCancelled:
     A calendar event the server reports as `CANCELLED`, left alone whatever
     the repository says.
 
-    Only an input of the plan: it pins the event's slot, and `plan_calendar`
+    Only an input of the plan: it pins the event's slot, and `_sync_calendar`
     folds it into a `KeptPinnedSlot`, so it never reaches `Plan.notices`.
     """
 
@@ -768,21 +758,6 @@ def diff_keyed[K, L, S](
         yield merge(key, None, server[key])
 
 
-def protect[K, L, S](
-    merge: Callable[[K, L | None, S | None], Decision], keys: Container[K]
-) -> Callable[[K, L | None, S | None], Decision]:
-    """
-    Wrap `merge` so the server's copy of every key in `keys` is never pruned.
-    """
-
-    def protected(key: K, local: L | None, server: S | None) -> Decision:
-        if local is None and key in keys:
-            return Skip()
-        return merge(key, local, server)
-
-    return protected
-
-
 def join_status(a: QuestionStatus, b: QuestionStatus) -> QuestionStatus:
     """
     The further of two statuses along `STATUS_ORDER`.
@@ -793,65 +768,6 @@ def join_status(a: QuestionStatus, b: QuestionStatus) -> QuestionStatus:
 #
 # Merges
 #
-def merge_resource(
-    slug: str,
-    local: ResourceFile | None,
-    server: tuple[str, EventKey | None] | None,
-) -> Decision:
-    """
-    Upsert a resource whose `(ref, event)` differs from the server's marker;
-    delete one whose file is gone.
-    """
-    if local is None:
-        return Prune(DeleteResource(slug=slug))
-    if server == (local.ref, local.event):
-        return Skip()
-    return Put(_upsert_resource(local))
-
-
-def merge_question(
-    slug: str,
-    local: QuestionFile | InvalidQuestion | None,
-    server: ServerQuestion | None,
-) -> Decision:
-    """
-    Upsert a question whose `version` or status moved; delete one whose file
-    is gone; reject one `mdq` refused.
-
-    The status only moves forward, `DRAFT` to `PUBLISHED` to `HIDDEN`: the
-    file can publish a draft, and only the web hides a question or brings it
-    back. So a push never undoes what the web did, and needs no memory of
-    the previous push to tell which side changed. A draft file over a
-    published question is kept published, with a notice.
-    """
-    if local is None:
-        return Prune(DeleteQuestion(slug=slug))
-    if isinstance(local, InvalidQuestion):
-        return Keep(Rejected(slug=local.slug, path=local.path, reason=local.reason))
-
-    if server is None:
-        return Put(_upsert_question(local, local.status))
-    status = join_status(local.status, server.status)
-    notices: tuple[Notice, ...] = ()
-    if local.status == "DRAFT" and server.status == "PUBLISHED":
-        notices = (
-            KeptDraftPublished(slug=local.slug, status=server.status, path=local.path),
-        )
-    if server.version == local.version and server.status == status:
-        return Keep(notices[0]) if notices else Skip()
-    return Put(_upsert_question(local, status), notices)
-
-
-def merge_time_slot(slug: str, local: TimeSlot | None, server: str | None) -> Decision:
-    """
-    Upsert a slot whose `ref` differs from the server's; delete one the
-    calendar no longer declares.
-    """
-    if local is None:
-        return Prune(DeleteTimeSlot(slug=slug))
-    return Skip() if server == local.ref else Put(UpsertTimeSlot(slot=local))
-
-
 def merge_event(
     key: tuple[int, str],
     local: Event | None,
@@ -886,18 +802,6 @@ def merge_event(
     )
 
 
-def merge_grade_column(
-    slug: str, local: GradeColumn | None, server: str | None
-) -> Decision:
-    """
-    Upsert a column whose `rev` differs from the server's; delete one
-    `codehood.toml` no longer declares.
-    """
-    if local is None:
-        return Prune(DeleteGradeColumn(slug=slug))
-    return Skip() if server == local.rev else Put(UpsertGradeColumn(column=local))
-
-
 def merge_repository(
     slug: str,
     local: RepositoryTree | None,
@@ -918,90 +822,6 @@ def merge_repository(
     if server == local.tree_sha:
         return Skip()
     return Put(UpsertRepository(tree=local, message=message))
-
-
-#
-# Plan
-#
-def plan_resources(local: LocalState, server: ServerState) -> Plan:
-    """
-    The resource half of a plan: upserts first, then the deletes, except
-    for the slugs an `exclude` pattern leaves out.
-    """
-    markers = {
-        slug: (entry.rev or "", _resource_event(entry))
-        for slug, entry in server.resources.items()
-    }
-    merge = protect(merge_resource, _excluded(local, "resource"))
-    return Plan.of(
-        diff_keyed({file.slug: file for file in local.resources}, markers, merge)
-    )
-
-
-def plan_questions(local: LocalState, server: ServerState) -> Plan:
-    """
-    The question half of a plan: upserts and rejections first, then the
-    deletes, except for the slugs an `exclude` pattern leaves out.
-    """
-    merge = protect(merge_question, _excluded(local, "question"))
-    return Plan.of(
-        diff_keyed({q.slug: q for q in local.questions}, server.questions, merge)
-    )
-
-
-def plan_calendar(
-    local: LocalState, server: ServerState, *, drop_roll_calls: bool = False
-) -> Plan:
-    """
-    The calendar half of a plan: delete events, delete slots, upsert
-    slots, upsert events, in that exact order.
-
-    A calendar event references its time slot, so a slot cannot be
-    deleted while an event still points at it; and two slots may not
-    overlap on one weekday, so a slug that changed cannot be created
-    while the old slug still holds its hour. This order is the only one
-    that satisfies both -- see the mapping's "Deletion and pruning".
-
-    An event the server reports as `CANCELLED` is neither rewritten nor
-    pruned -- see the mapping's "Calendar events" -- and that pins its
-    time slot: a slot a `CANCELLED` event still points at is left in
-    place even when no local `days:` entry accounts for it, with one
-    `KeptPinnedSlot` per slot naming the weeks.
-
-    An event with a roll call that left the local calendar is kept with a
-    `KeptForRollCall`, and pins its slot the same way (silently). With
-    `drop_roll_calls` its roll call is deleted first, then the event.
-    """
-    local_slugs = {slot.slug for slot in local.slots}
-    events = list(
-        diff_keyed(
-            {(event.week, event.time_slot): event for event in local.events},
-            server.calendar_events,
-            partial(merge_event, drop_roll_calls=drop_roll_calls),
-        )
-    )
-    pinned, pin_notices = _pin_slots(events, local_slugs)
-    slots = list(
-        diff_keyed(
-            {slot.slug: slot for slot in local.slots},
-            {slug: _slot_ref(entry) for slug, entry in server.time_slots.items()},
-            protect(merge_time_slot, pinned),
-        )
-    )
-    reported = [
-        d
-        for d in events
-        if isinstance(d, Keep) and not isinstance(d.notice, KeptCancelled)
-    ]
-    return Plan.of(
-        [
-            *_only(events, Prune),
-            *_only(slots, Prune),
-            *_only(slots, Put),
-            *_only(events, Put),
-            *reported,
-        ]
-    ) + Plan(notices=pin_notices)
 
 
 def plan_repositories(
@@ -1025,25 +845,6 @@ def plan_repositories(
     return Plan.of(
         diff_keyed(
             {tree.slug: tree for tree in local.repositories}, server.repositories, merge
-        )
-    )
-
-
-def plan_grades(local: LocalState, server: ServerState) -> Plan:
-    """
-    The grade column half of a plan: upsert what changed, delete what
-    `codehood.toml` no longer declares.
-
-    Nothing is planned when `local.grade_columns` is `None`: columns that
-    could not be computed are not evidence that the server's should go.
-    """
-    if local.grade_columns is None:
-        return Plan()
-    return Plan.of(
-        diff_keyed(
-            {column.slug: column for column in local.grade_columns},
-            {slug: entry.rev or "" for slug, entry in server.grade_columns.items()},
-            merge_grade_column,
         )
     )
 
@@ -1845,18 +1646,3 @@ def _timestamp(day: date) -> str:
     expect.
     """
     return instant(day)
-
-
-def _resource_event(entry: RemoteEntry) -> EventKey | None:
-    """
-    The lesson a server resource is attached to, from its payload.
-    """
-    return resource_event_of(entry.payload)
-
-
-def _slot_ref(entry: RemoteEntry) -> str:
-    """
-    The `ref` of a server time slot, which stores none: recomputed from its
-    payload through the same `TimeSlot` the core uses.
-    """
-    return time_slot_of(entry.payload).ref

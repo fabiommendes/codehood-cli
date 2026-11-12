@@ -20,6 +20,7 @@ one wrote yields only `UpsertCourse`", for the calendar half.
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from pathlib import Path
 
@@ -51,7 +52,6 @@ from codehood.push.plan import (
     UpsertResource,
     UpsertTimeSlot,
     course_ref,
-    plan_calendar,
 )
 from codehood.push.project import RemoteEntry
 from codehood.push.question import InvalidQuestion, QuestionFile, question_version
@@ -150,9 +150,21 @@ def _push(*args, **kwargs) -> list:
     return _writes(plan_from_server(local, realize(local, server), *rest, **kwargs))
 
 
+def _plan_calendar(local, server, **kwargs) -> Plan:
+    """
+    The calendar half of `plan_from_server`: the plan without the course
+    write.
+    """
+    plan = plan_from_server(local, realize(local, server), **kwargs)
+    return replace(
+        plan,
+        writes=tuple(w for w in plan.writes if not isinstance(w, UpsertCourse)),
+    )
+
+
 def _calendar(*args, **kwargs) -> list:
-    """The writes of `plan_calendar`."""
-    return _writes(plan_calendar(*args, **kwargs))
+    """The writes of the calendar half of `plan_from_server`."""
+    return _writes(_plan_calendar(*args, **kwargs))
 
 
 def _full_plan(resources, server_course_exists, server_resources, **kwargs) -> Plan:
@@ -823,7 +835,7 @@ def test_cancelled_events_slot_is_not_deleted_even_when_local_no_longer_declares
             )
         },
     )
-    plan = plan_calendar(_local(slots=[], events=[]), server)
+    plan = _plan_calendar(_local(slots=[], events=[]), server)
 
     assert not any(
         isinstance(op, DeleteTimeSlot) and op.slug == "wed" for op in plan.writes
@@ -839,7 +851,7 @@ def test_a_slot_pinned_by_several_cancelled_events_is_noticed_once():
             (2, "wed"): ServerEvent(ref="a", kind="CANCELLED", entry=placeholder("a")),
         },
     )
-    plan = plan_calendar(_local(slots=[], events=[]), server)
+    plan = _plan_calendar(_local(slots=[], events=[]), server)
     assert plan.notices == (KeptPinnedSlot(slug="wed", weeks=(2, 4)),)
 
 
@@ -853,7 +865,7 @@ def test_a_regular_events_slot_is_still_deleted_when_local_no_longer_declares_it
             )
         },
     )
-    plan = plan_calendar(_local(slots=[], events=[]), server)
+    plan = _plan_calendar(_local(slots=[], events=[]), server)
     [op] = [o for o in plan.writes if isinstance(o, DeleteTimeSlot)]
     assert op.slug == "wed"
     assert plan.notices == ()

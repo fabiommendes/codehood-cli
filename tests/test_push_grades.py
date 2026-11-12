@@ -9,6 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from server_entries import plan_from_server, realize
 
 from codehood.grades import ExamResult, Student
 from codehood.models.repo import CourseKey
@@ -29,9 +30,23 @@ from codehood.push.plan import (
     Plan,
     ServerState,
     UpsertGradeColumn,
-    plan_grades,
 )
 from codehood.push.project import RemoteEntry
+
+
+def plan_grades(local: LocalState, server: ServerState) -> Plan:
+    """
+    The grade column writes `plan_sync` plans when the server holds what the
+    base says it holds.
+    """
+    plan = plan_from_server(local, realize(local, server))
+    return Plan(
+        writes=tuple(
+            w
+            for w in plan.writes
+            if isinstance(w, UpsertGradeColumn | DeleteGradeColumn)
+        )
+    )
 
 
 def _server_student(username: str, **overrides) -> ServerStudent:
