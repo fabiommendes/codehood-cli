@@ -105,12 +105,19 @@ def describe_conflict(conflict: Conflict) -> str:
 
 def describe_other_cli(other: OtherCli) -> str:
     """
-    Render an `OtherCli`: a change made through another CLI.
+    Render an `OtherCli`: a change made through another CLI, with the
+    `--ours` way out for a source that is no longer in git.
     """
-    return (
+    text = (
         f"other cli  {_entity(other.kind, other.key)} changed on the server "
         f"through another CLI; run `git pull` before pushing{_fields(other.fields)}"
     )
+    if other.ours:
+        text += (
+            "; if the file no longer exists anywhere, push with "
+            f"--ours {other.kind}/{other.key}"
+        )
+    return text
 
 
 def describe_server_drifted(notice: ServerDrifted) -> str:

@@ -104,6 +104,8 @@ __all__ = [
     "merge_repository",
     "merge_resource",
     "merge_time_slot",
+    "order_decisions",
+    "order_writes",
     "parse_event_key",
     "plan_calendar",
     "plan_grades",
@@ -111,6 +113,7 @@ __all__ = [
     "plan_sync",
     "protect",
     "three_way",
+    "write_rank",
 ]
 
 
@@ -731,12 +734,17 @@ class OtherCli:
     """
     The server changed through another CLI: its source is in git, so the
     answer is a `git pull`, not a `Pull`.
+
+    `ours` is what a `Conflict`'s is: the operations that make the repository
+    win, for when the source is gone from git too. Nothing runs them unless
+    the user asks with `--ours`.
     """
 
     kind: EntityKind
     key: str
     fields: tuple[str, ...]
     renamed_to: str | None = None
+    ours: tuple[Put | Prune, ...] = ()
 
 
 Decision = Skip | Put | Prune | Keep | Pull | Conflict | OtherCli
@@ -1142,7 +1150,7 @@ def three_way(
             fields = diff_fields(None, remote.payload)
             if remote.rev is None:
                 return Pull(kind, key, "create", fields, remote)
-            return OtherCli(kind, key, fields)
+            return OtherCli(kind, key, fields, ours=ours_prune())
         if remote is None:
             return put_()
         if server_ref is not None and server_ref == local_ref:
@@ -1160,7 +1168,7 @@ def three_way(
             return prune_()
         fields = diff_fields(base.payload, remote.payload)
         if remote.rev != base.rev:
-            return OtherCli(kind, key, fields)
+            return OtherCli(kind, key, fields, ours=ours_prune())
         return Conflict(kind, key, fields, "local-deleted-remote-edited", ours_prune())
     if remote is None:
         if local == base.payload:
@@ -1176,7 +1184,12 @@ def three_way(
     if not remote_changed:
         return put_()
     if remote.rev != base.rev:
-        return OtherCli(kind, key, diff_fields(base.payload, remote.payload))
+        return OtherCli(
+            kind,
+            key,
+            diff_fields(base.payload, remote.payload),
+            ours=(put_(),),
+        )
     if not local_changed:
         return Pull(
             kind, key, "update", diff_fields(base.payload, remote.payload), remote
@@ -1302,7 +1315,8 @@ def _sync_kind(
         new.remove(found)
         added = decisions.pop(found)
         if isinstance(decision, OtherCli):
-            decisions[old] = replace(decision, renamed_to=found)
+            ours = (added, *decision.ours) if isinstance(added, Put) else ()
+            decisions[old] = replace(decision, renamed_to=found, ours=ours)
         elif isinstance(added, Put):
             decisions[old] = Conflict(
                 kind,
@@ -1528,6 +1542,8 @@ def _sync_calendar(
         )
         if isinstance(decision, Prune) and key in held:
             return Conflict("time_slot", key, tuple(held[key]), "referenced")
+        if isinstance(decision, OtherCli) and key in held:
+            return replace(decision, ours=_without_prunes(decision.ours))
         return decision
 
     decided_slots = _sync_kind(
@@ -1549,10 +1565,14 @@ def _sync_calendar(
     ]
     return Plan.of(
         [
-            *_only(decided, Prune),
-            *_only(decided_slots, Prune),
-            *_only(decided_slots, Put),
-            *_only(decided, Put),
+            *order_decisions(
+                [
+                    *_only(decided, Prune),
+                    *_only(decided_slots, Prune),
+                    *_only(decided_slots, Put),
+                    *_only(decided, Put),
+                ]
+            ),
             *reported,
             *rest,
         ]
@@ -1645,6 +1665,52 @@ def _excluded(local: LocalState, kind: str) -> frozenset[str]:
     The slugs of `kind` that an `exclude` pattern leaves out of the push.
     """
     return frozenset(file.slug for file in local.excluded if file.kind == kind)
+
+
+def _without_prunes(ours: tuple[Put | Prune, ...]) -> tuple[Put | Prune, ...]:
+    return tuple(d for d in ours if not isinstance(d, Prune))
+
+
+#: Where each write sits in a plan: the course, the repositories, the
+#: calendar (removals of events, removals of time slots, time slots, events),
+#: then resources, questions and grade columns. A write only depends on
+#: those before it.
+_WRITE_ORDER: tuple[tuple[type, ...], ...] = (
+    (UpsertCourse,),
+    (UpsertRepository, DeleteRepository),
+    (DeleteRollCall, DeleteCalendarEvent),
+    (DeleteTimeSlot,),
+    (UpsertTimeSlot,),
+    (UpsertCalendarEvent,),
+    (UpsertResource, DeleteResource),
+    (UpsertQuestion, DeleteQuestion),
+    (UpsertGradeColumn, DeleteGradeColumn),
+)
+
+
+def write_rank(write: Write) -> int:
+    """
+    The position of a write in the order a plan runs its writes.
+    """
+    for rank, types in enumerate(_WRITE_ORDER):
+        if isinstance(write, types):
+            return rank
+    raise TypeError(f"unranked write: {write!r}")
+
+
+def order_writes(writes: Iterable[Write]) -> tuple[Write, ...]:
+    """
+    Sort writes into the order a plan runs them, keeping the given order
+    among writes of the same rank.
+    """
+    return tuple(sorted(writes, key=write_rank))
+
+
+def order_decisions(decisions: Iterable[Put | Prune]) -> list[Put | Prune]:
+    """
+    Sort `Put` and `Prune` decisions into the order of their writes.
+    """
+    return sorted(decisions, key=lambda d: write_rank(d.op))
 
 
 def _only[D: Decision](decisions: Iterable[Decision], kind: type[D]) -> list[D]:

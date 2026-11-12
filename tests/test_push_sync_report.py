@@ -106,6 +106,18 @@ def test_other_cli_suggests_git_pull():
     assert "git pull" in text
 
 
+def test_other_cli_names_ours_as_the_way_out_when_the_file_is_gone():
+    text = describe_other_cli(
+        OtherCli("resource", "intro", ("body",), ours=(Put(DeleteResource("intro")),))
+    )
+    assert "git pull" in text
+    assert "--ours resource/intro" in text
+
+
+def test_other_cli_without_ours_does_not_mention_it():
+    assert "--ours" not in describe_other_cli(OtherCli("resource", "intro", ()))
+
+
 def test_server_drifted_says_the_server_value_is_overwritten():
     text = describe_server_drifted(ServerDrifted("grade_column", "p1", ("note",)))
     assert "grade column p1" in text

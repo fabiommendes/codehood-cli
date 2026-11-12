@@ -4,19 +4,24 @@ Tests for `codehood.push.ours`: settling conflicts in favour of the repository.
 
 from __future__ import annotations
 
+from codehood.models.repo import CourseKey
 from codehood.push.base import BaseEntry
-from codehood.push.calendar import Duration, TimeOfDay, TimeSlot
+from codehood.push.calendar import Duration, Event, TimeOfDay, TimeSlot
 from codehood.push.ours import ours_warnings, resolve_ours
 from codehood.push.plan import (
     BaseUpdate,
     Confirmation,
     Conflict,
+    DeleteCalendarEvent,
     DeleteResource,
     DeleteTimeSlot,
+    OtherCli,
     Plan,
     Prune,
     Pull,
     Put,
+    UpsertCalendarEvent,
+    UpsertCourse,
     UpsertTimeSlot,
 )
 
@@ -116,3 +121,64 @@ def test_a_matched_conflict_without_a_resolution_is_reported():
 
     assert "time_slot/lab" in warning
     assert "no automatic resolution" in warning
+
+
+def test_conflicts_resolved_together_come_out_in_dependency_order():
+    event = Put(UpsertCalendarEvent(Event(1, "lab", title="x")))
+    resource = Put(DeleteResource("r"))
+    plan = Plan(
+        conflicts=(
+            conflict("calendar_event", "1/lab", ours=(event,)),
+            conflict("resource", "r", ours=(resource,)),
+            conflict("time_slot", "lab", ours=(PUT,)),
+        )
+    )
+
+    resolved = resolve_ours(plan, ["*"])
+
+    assert resolved.writes == (PUT.op, event.op, resource.op)
+
+
+def test_removals_run_before_the_upserts_they_make_room_for():
+    gone_event = Prune(DeleteCalendarEvent(1, "old"))
+    plan = Plan(
+        writes=(UpsertCourse(CourseKey("d", "c", "e"), "", "", "", ""),),
+        conflicts=(
+            conflict(ours=(PUT,)),
+            conflict("time_slot", "old", ours=(OLD_SLOT,)),
+            conflict("calendar_event", "1/old", ours=(gone_event,)),
+        ),
+    )
+
+    resolved = resolve_ours(plan, ["*"])
+
+    assert resolved.writes[1:] == (gone_event.op, OLD_SLOT.op, PUT.op)
+    assert isinstance(resolved.writes[0], UpsertCourse)
+
+
+def test_an_other_cli_entry_is_settled_like_a_conflict():
+    other = OtherCli("time_slot", "lab", ("title",), ours=(PUT,))
+    plan = Plan(other_cli=(other,))
+
+    resolved = resolve_ours(plan, ["time_slot/lab"])
+
+    assert resolved.other_cli == ()
+    assert resolved.writes == (PUT.op,)
+    assert resolved.confirmations == (Confirmation(PUT.op, PUT.base),)
+
+
+def test_an_other_cli_entry_the_glob_misses_stays():
+    other = OtherCli("time_slot", "lab", ("title",), ours=(PUT,))
+    plan = Plan(other_cli=(other,))
+
+    assert resolve_ours(plan, ["resource/*"]) == plan
+
+
+def test_warnings_cover_an_other_cli_entry():
+    other = OtherCli("time_slot", "lab", ("title",), ours=(PUT,))
+    bare = OtherCli("time_slot", "x", ())
+    plan = Plan(other_cli=(other, bare))
+
+    assert ours_warnings(plan, ["time_slot/lab"]) == ()
+    [warning] = ours_warnings(plan, ["time_slot/x"])
+    assert "time_slot/x" in warning

@@ -35,6 +35,8 @@ from codehood.push.plan import (
     KeptPinnedSlot,
     LocalState,
     Plan,
+    Prune,
+    Put,
     Rejected,
     ServerDrifted,
     ServerEvent,
@@ -339,6 +341,28 @@ def test_other_cli_wins_over_conflict_and_pull(name, local, base, remote, expect
 
 
 @pytest.mark.parametrize("name", [n for n, a in ADAPTERS.items() if a.has_rev])
+@pytest.mark.parametrize(
+    ("local", "base", "remote", "ours"),
+    [
+        ("b", "a", "c", "put"),
+        (None, "a", "b", "prune"),
+        (None, None, "b", "prune"),
+    ],
+)
+def test_other_cli_carries_the_local_side_as_ours(name, local, base, remote, ours):
+    adapter = ADAPTERS[name]
+    plan = _plan(adapter, local, base, remote, remote_rev="theirs")
+    [other] = [o for o in plan.other_cli if o.kind == adapter.kind]
+    [op] = other.ours
+    assert isinstance(op, Put if ours == "put" else Prune)
+    assert op.base is not None
+    assert (op.base.entry is None) == (ours == "prune")
+    assert plan.writes == () or not any(
+        isinstance(w, adapter.writes) for w in plan.writes
+    )
+
+
+@pytest.mark.parametrize("name", [n for n, a in ADAPTERS.items() if a.has_rev])
 def test_equal_payloads_adopt_the_server_rev(name):
     adapter = ADAPTERS[name]
     plan = _plan(adapter, "b", "a", "b", remote_rev="theirs")
@@ -475,6 +499,8 @@ def test_rename_edited_by_another_cli_asks_for_a_git_pull():
     plan = _rename(remote_title="edited", remote_rev="theirs")
     assert [(o.key, o.renamed_to) for o in plan.other_cli] == [("old", "new")]
     assert plan.writes == () and plan.conflicts == ()
+    [other] = plan.other_cli
+    assert [type(c.op) for c in other.ours] == [UpsertResource, DeleteResource]
 
 
 #
