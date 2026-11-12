@@ -10,7 +10,9 @@ QUESTIONS_DIR = "questions"
 EXAMS_DIR = "exams"
 RESOURCES_DIR = "resources"
 REPOSITORIES_DIR = "repositories"
-MACHINE_DIR = ".codehood"
+LOCAL_DIR = ".local"
+MACHINE_DIR = ".local/codehood"
+MACHINE_GITIGNORE = "*\n"
 GIT_DIR = ".git"
 
 # The example question and exam. Flat filenames -- see the spec's
@@ -25,11 +27,11 @@ def render_gitignore() -> str:
     """
     Render the `.gitignore` `init` writes at the repository root.
 
-    Holds `.codehood/` (machine state, see the spec's "`.codehood/` is
-    machine state" section) plus the usual OS noise. Nothing else: this is
-    a content repository, not a Python project.
+    Only the usual OS noise: the machine state in `.local/codehood/` ignores
+    itself through its own `.gitignore`. This is a content repository, not a
+    Python project.
     """
-    return f"{MACHINE_DIR}/\n.DS_Store\nThumbs.db\n"
+    return ".DS_Store\nThumbs.db\n"
 
 
 def render_readme(name: str) -> str:

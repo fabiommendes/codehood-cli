@@ -42,6 +42,7 @@ def test_list_files_skips_dot_dirs_and_returns_gitignore(tmp_path):
     _write(tmp_path, ".gitignore", "*.log\ntmp/\n")
     _write(tmp_path, ".git/config")
     _write(tmp_path, ".codehood/state")
+    _write(tmp_path, ".local/codehood/base/course.json")
     _write(tmp_path, "a.log")
     _write(tmp_path, "tmp/b.txt")
     _write(tmp_path, "kept/c.txt")

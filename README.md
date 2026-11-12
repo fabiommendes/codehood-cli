@@ -31,7 +31,7 @@ It asks for the discipline, your username, the edition and the server, and
 creates the following folder structure in your current working directory:
 
 ```
-├── .codehood/
+├── .local/codehood/
 ├── questions/
 │   └── example.md
 ├── exams/

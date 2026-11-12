@@ -24,7 +24,7 @@ __all__ = ["consumed_paths", "excluded_paths", "find_unconsumed", "list_files"]
 ROOT_CONSUMED = ("codehood.toml", "README.md", "calendar.md", "grades.py", "grades.csv")
 
 #: Directories never versioned by the course: skipped without a gitignore.
-SKIPPED_DIRS = frozenset({".git", ".codehood"})
+SKIPPED_DIRS = frozenset({".git", ".codehood", ".local"})
 
 
 def find_unconsumed(
@@ -77,7 +77,7 @@ def excluded_paths(files: Iterable[File]) -> frozenset[str]:
 
 def list_files(root: Path) -> tuple[list[str], list[str]]:
     """
-    Walk the repository, skipping `.git/` and `.codehood/`.
+    Walk the repository, skipping `.git/`, `.local/` and the legacy `.codehood/`.
 
     Returns the relative paths and the lines of the root `.gitignore`.
     """

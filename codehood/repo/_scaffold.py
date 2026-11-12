@@ -85,6 +85,10 @@ def write_repo(
         ensure_dir(path / _layout.RESOURCES_DIR),
         ensure_dir(path / _layout.REPOSITORIES_DIR),
         ensure_dir(path / _layout.MACHINE_DIR),
+        ensure_file(
+            path / _layout.MACHINE_DIR / _layout.GITIGNORE_FILE,
+            _layout.MACHINE_GITIGNORE,
+        ),
     ]
     if examples:
         reports.append(
