@@ -376,7 +376,7 @@ def _patch(client: httpx.Client, path: str, body: dict) -> None:
         json=body,
         headers=base_module.auth_headers(client),
     )
-    response.raise_for_status()
+    assert response.status_code < 400, response.text
 
 
 def _md(resource: generated.Resource) -> str:
@@ -411,11 +411,16 @@ def test_an_event_edited_on_the_web_stays_and_shows_as_a_pull(
     _patch(client, "calendar-event/1/mon", {"title": WEB})
     assert _event(client).rev == before.rev
 
-    result = _push(synced)
+    try:
+        result = _push(synced)
 
-    assert result.exit_code == 0, result.output
-    assert _event(client).title == WEB
-    assert re.search(r"pull .*calendar event 1/mon", result.output), result.output
+        assert result.exit_code == 0, result.output
+        assert _event(client).title == WEB
+        assert re.search(r"pull .*calendar event 1/mon", result.output), result.output
+    finally:
+        # The scratch course outlives the test: a title left edited would
+        # show up as a pull in every push that follows.
+        _patch(client, "calendar-event/1/mon", {"title": before.title})
 
 
 def test_a_resource_created_on_the_web_is_kept_and_shows_as_a_pull(
@@ -519,3 +524,106 @@ def test_a_second_push_without_changes_writes_nothing(
     assert second.exit_code == 0, second.output
     assert write_requests == []
     assert _resource(client, "hello").updated_at == stamp
+
+
+QUESTION = "---\ntitle: Sum\n---\n\nWhat is 2 + 2?\n\n- [ ] 3\n- [*] 4\n- [ ] 5\n"
+
+
+def _question_json(client: httpx.Client, slug: str) -> dict:
+    response = client.get(
+        f"/api/course/{DISCIPLINE}/{SCRATCH}/question/{slug}",
+        headers=base_module.auth_headers(client),
+    )
+    response.raise_for_status()
+    return response.json()
+
+
+def _edit_question_on_the_server(
+    client: httpx.Client, slug: str, **fields: object
+) -> None:
+    """
+    Change the stem and version of a question through the REST API, plus `fields`.
+    """
+    question = _question_json(client, slug)["question"]
+    question["stem"] = WEB
+    body = {"question": question, "version": "web-edit", **fields}
+    _patch(client, f"question/{slug}", body)
+
+
+def test_a_pushed_question_carries_a_rev_and_an_edit_with_a_new_rev_is_other_cli(
+    synced: Path, client: httpx.Client
+):
+    (synced / "questions" / "sum.md").write_text(QUESTION, encoding="utf-8")
+    first = _push(synced)
+    assert first.exit_code == 0, first.output
+    stored = _question_json(client, "sum")
+    assert stored["rev"] == stored["version"]
+
+    _edit_question_on_the_server(client, "sum", rev="pushed-by-somebody-else")
+    result = _push(synced)
+
+    assert result.exit_code == 0, result.output
+    assert re.search(r"other cli .*question sum", result.output), result.output
+    assert not re.search(r"^pull +question", result.output, re.MULTILINE), result.output
+    assert _question_json(client, "sum")["question"]["stem"] == WEB
+
+
+def test_a_question_edited_keeping_its_rev_shows_as_a_pull(
+    synced: Path, client: httpx.Client
+):
+    (synced / "questions" / "sum.md").write_text(QUESTION, encoding="utf-8")
+    first = _push(synced)
+    assert first.exit_code == 0, first.output
+
+    _edit_question_on_the_server(client, "sum")
+    result = _push(synced)
+
+    assert result.exit_code == 0, result.output
+    assert re.search(r"pull .*question sum", result.output), result.output
+    assert "other cli" not in result.output
+    assert _question_json(client, "sum")["question"]["stem"] == WEB
+
+
+def test_a_rebuilt_base_of_a_full_course_syncs_without_a_decision_or_a_write(
+    synced: Path, client: httpx.Client, write_requests: list[str]
+):
+    """
+    A resource of each kind, a question, a lesson link and a grade column go
+    up, then the base is deleted: nothing is a decision, nothing is sent.
+    """
+    calendar = synced / "calendar.md"
+    calendar.write_text(
+        calendar.read_text(encoding="utf-8")
+        + "\nRead the [notes](resources/notes.md).\n",
+        encoding="utf-8",
+    )
+    (synced / "resources" / "notes.md").write_text("# Notes\n\nLinked.\n")
+    (synced / "resources" / "logo.png").write_bytes(b"\x89PNG\r\n\x1a\nnot really")
+    (synced / "questions" / "sum.md").write_text(QUESTION, encoding="utf-8")
+    config = synced / "codehood.toml"
+    config.write_text(
+        config.read_text(encoding="utf-8")
+        + '\n[[grades.column]]\nslug = "total"\ntitle = "Total"\n',
+        encoding="utf-8",
+    )
+    (synced / "grades.csv").write_text("username,total\nbob,7\n", encoding="utf-8")
+    first = _push(synced)
+    assert first.exit_code == 0, first.output
+    assert _resource(client, "notes").event is not None
+    shutil.rmtree(synced / MACHINE_DIR)
+    write_requests.clear()
+
+    result = _push(synced)
+
+    assert result.exit_code == 0, result.output
+    # The scratch course also holds time slots the seed created (`tue`, `thu`),
+    # which always show as pulls and are none of this course's content.
+    decisions = re.findall(
+        r"^(?:pull|conflict|other cli) +(?:course|resource|question|calendar event"
+        r"|grade column)\b.*$",
+        result.output,
+        re.MULTILINE,
+    )
+    assert decisions == []
+    assert write_requests == []
+    assert (synced / MACHINE_DIR / "base" / "questions.json").exists()
