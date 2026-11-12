@@ -847,7 +847,7 @@ def test_a_new_grade_column_is_put_and_recorded():
 #
 # Review findings
 #
-def test_a_new_invalid_question_is_rejected_as_plan_push_does():
+def test_a_new_invalid_question_is_rejected_as_plan_from_server_does():
     invalid = InvalidQuestion(slug="q", path=Path("questions/q.md"), reason="bad")
     local = LocalState(KEY, DESCRIPTION, START, END, questions=(invalid,))
     base = BaseState(course={"course": BaseEntry(COURSE_PAYLOAD, COURSE_REF)})

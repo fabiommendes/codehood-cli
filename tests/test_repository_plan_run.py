@@ -1,6 +1,6 @@
 """
 Tests for repositories in the plan, the shell and the plan line (batch 2):
-`plan_repositories`/`plan_push`, `run_upsert_repository` and friends,
+`plan_repositories`/`plan_from_server`, `run_upsert_repository` and friends,
 `run_plan` with a `RepositoryApi`, and `describe_repository`.
 
 The server is a fake `RepositoryApi`: one method per endpoint, each
@@ -17,6 +17,7 @@ from pathlib import Path
 import httpx
 import mdq
 import pytest
+from server_entries import plan_from_server
 
 from codehood.cli.push import describe, describe_notice, describe_repository
 from codehood.models.repo import CourseKey
@@ -33,7 +34,6 @@ from codehood.push.plan import (
     UpsertRepository,
     UpsertResource,
     UpsertTimeSlot,
-    plan_push,
     plan_repositories,
 )
 from codehood.push.question import QuestionFile, question_version
@@ -217,24 +217,24 @@ def test_a_second_plan_against_the_state_the_first_wrote_plans_no_repository_op(
 
 
 #
-# plan_push
+# plan_from_server
 #
-def test_plan_push_carries_the_repository_ops():
+def test_plan_from_server_carries_the_repository_ops():
     tree = _tree("lab1")
-    ops = plan_push(_local(tree), _server(), message="m").writes
+    ops = plan_from_server(_local(tree), _server(), message="m").writes
     assert UpsertRepository(tree=tree, message="m") in ops
 
 
-def test_plan_push_drops_repositories_only_on_request():
+def test_plan_from_server_drops_repositories_only_on_request():
     local, server = _local(), _server(old="e" * 40)
-    assert KeptRepository(slug="old") in plan_push(local, server).notices
+    assert KeptRepository(slug="old") in plan_from_server(local, server).notices
     assert (
         DeleteRepository(slug="old")
-        in plan_push(local, server, drop_repositories=True).writes
+        in plan_from_server(local, server, drop_repositories=True).writes
     )
 
 
-def test_plan_push_orders_course_repositories_calendar_resources_questions():
+def test_plan_from_server_orders_course_repositories_calendar_resources_questions():
     slot = TimeSlot(
         slug="mon",
         day="MONDAY",
@@ -265,7 +265,7 @@ def test_plan_push_orders_course_repositories_calendar_resources_questions():
     )
     kinds = [
         type(op)
-        for op in plan_push(local, _server()).writes
+        for op in plan_from_server(local, _server()).writes
         if isinstance(
             op,
             UpsertCourse
@@ -286,9 +286,9 @@ def test_plan_push_orders_course_repositories_calendar_resources_questions():
     ]
 
 
-def test_plan_push_with_matching_trees_yields_only_the_course():
+def test_plan_from_server_with_matching_trees_yields_only_the_course():
     tree = _tree("lab1")
-    plan = plan_push(_local(tree), _server(lab1=tree.tree_sha))
+    plan = plan_from_server(_local(tree), _server(lab1=tree.tree_sha))
     assert [type(op) for op in plan.writes] == [UpsertCourse]
     assert plan.notices == ()
 

@@ -3,7 +3,7 @@ The files a push leaves out because of `[push] exclude` in `codehood.toml`.
 
 Excluded files are never read, so they cannot be pushed; what the server
 already holds under their slugs is protected from pruning (see
-`plan.plan_push`). Only `questions/` and `resources/` are excludable: they
+`plan.plan_sync`). Only `questions/` and `resources/` are excludable: they
 are the only trees whose files are pushed one by one.
 """
 

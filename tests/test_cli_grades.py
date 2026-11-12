@@ -153,8 +153,8 @@ def _course_json() -> dict:
         "instructor": {"name": "Ada Lovelace", "username": "ada"},
         "enrollmentCount": 2,
         "rev": None,
-        "startAt": STAMP,
-        "endAt": STAMP,
+        "startAt": "2026-01-01T00:00:00Z",
+        "endAt": "2026-06-01T00:00:00Z",
         "createdAt": STAMP,
         "updatedAt": STAMP,
         "joinedAt": STAMP,
@@ -333,7 +333,7 @@ def test_a_broken_function_refuses_the_grades_and_pushes_the_rest(repo, server):
     assert "error: grades: grades.py raised for hopper" in result.output
     assert "KeyError: 'p9'" in result.output
     assert _grade_writes(server) == []
-    assert ("PUT", "/api/course") in server.writes
+    assert ("PUT", "/api/course/cs101/ada_2026-1/time-slot") in server.writes
 
 
 def test_a_refused_grades_part_leaves_the_servers_columns_alone(repo, server):

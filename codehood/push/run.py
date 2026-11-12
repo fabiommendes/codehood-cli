@@ -2,7 +2,7 @@
 The imperative shell of `codehood push`.
 
 The only thing in `codehood/push/` that touches HTTP: `fetch_server_state`
-reads what the server currently holds, so `plan.plan_push` can diff
+reads what the server currently holds, so `plan.plan_sync` can diff
 against it; `run_plan` executes a plan one `Write` at a time.
 
 This module is also the single place the core's `ResourceData` is
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import warnings
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Protocol, cast
 from urllib.parse import quote
 
@@ -24,8 +24,10 @@ from pydantic import JsonValue, TypeAdapter
 from ..api import generated
 from ..api.base import CodehoodAPIError, auth_headers, query_params
 from ..grades import ExamResult, ExamState
+from .base import BaseEntry, BaseState
 from .grades import ServerStudent
 from .plan import (
+    BaseUpdate,
     DeleteCalendarEvent,
     DeleteGradeColumn,
     DeleteQuestion,
@@ -33,6 +35,8 @@ from .plan import (
     DeleteResource,
     DeleteRollCall,
     DeleteTimeSlot,
+    EntityKind,
+    Plan,
     ServerEvent,
     ServerQuestion,
     ServerState,
@@ -57,12 +61,18 @@ from .project import (
 from .question import QuestionStatus
 from .repository import RepositoryEntry, batch_entries
 from .resource import CodeData, FileData, LinkData, MdData, ResourceData
-from .wire import wire_question
+from .wire import (
+    event_payload,
+    grade_column_payload,
+    time_slot_payload,
+    wire_question,
+)
 
 __all__ = [
     "HttpRepositoryApi",
     "OpResult",
     "RepositoryApi",
+    "apply",
     "describe_failure",
     "fetch_server_state",
     "fetch_students",
@@ -103,6 +113,10 @@ class OpResult:
     #: The operation was never attempted because an earlier one it depends
     #: on failed. Always paired with `ok=False`.
     skipped: bool = False
+    #: The `rev` and `updatedAt` the server answered the write with, when it
+    #: answered with the stored entity.
+    rev: str | None = None
+    updated_at: str | None = None
 
 
 class RepositoryApi(Protocol):
@@ -414,9 +428,98 @@ def run_plan(
         course_failed = isinstance(op, UpsertCourse) and not result.ok
 
 
+def apply(base: BaseState, plan: Plan, results: Sequence[OpResult]) -> BaseState:
+    """
+    The base once `plan` ran with `results`, leaving `base` untouched.
+
+    The updates that need no execution always apply. The update of a
+    confirmation applies only when its write succeeded: the stored payload is
+    the local one the plan carries, stamped with the `rev` and `updatedAt` of
+    the server's answer. Whatever else stays as it was.
+    """
+    collections: dict[EntityKind, dict[str, BaseEntry]] = {
+        kind: dict(getattr(base, name)) for kind, name in COLLECTION_OF.items()
+    }
+    succeeded = [result for result in results if result.ok]
+
+    def store(update: BaseUpdate, stamp: OpResult | None = None) -> None:
+        entries = collections[update.kind]
+        if update.entry is None:
+            entries.pop(update.key, None)
+        elif stamp is None:
+            entries[update.key] = update.entry
+        else:
+            entries[update.key] = replace(
+                update.entry, rev=stamp.rev, updated_at=stamp.updated_at
+            )
+
+    for update in plan.base_updates:
+        store(update)
+    for confirmation in plan.confirmations:
+        result = next((r for r in succeeded if r.op == confirmation.write), None)
+        if result is not None:
+            store(confirmation.update, result)
+    return BaseState(
+        course=collections["course"],
+        resources=collections["resource"],
+        questions=collections["question"],
+        time_slots=collections["time_slot"],
+        calendar_events=collections["calendar_event"],
+        grade_columns=collections["grade_column"],
+    )
+
+
 #
 # Utilities
 #
+#: The `BaseState` collection of each kind of entity.
+COLLECTION_OF: dict[EntityKind, str] = {
+    "course": "course",
+    "resource": "resources",
+    "question": "questions",
+    "time_slot": "time_slots",
+    "calendar_event": "calendar_events",
+    "grade_column": "grade_columns",
+}
+
+
+@dataclass(frozen=True)
+class _Stored:
+    """
+    The `rev` and `updated_at` of an entity read from a raw JSON response.
+    """
+
+    rev: str | None
+    updated_at: str | None
+
+    @classmethod
+    def of(cls, response: httpx.Response) -> _Stored:
+        body = response.json()
+        if not isinstance(body, dict):
+            return cls(None, None)
+        rev, updated_at = body.get("rev"), body.get("updatedAt")
+        return cls(
+            rev if isinstance(rev, str) else None,
+            updated_at if isinstance(updated_at, str) else None,
+        )
+
+
+def _stamp(op: Write, response: object, message: str) -> OpResult:
+    """
+    A successful result carrying the `rev` and `updatedAt` of the entity the
+    server answered with.
+    """
+    rev = getattr(response, "rev", None)
+    updated_at = getattr(response, "updated_at", None)
+    return OpResult(
+        op=op,
+        ok=True,
+        message=message,
+        rev=rev if isinstance(rev, str) else None,
+        updated_at=updated_at if isinstance(updated_at, str) else None,
+    )
+
+
 def describe_failure(exc: CodehoodAPIError | httpx.HTTPStatusError) -> str:
     """
     One line saying why a request failed, with the server's own message.
@@ -564,12 +667,10 @@ def _run_upsert_course(op: UpsertCourse, *, client: httpx.Client) -> OpResult:
         rev=op.ref,
     )
     try:
-        generated.upsert_course(body=body, client=client)
+        stored = generated.upsert_course(body=body, client=client)
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
         return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
-    return OpResult(
-        op=op, ok=True, message=f"upserted course {op.discipline}/{op.course}"
-    )
+    return _stamp(op, stored, f"upserted course {op.discipline}/{op.course}")
 
 
 def _run_upsert_resource(
@@ -589,11 +690,11 @@ def _run_upsert_resource(
     )
     try:
         if isinstance(op.data, FileData) and _blob_missing(op.data, client):
-            _upsert_resource_with_file(
+            stored: object = _upsert_resource_with_file(
                 body, op.data, discipline=discipline, course=course, client=client
             )
         else:
-            generated.upsert_resource(
+            stored = generated.upsert_resource(
                 discipline=discipline, course=course, body=body, client=client
             )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
@@ -605,7 +706,7 @@ def _run_upsert_resource(
                 "and the link is broken until it uploads"
             )
         return OpResult(op=op, ok=False, message=message)
-    return OpResult(op=op, ok=True, message=f"upserted {op.slug}")
+    return _stamp(op, stored, f"upserted {op.slug}")
 
 
 def _blob_missing(data: FileData, client: httpx.Client) -> bool:
@@ -625,12 +726,13 @@ def _upsert_resource_with_file(
     discipline: str,
     course: str,
     client: httpx.Client,
-) -> None:
+) -> _Stored:
     """
     `PUT .../resource` as multipart: the JSON body in a `json` part and the
     file's bytes in a part named by its sha-256.
 
-    Hand-written because the generator only builds JSON bodies.
+    Hand-written because the generator only builds JSON bodies. Returns the
+    `rev` and `updatedAt` of the stored resource.
     """
     url = "/api/course/{}/{}/resource".format(
         quote(discipline, safe=""), quote(course, safe="")
@@ -645,7 +747,9 @@ def _upsert_resource_with_file(
         files=[(data.sha256, (data.filename, data.blob, "application/octet-stream"))],
         headers=auth_headers(client),
     )
-    client.send(request).raise_for_status()
+    response = client.send(request)
+    response.raise_for_status()
+    return _Stored.of(response)
 
 
 def _run_delete_resource(
@@ -682,12 +786,12 @@ def _run_upsert_question(
             # The dict is exactly the payload we mean to send, so this is
             # noise, not a signal.
             warnings.simplefilter("ignore", UserWarning)
-            generated.upsert_question(
+            stored = generated.upsert_question(
                 discipline=discipline, course=course, body=body, client=client
             )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
         return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
-    return OpResult(op=op, ok=True, message=f"upserted {op.slug}")
+    return _stamp(op, stored, f"upserted {op.slug}")
 
 
 def _run_delete_question(
@@ -705,22 +809,14 @@ def _run_delete_question(
 def _run_upsert_time_slot(
     op: UpsertTimeSlot, *, discipline: str, course: str, client: httpx.Client
 ) -> OpResult:
-    body = generated.TimeSlotCreate(
-        slug=op.slot.slug,
-        title=op.slot.title,
-        day=op.slot.day,
-        start=generated.Start(hour=op.slot.start.hour, minute=op.slot.start.minute),
-        duration=generated.Duration(
-            hours=op.slot.duration.hours, minutes=op.slot.duration.minutes
-        ),
-    )
+    body = generated.TimeSlotCreate.model_validate(time_slot_payload(op.slot))
     try:
-        generated.upsert_timeslot(
+        stored = generated.upsert_timeslot(
             discipline=discipline, course=course, body=body, client=client
         )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
         return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
-    return OpResult(op=op, ok=True, message=f"upserted {op.slot.slug}")
+    return _stamp(op, stored, f"upserted {op.slot.slug}")
 
 
 def _run_delete_time_slot(
@@ -738,24 +834,16 @@ def _run_delete_time_slot(
 def _run_upsert_calendar_event(
     op: UpsertCalendarEvent, *, discipline: str, course: str, client: httpx.Client
 ) -> OpResult:
-    body = generated.CalendarEventCreate(
-        kind=op.event.kind,
-        title=op.event.title,
-        description=op.event.description,
-        week=op.event.week,
-        rev=op.event.ref,
-        timeSlot=op.event.time_slot,
-        repositories=list(op.event.repositories),
+    body = generated.CalendarEventCreate.model_validate(
+        {**event_payload(op.event), "rev": op.event.ref}
     )
     try:
-        generated.upsert_calendar_event(
+        stored = generated.upsert_calendar_event(
             discipline=discipline, course=course, body=body, client=client
         )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
         return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
-    return OpResult(
-        op=op, ok=True, message=f"upserted {op.event.week}/{op.event.time_slot}"
-    )
+    return _stamp(op, stored, f"upserted {op.event.week}/{op.event.time_slot}")
 
 
 def _run_delete_calendar_event(
@@ -794,26 +882,16 @@ def _run_upsert_grade_column(
     op: UpsertGradeColumn, *, discipline: str, course: str, client: httpx.Client
 ) -> OpResult:
     column = op.column
-    body = generated.GradeColumnCreate(
-        slug=column.slug,
-        title=column.title,
-        kind="NUMBER" if column.kind == "number" else "LABEL",
-        position=column.position,
-        rev=column.rev,
-        values=[
-            generated.ValuesItem(username=username, value=value)
-            for username, value in column.values
-        ],
+    body = generated.GradeColumnCreate.model_validate(
+        {**grade_column_payload(column), "rev": column.rev}
     )
     try:
-        generated.upsert_grade_column(
+        stored = generated.upsert_grade_column(
             discipline=discipline, course=course, body=body, client=client
         )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
         return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
-    return OpResult(
-        op=op, ok=True, message=f"upserted {column.slug} ({len(column.values)} values)"
-    )
+    return _stamp(op, stored, f"upserted {column.slug} ({len(column.values)} values)")
 
 
 def _run_delete_grade_column(
@@ -882,7 +960,7 @@ def _list_questions(
     `ROADBLOCKS.md` -- so an archived question would otherwise look
     "current" forever and get re-planned for deletion on every push.
     Filtering to the live statuses keeps a deleted question gone for good,
-    which is what `plan_push`'s convergence (a second push plans nothing)
+    which is what `plan_sync`'s convergence (a second push plans nothing)
     requires.
     """
     response = client.get(

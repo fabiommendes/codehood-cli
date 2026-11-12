@@ -1,6 +1,6 @@
 """
 `diff_keyed`, the per-entity `merge_*` functions and the properties they
-give `plan_push`: replanning after applying a plan plans nothing, a push
+give `plan_from_server`: replanning after applying a plan plans nothing, a push
 never lowers a question's status, a `CANCELLED` event is absorbed, and a
 pinned slot is noticed at most once.
 
@@ -17,7 +17,7 @@ from pathlib import Path
 import mdq
 from hypothesis import given, settings
 from hypothesis import strategies as st
-from server_entries import placeholder, realize
+from server_entries import placeholder, plan_from_server, realize
 
 from codehood.models.repo import CourseKey
 from codehood.push.calendar import Duration, Event, EventKey, TimeOfDay, TimeSlot
@@ -57,7 +57,6 @@ from codehood.push.plan import (
     join_status,
     merge_event,
     merge_question,
-    plan_push,
     protect,
 )
 from codehood.push.project import RemoteEntry
@@ -222,7 +221,7 @@ def test_an_event_whose_marker_matches_is_skipped():
 
 
 #
-# plan_push properties
+# plan_from_server properties
 #
 SLUGS = ("a", "b", "c")
 SLOT_DAYS = {"mon": "MONDAY", "tue": "TUESDAY", "wed": "WEDNESDAY"}
@@ -379,7 +378,7 @@ def _server_question(version: str, status) -> ServerQuestion:
 
 
 def _push(local: LocalState, server: ServerState, **flags) -> Plan:
-    return plan_push(local, realize(local, server), **flags)
+    return plan_from_server(local, realize(local, server), **flags)
 
 
 def _slot_entry(slot: TimeSlot) -> RemoteEntry:

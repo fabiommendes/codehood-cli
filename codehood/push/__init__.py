@@ -3,8 +3,8 @@
 `resources/` and grade columns to the server. See `dev/specs/to-do/push.md` and
 `docs/design/mapping-local-filesystem.md`.
 
-Functional core, imperative shell: `plan.plan_push` is a pure function
-that diffs a `LocalState` against a `ServerState` into a plan
+Functional core, imperative shell: `plan.plan_sync` is a pure function
+that diffs a `LocalState`, the base and a `ServerState` into a plan
 (`plan.Plan`); `run.run_plan` is the only thing here that touches HTTP.
 """
 
@@ -81,8 +81,8 @@ from .plan import (
     UpsertResource,
     UpsertTimeSlot,
     Write,
-    plan_push,
     plan_repositories,
+    plan_sync,
 )
 from .question import (
     AnyQuestion,
@@ -147,7 +147,7 @@ __all__ = [
     "Plan",
     "DeleteRepository",
     "Write",
-    "plan_push",
+    "plan_sync",
     "plan_repositories",
     #: Calendar
     "Calendar",

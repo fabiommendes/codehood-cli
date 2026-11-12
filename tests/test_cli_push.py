@@ -22,7 +22,15 @@ import pytest
 from typer.testing import CliRunner
 
 from codehood.api import base as base_module
+from codehood.api import generated
 from codehood.cli.base import app
+from codehood.push.base import BaseEntry, BaseState, save_base
+from codehood.push.plan import event_key
+from codehood.push.project import (
+    project_calendar_event,
+    project_question,
+    project_resource,
+)
 
 push_module = importlib.import_module("codehood.cli.push")
 
@@ -233,6 +241,34 @@ def repo_with_question(repo):
     return repo
 
 
+def _seed_base(repo, *, resources=(), questions=(), events=()) -> None:
+    """
+    Record, as the base of a past push, the server entities given as their
+    JSON: an entity the server still holds unchanged and the repository no
+    longer does is one the push may delete.
+    """
+
+    def entry(payload, body: dict) -> BaseEntry:
+        return BaseEntry(payload, rev=body["rev"], updated_at=body["updatedAt"])
+
+    save_base(
+        repo,
+        BaseState(
+            resources={
+                j["slug"]: entry(project_resource(generated.Resource(**j)), j)
+                for j in resources
+            },
+            questions={j["slug"]: entry(project_question(j), j) for j in questions},
+            calendar_events={
+                event_key(j["week"], j["timeSlot"]["slug"]): entry(
+                    project_calendar_event(generated.CalendarEvent(**j)), j
+                )
+                for j in events
+            },
+        ),
+    )
+
+
 def _install_transport(monkeypatch, handler) -> None:
     def _get_client(base_url=None):
         return httpx.Client(
@@ -402,6 +438,7 @@ def test_no_prune_reports_deletion_without_executing_it(repo, monkeypatch):
             return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.method} {request.url}")
 
+    _seed_base(repo, resources=[_resource_json("stale-handout", "server-only-ref")])
     _install_transport(monkeypatch, handler)
     result = runner.invoke(app, ["push", str(repo), "--no-prune"])
 
@@ -589,6 +626,10 @@ def test_no_prune_skips_question_deletions(repo_with_question, monkeypatch):
             return httpx.Response(200, json=[])
         raise AssertionError(f"unexpected request: {request.method} {request.url}")
 
+    _seed_base(
+        repo_with_question,
+        questions=[_question_json("stale-warmup", "md5:server-only")],
+    )
     _install_transport(monkeypatch, handler)
     result = runner.invoke(app, ["push", str(repo_with_question), "--no-prune"])
 
@@ -715,6 +756,7 @@ def test_push_reports_an_event_kept_for_its_roll_call_and_deletes_nothing(
     repo, monkeypatch
 ):
     calls: list[tuple[str, str]] = []
+    _seed_base(repo, events=[_calendar_event_json(week=5)])
     _install_transport(monkeypatch, _roll_call_server_handler(repo, calls))
 
     result = runner.invoke(app, ["push", str(repo)])
@@ -728,6 +770,7 @@ def test_push_reports_an_event_kept_for_its_roll_call_and_deletes_nothing(
 
 def test_drop_roll_calls_deletes_the_roll_call_before_its_event(repo, monkeypatch):
     calls: list[tuple[str, str]] = []
+    _seed_base(repo, events=[_calendar_event_json(week=5)])
     _install_transport(monkeypatch, _roll_call_server_handler(repo, calls))
 
     result = runner.invoke(app, ["push", str(repo), "--drop-roll-calls"])
@@ -741,6 +784,7 @@ def test_drop_roll_calls_deletes_the_roll_call_before_its_event(repo, monkeypatc
 
 def test_drop_roll_calls_with_no_prune_skips_both_deletions(repo, monkeypatch):
     calls: list[tuple[str, str]] = []
+    _seed_base(repo, events=[_calendar_event_json(week=5)])
     _install_transport(monkeypatch, _roll_call_server_handler(repo, calls))
 
     result = runner.invoke(app, ["push", str(repo), "--drop-roll-calls", "--no-prune"])
@@ -1056,3 +1100,166 @@ def test_no_unconsumed_prints_nothing(repo, monkeypatch):
     result = runner.invoke(app, ["push", str(repo), "--dry-run"])
     assert result.exit_code == 0, result.output
     assert "not pushed" not in result.output
+
+
+#
+# Three-way sync: the base, `Pull` and a failed write
+#
+from fake_course_server import FakeCourseServer
+
+BASE_FILES = ("course", "resources", "questions", "time_slots", "calendar_events")
+
+
+def _push(repo, monkeypatch, server: FakeCourseServer, *args: str):
+    _install_transport(monkeypatch, server.transport())
+    return runner.invoke(app, ["push", str(repo), *args])
+
+
+def _stored_base(repo, name: str) -> dict:
+    path = repo / ".local" / "codehood" / "base" / f"{name}.json"
+    return json.loads(path.read_text(encoding="utf-8"))["entries"]
+
+
+def test_a_first_push_records_the_base_and_a_second_one_writes_nothing(
+    repo, monkeypatch
+):
+    server = FakeCourseServer()
+    first = _push(repo, monkeypatch, server)
+    assert first.exit_code == 0, first.output
+    assert server.writes
+
+    for name in BASE_FILES:
+        assert _stored_base(repo, name) is not None
+    slides = _stored_base(repo, "resources")["week1-slides"]
+    assert slides["rev"] == server.resources["week1-slides"]["rev"]
+    assert slides["updatedAt"] == server.resources["week1-slides"]["updatedAt"]
+    assert slides["payload"]["title"] == "Slides"
+
+    server.calls.clear()
+    second = _push(repo, monkeypatch, server)
+    assert second.exit_code == 0, second.output
+    assert server.writes == []
+
+
+def test_the_time_slot_goes_out_as_the_payload_the_base_records(repo, monkeypatch):
+    (repo / "calendar.md").write_text(
+        CALENDAR_MD.replace("Mon 14:00 2h", "Mon 14:00 1h30m"), encoding="utf-8"
+    )
+    server = FakeCourseServer()
+    result = _push(repo, monkeypatch, server)
+    assert result.exit_code == 0, result.output
+
+    sent = server.time_slots["mon"]["duration"]
+    assert sent == {"hours": 1, "minutes": 30}
+    assert _stored_base(repo, "time_slots")["mon"]["payload"]["duration"] == sent
+
+    server.calls.clear()
+    assert _push(repo, monkeypatch, server).exit_code == 0
+    assert server.writes == []
+
+
+def test_a_push_without_a_base_adopts_a_server_in_sync_and_writes_nothing(
+    repo, monkeypatch
+):
+    server = FakeCourseServer()
+    assert _push(repo, monkeypatch, server).exit_code == 0
+    base_dir = repo / ".local" / "codehood" / "base"
+    for file in base_dir.iterdir():
+        file.unlink()
+
+    server.calls.clear()
+    result = _push(repo, monkeypatch, server)
+
+    assert result.exit_code == 0, result.output
+    assert server.writes == []
+    assert _stored_base(repo, "resources")["week1-slides"]["rev"] is not None
+
+
+def test_an_entity_changed_on_the_server_keeping_its_rev_is_pulled_not_pushed(
+    repo, monkeypatch
+):
+    server = FakeCourseServer()
+    assert _push(repo, monkeypatch, server).exit_code == 0
+    server.edit("resources", "week1-slides", title="edited on the web")
+    before = _stored_base(repo, "resources")["week1-slides"]
+
+    server.calls.clear()
+    result = _push(repo, monkeypatch, server)
+
+    assert result.exit_code == 0, result.output
+    assert server.writes == []
+    assert server.resources["week1-slides"]["title"] == "edited on the web"
+    assert "pull" in result.output
+    assert "week1-slides" in result.output
+    assert _stored_base(repo, "resources")["week1-slides"] == before
+
+
+def test_an_entity_created_on_the_server_is_not_deleted(repo, monkeypatch):
+    server = FakeCourseServer()
+    assert _push(repo, monkeypatch, server).exit_code == 0
+    server.create_resource("from-the-web")
+
+    server.calls.clear()
+    result = _push(repo, monkeypatch, server)
+
+    assert result.exit_code == 0, result.output
+    assert server.writes == []
+    assert "from-the-web" in server.resources
+    assert "from-the-web" not in _stored_base(repo, "resources")
+
+
+def test_a_failed_put_keeps_the_previous_base_entry(repo, monkeypatch):
+    server = FakeCourseServer()
+    assert _push(repo, monkeypatch, server).exit_code == 0
+    before = _stored_base(repo, "resources")["week1-slides"]
+    slides = repo / "resources" / "week1" / "slides.md"
+    slides.write_text("# Slides\n\nChanged.\n", encoding="utf-8")
+
+    server.failing.add(f"{BASE}/resource")
+    result = _push(repo, monkeypatch, server)
+
+    assert result.exit_code == 1, result.output
+    assert _stored_base(repo, "resources")["week1-slides"] == before
+
+    server.failing.clear()
+    again = _push(repo, monkeypatch, server)
+    assert again.exit_code == 0, again.output
+    after = _stored_base(repo, "resources")["week1-slides"]
+    assert after != before
+    assert "Changed." in json.dumps(after["payload"])
+
+
+def test_a_deleted_resource_leaves_the_base_when_the_delete_succeeds(repo, monkeypatch):
+    server = FakeCourseServer()
+    assert _push(repo, monkeypatch, server).exit_code == 0
+    (repo / "resources" / "week1" / "slides.md").unlink()
+
+    result = _push(repo, monkeypatch, server)
+
+    assert result.exit_code == 0, result.output
+    assert "week1-slides" not in server.resources
+    assert "week1-slides" not in _stored_base(repo, "resources")
+
+
+def test_a_dry_run_records_no_base(repo, monkeypatch):
+    server = FakeCourseServer()
+    result = _push(repo, monkeypatch, server, "--dry-run")
+
+    assert result.exit_code == 0, result.output
+    assert server.writes == []
+    assert not (repo / ".local").exists()
+
+
+def test_an_unreadable_base_file_is_reported_and_treated_as_absent(repo, monkeypatch):
+    server = FakeCourseServer()
+    assert _push(repo, monkeypatch, server).exit_code == 0
+    path = repo / ".local" / "codehood" / "base" / "resources.json"
+    path.write_text("{not json", encoding="utf-8")
+
+    server.calls.clear()
+    result = _push(repo, monkeypatch, server)
+
+    assert result.exit_code == 0, result.output
+    assert "base 'resources'" in result.output
+    assert server.writes == []
+    assert "week1-slides" in _stored_base(repo, "resources")

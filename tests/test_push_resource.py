@@ -245,7 +245,7 @@ def test_scan_resources_infers_file_type_for_unknown_extension(tmp_path):
 
 def test_scan_resources_ref_is_deterministic(tmp_path):
     """
-    Two scans of an untouched repository must agree, or `plan_push` reads
+    Two scans of an untouched repository must agree, or `plan_from_server` reads
     every resource as changed and pushes the whole course every time.
     """
     _write(tmp_path, "week1/slides.md", "# Slides\n\nBody.\n")

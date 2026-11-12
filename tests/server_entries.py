@@ -13,9 +13,19 @@ from __future__ import annotations
 from dataclasses import replace
 from pathlib import Path
 
+from codehood.push.base import BaseEntry, BaseState
 from codehood.push.calendar import Event
 from codehood.push.grades import GradeColumn
-from codehood.push.plan import LocalState, ServerEvent, ServerQuestion, ServerState
+from codehood.push.plan import (
+    COURSE_KEY,
+    LocalState,
+    Plan,
+    ServerEvent,
+    ServerQuestion,
+    ServerState,
+    event_key,
+    plan_sync,
+)
 from codehood.push.project import RemoteEntry
 from codehood.push.question import QuestionFile
 from codehood.push.resource import MdData, ResourceFile, content_ref
@@ -28,7 +38,7 @@ from codehood.push.wire import (
     resource_payload,
 )
 
-__all__ = ["placeholder", "realize"]
+__all__ = ["base_of", "placeholder", "plan_from_server", "realize"]
 
 
 def placeholder(rev: str | None) -> RemoteEntry:
@@ -132,3 +142,34 @@ def realize(local: LocalState, server: ServerState) -> ServerState:
             for k, v in server.grade_columns.items()
         },
     )
+
+
+def base_of(server: ServerState) -> BaseState:
+    """
+    The base that records every entity the server holds exactly as it is.
+    """
+
+    def entry(remote: RemoteEntry) -> BaseEntry:
+        return BaseEntry(remote.payload, remote.rev, remote.updated_at)
+
+    return BaseState(
+        course={COURSE_KEY: entry(server.course)}
+        if server.course_exists and server.course is not None
+        else {},
+        resources={k: entry(v) for k, v in server.resources.items()},
+        questions={k: entry(v.entry) for k, v in server.questions.items()},
+        time_slots={k: entry(v) for k, v in server.time_slots.items()},
+        calendar_events={
+            event_key(*k): entry(v.entry) for k, v in server.calendar_events.items()
+        },
+        grade_columns={k: entry(v) for k, v in server.grade_columns.items()},
+    )
+
+
+def plan_from_server(local: LocalState, server: ServerState, **options) -> Plan:
+    """
+    `plan_sync` over a base taken from the server itself: whatever the server
+    holds counts as what the checkout last sent, so a difference is a local
+    change and the repository wins.
+    """
+    return plan_sync(local, base_of(server), server, **options)

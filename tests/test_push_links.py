@@ -15,7 +15,7 @@ from pathlib import Path, PurePosixPath
 
 import httpx
 import pytest
-from server_entries import placeholder, realize
+from server_entries import placeholder, plan_from_server, realize
 from typer.testing import CliRunner
 
 from codehood.api import base as base_module
@@ -39,7 +39,6 @@ from codehood.push.plan import (
     UpsertCalendarEvent,
     UpsertResource,
     Write,
-    plan_push,
 )
 from codehood.push.project import RemoteEntry
 from codehood.push.resource import (
@@ -334,7 +333,7 @@ def test_plan_carries_the_event_on_the_upsert():
     )
     [op] = [
         o
-        for o in plan_push(local, ServerState()).writes
+        for o in plan_from_server(local, ServerState()).writes
         if isinstance(o, UpsertResource)
     ]
     assert op.event == EventKey(week=3, time_slot="tue")
@@ -570,7 +569,7 @@ def test_plan_orders_every_calendar_op_before_any_resource_op():
             (9, "mon"): ServerEvent(ref="r", kind="REGULAR", entry=placeholder("r"))
         },
     )
-    ops = list(plan_push(local, realize(local, server)).writes)
+    ops = list(plan_from_server(local, realize(local, server)).writes)
     kinds = _kinds(ops)
     for calendar_op in (UpsertCalendarEvent, DeleteCalendarEvent):
         assert calendar_op.__name__ in kinds
@@ -850,7 +849,9 @@ def _plan_resources(resource: ResourceFile, server: ServerState) -> list[Write]:
         resources=(resource,),
     )
     return [
-        op for op in plan_push(local, server).writes if isinstance(op, UpsertResource)
+        op
+        for op in plan_from_server(local, server).writes
+        if isinstance(op, UpsertResource)
     ]
 
 
@@ -959,7 +960,9 @@ def test_fetch_server_state_reads_each_resource_s_event_key():
     assert state.resources["b"].payload["event"] is None
 
 
-def test_dry_run_plans_the_resource_whose_server_event_was_lost(tmp_path, monkeypatch):
+def test_dry_run_reports_the_resource_whose_server_event_was_lost(
+    tmp_path, monkeypatch
+):
     from test_cli_push import _calendar_defaults, _course_json
 
     repo = _repo(tmp_path, _calendar("[Slides](resources/w03/recursion.md)"))
@@ -977,7 +980,12 @@ def test_dry_run_plans_the_resource_whose_server_event_was_lost(tmp_path, monkey
             return httpx.Response(200, json=[])
         if (response := _calendar_defaults(request)) is not None:
             return response
-        return httpx.Response(200, json=_course_json())
+        return httpx.Response(
+            200,
+            json=_course_json(
+                startAt="2026-01-01T00:00:00Z", endAt="2026-06-01T00:00:00Z"
+            ),
+        )
 
     monkeypatch.setattr(
         push_module,
@@ -989,11 +997,17 @@ def test_dry_run_plans_the_resource_whose_server_event_was_lost(tmp_path, monkey
     )
     result = CliRunner().invoke(app, ["push", str(repo), "--dry-run"])
 
-    assert result.exit_code == 0, result.output
-    planned = [
-        line for line in result.output.splitlines() if line.startswith("planned")
+    # The link to the lesson is gone on the server: a conflict, never a
+    # silent overwrite, so the command fails and plans no write for it.
+    assert result.exit_code == 1, result.output
+    conflicts = [
+        line for line in result.output.splitlines() if line.startswith("conflict")
     ]
-    assert any(local.slug in line and "resource" in line for line in planned), planned
+    assert any(local.slug in line for line in conflicts), conflicts
+    assert not any(
+        line.startswith("planned") and "resource" in line
+        for line in result.output.splitlines()
+    )
 
 
 #

@@ -1,12 +1,12 @@
 """
-Tests for `codehood.push.plan.plan_push` and `plan_calendar`, the pure
+Tests for `codehood.push.plan.plan_from_server` and `plan_calendar`, the pure
 planner. See `dev/specs/to-do/push.md`'s "Architecture" and "Proof"
 sections, `dev/specs/to-do/push-calendar.handoff.md`'s `push/plan.py`
 section, testing strategy and acceptance criteria, and
 `docs/design/mapping-local-filesystem.md`'s "Calendar" and "Sync
 preflight".
 
-`plan_push` now takes two frozen dataclasses, `LocalState` and
+`plan_from_server` now takes two frozen dataclasses, `LocalState` and
 `ServerState`, rather than nine positional arguments -- every test in this
 file builds those directly. Resource and question behavior is unchanged
 by the calendar work; only the call shape moved.
@@ -14,7 +14,7 @@ by the calendar work; only the call shape moved.
 Example-based tests assert on the exact list of ops for a small fixture.
 The property tests are the spec's own acceptance criteria: "Re-running
 push against unchanged state plans nothing" for resources/questions, and
-acceptance criterion 6, "a second `plan_push` against the state the first
+acceptance criterion 6, "a second `plan_from_server` against the state the first
 one wrote yields only `UpsertCourse`", for the calendar half.
 """
 
@@ -26,6 +26,7 @@ from pathlib import Path
 import mdq
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from server_entries import placeholder, plan_from_server, realize
 
 from codehood.models.repo import CourseKey
 from codehood.push.calendar import Duration, Event, TimeOfDay, TimeSlot
@@ -51,10 +52,8 @@ from codehood.push.plan import (
     UpsertTimeSlot,
     course_ref,
     plan_calendar,
-    plan_push,
 )
 from codehood.push.project import RemoteEntry
-from server_entries import placeholder, realize
 from codehood.push.question import InvalidQuestion, QuestionFile, question_version
 from codehood.push.resource import MdData, ResourceFile, content_ref
 from codehood.push.wire import time_slot_payload
@@ -141,14 +140,14 @@ def _writes(plan: Plan) -> list:
     return list(plan.writes)
 
 
-def _plan_push(local, server, **kwargs) -> Plan:
-    return plan_push(local, realize(local, server), **kwargs)
+def _plan_from_server(local, server, **kwargs) -> Plan:
+    return plan_from_server(local, realize(local, server), **kwargs)
 
 
 def _push(*args, **kwargs) -> list:
-    """The writes of `plan_push`."""
+    """The writes of `plan_from_server`."""
     local, server, *rest = args
-    return _writes(plan_push(local, realize(local, server), *rest, **kwargs))
+    return _writes(plan_from_server(local, realize(local, server), *rest, **kwargs))
 
 
 def _calendar(*args, **kwargs) -> list:
@@ -158,7 +157,7 @@ def _calendar(*args, **kwargs) -> list:
 
 def _full_plan(resources, server_course_exists, server_resources, **kwargs) -> Plan:
     """
-    Every call below builds the two `plan_push` inputs directly. `**kwargs`
+    Every call below builds the two `plan_from_server` inputs directly. `**kwargs`
     forwards `questions`/`server_questions`, matching every caller from
     before the calendar half landed.
     """
@@ -170,7 +169,7 @@ def _full_plan(resources, server_course_exists, server_resources, **kwargs) -> P
         resources=server_resources,
         questions=server_questions,
     )
-    return plan_push(local, realize(local, server))
+    return plan_from_server(local, realize(local, server))
 
 
 def _plan(*args, **kwargs) -> list:
@@ -214,7 +213,7 @@ def _question(
 def test_plan_always_upserts_the_course():
     """
     "Every write is a PUT" -- the course row is upserted whether or not it
-    already exists server-side; `plan_push` never branches on
+    already exists server-side; `plan_from_server` never branches on
     create-versus-update.
     """
     for exists in (False, True):
@@ -337,7 +336,7 @@ def test_replanning_after_applying_converges_to_no_resource_ops(
 
 #
 # Questions: added, unchanged, changed, removed -- see
-# `dev/specs/to-do/push-questions.md`, `plan_push`'s contract: "A
+# `dev/specs/to-do/push-questions.md`, `plan_from_server`'s contract: "A
 # question whose `version` equals `server_questions[slug]` is skipped."
 #
 def test_new_question_is_upserted():
@@ -802,7 +801,7 @@ def test_plan_calendar_renaming_a_slot_deletes_its_events_and_the_old_slot_befor
     assert upserted_event.event == local_event
 
 
-def test_plan_push_places_the_calendar_half_after_questions():
+def test_plan_from_server_places_the_calendar_half_after_questions():
     plan = list(_push(_local(slots=[MON], events=[REGULAR_EVENT]), _server()))
     kinds = [type(op).__name__ for op in plan]
     assert kinds == ["UpsertCourse", "UpsertTimeSlot", "UpsertCalendarEvent"]
@@ -980,9 +979,9 @@ def test_replanning_the_calendar_after_applying_converges_to_no_calendar_ops(
     assert calendar_ops == []
 
 
-def test_plan_push_after_applying_its_own_plan_yields_nothing():
+def test_plan_from_server_after_applying_its_own_plan_yields_nothing():
     """
-    A second `plan_push` against the state the first one wrote yields
+    A second `plan_from_server` against the state the first one wrote yields
     nothing, the course row included. Exercised with resources, questions
     and the calendar all present at once.
     """
@@ -1056,14 +1055,14 @@ def _server_with_roll_call(attendances: int | None) -> ServerState:
 
 
 def test_event_with_a_roll_call_removed_locally_is_kept_with_a_warning():
-    plan = _plan_push(_local(slots=[MON]), _server_with_roll_call(32))
+    plan = _plan_from_server(_local(slots=[MON]), _server_with_roll_call(32))
 
     assert not any(isinstance(op, DeleteCalendarEvent) for op in plan.writes)
     assert KeptForRollCall(5, "mon", 32) in plan.notices
 
 
 def test_event_with_an_empty_roll_call_removed_locally_is_still_kept_with_a_warning():
-    plan = _plan_push(_local(slots=[MON]), _server_with_roll_call(0))
+    plan = _plan_from_server(_local(slots=[MON]), _server_with_roll_call(0))
 
     assert not any(isinstance(op, DeleteCalendarEvent) for op in plan.writes)
     assert KeptForRollCall(5, "mon", 0) in plan.notices
@@ -1076,7 +1075,7 @@ def test_slot_of_an_event_kept_for_its_roll_call_is_not_deleted():
 
 
 def test_event_without_a_roll_call_removed_locally_is_deleted_without_a_warning():
-    plan = _plan_push(
+    plan = _plan_from_server(
         _local(slots=[MON]), _server_with_roll_call(None), drop_roll_calls=True
     )
 
@@ -1086,7 +1085,7 @@ def test_event_without_a_roll_call_removed_locally_is_deleted_without_a_warning(
 
 
 def test_dropping_roll_calls_deletes_roll_call_then_event_then_slot():
-    plan = _plan_push(
+    plan = _plan_from_server(
         _local(slots=[]), _server_with_roll_call(32), drop_roll_calls=True
     )
     assert plan.notices == ()
@@ -1107,7 +1106,7 @@ def test_event_with_a_roll_call_still_local_with_new_content_is_upserted_without
             )
         },
     )
-    plan = _plan_push(_local(slots=[MON], events=[REGULAR_EVENT]), server)
+    plan = _plan_from_server(_local(slots=[MON], events=[REGULAR_EVENT]), server)
 
     assert UpsertCalendarEvent(event=REGULAR_EVENT) in plan.writes
     assert plan.notices == ()

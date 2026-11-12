@@ -107,7 +107,6 @@ __all__ = [
     "parse_event_key",
     "plan_calendar",
     "plan_grades",
-    "plan_push",
     "plan_repositories",
     "plan_sync",
     "protect",
@@ -916,53 +915,6 @@ def merge_repository(
 #
 # Plan
 #
-def plan_push(
-    local: LocalState,
-    server: ServerState,
-    *,
-    drop_roll_calls: bool = False,
-    drop_repositories: bool = False,
-    message: str | None = None,
-) -> Plan:
-    """
-    Diff a repository against the server's current state into a `Plan`.
-
-    `plan_sync` with a base taken from the server itself: whatever the server
-    holds counts as what this checkout last sent, so a difference is always a
-    local change and the repository wins.
-    """
-    return plan_sync(
-        local,
-        _base_of(server),
-        server,
-        drop_roll_calls=drop_roll_calls,
-        drop_repositories=drop_repositories,
-        message=message,
-    )
-
-
-def _base_of(server: ServerState) -> BaseState:
-    """
-    The base that records every entity the server holds exactly as it is.
-    """
-
-    def entry(remote: RemoteEntry) -> BaseEntry:
-        return BaseEntry(remote.payload, remote.rev, remote.updated_at)
-
-    return BaseState(
-        course={COURSE_KEY: entry(server.course)}
-        if server.course_exists and server.course is not None
-        else {},
-        resources={k: entry(v) for k, v in server.resources.items()},
-        questions={k: entry(v.entry) for k, v in server.questions.items()},
-        time_slots={k: entry(v) for k, v in server.time_slots.items()},
-        calendar_events={
-            event_key(*k): entry(v.entry) for k, v in server.calendar_events.items()
-        },
-        grade_columns={k: entry(v) for k, v in server.grade_columns.items()},
-    )
-
-
 def plan_resources(local: LocalState, server: ServerState) -> Plan:
     """
     The resource half of a plan: upserts first, then the deletes, except
@@ -1249,7 +1201,7 @@ def plan_sync(
 
     Each entity goes through `three_way` on payloads in the wire format:
     local through the `wire` constructors, base and server as stored. The
-    plan keeps `plan_push`'s order: course, repositories, calendar, resources,
+    plan keeps the order: course, repositories, calendar, resources,
     questions, grade columns. Repositories and grade columns stay one-way:
     the repository overwrites, and a grade column the server holds in a form
     other than the base's gets a `ServerDrifted` notice.

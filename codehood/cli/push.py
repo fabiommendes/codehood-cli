@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import replace
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, assert_never
 
 import httpx
 import typer
@@ -16,6 +16,7 @@ from pydantic import ValidationError
 
 from ..api.base import get_client
 from ..models.repo import RepoConfig
+from ..push.base import BaseState, load_base, save_base
 from ..push.calendar import allocate, parse_calendar
 from ..push.errors import (
     CalendarError,
@@ -50,6 +51,7 @@ from ..push.plan import (
     Notice,
     Plan,
     Rejected,
+    ServerDrifted,
     UpsertCalendarEvent,
     UpsertCourse,
     UpsertGradeColumn,
@@ -58,12 +60,19 @@ from ..push.plan import (
     UpsertResource,
     UpsertTimeSlot,
     Write,
-    plan_push,
+    plan_sync,
 )
 from ..push.question import scan_questions
+from ..push.report import describe_server_drifted, sync_exit_code, sync_lines
 from ..push.repository import scan_repositories
 from ..push.resource import read_course_readme, scan_resources
-from ..push.run import HttpRepositoryApi, OpResult, fetch_server_state, run_plan
+from ..push.run import (
+    HttpRepositoryApi,
+    OpResult,
+    apply,
+    fetch_server_state,
+    run_plan,
+)
 from ..push.unconsumed import (
     consumed_paths,
     excluded_paths,
@@ -215,8 +224,13 @@ def sync(
             typer.echo(f"warning  {warning}", err=True)
         local = replace(local, grade_columns=sheet.columns)
 
-    plan = plan_push(
+    base = load_base(path)
+    for warning in base.warnings:
+        typer.echo(f"warning  {warning}", err=True)
+
+    plan = plan_sync(
         local,
+        base,
         server,
         drop_roll_calls=drop_roll_calls,
         drop_repositories=drop_repositories,
@@ -228,8 +242,12 @@ def sync(
     excluded_note = f", {len(local.excluded)} excluded" if local.excluded else ""
     for unconsumed in local.unconsumed:
         typer.echo(f"not pushed (no handler): {unconsumed}")
+    # `sync_lines` renders the drift notices along with the pulls and conflicts.
     for notice in plan.notices:
-        typer.echo(notice_line(notice))
+        if not isinstance(notice, ServerDrifted):
+            typer.echo(notice_line(notice))
+    for line in sync_lines(plan):
+        typer.echo(line)
 
     if dry_run:
         for op in plan.writes:
@@ -248,19 +266,22 @@ def sync(
         typer.echo(f"skipped  {describe(op)} (--no-prune)")
 
     results: list[OpResult] = []
-    for result in run_plan(
-        to_run,
-        discipline=local.discipline,
-        course=local.course,
-        client=client,
-        repositories=repositories,
-    ):
-        results.append(result)
-        if result.skipped:
-            typer.echo(f"skipped  {describe(result.op)} ({result.message})")
-            continue
-        status = "ok" if result.ok else "failed"
-        typer.echo(f"{status:>6}  {describe(result.op)}: {result.message}")
+    try:
+        for result in run_plan(
+            to_run,
+            discipline=local.discipline,
+            course=local.course,
+            client=client,
+            repositories=repositories,
+        ):
+            results.append(result)
+            if result.skipped:
+                typer.echo(f"skipped  {describe(result.op)} ({result.message})")
+                continue
+            status = "ok" if result.ok else "failed"
+            typer.echo(f"{status:>6}  {describe(result.op)}: {result.message}")
+    finally:
+        record_base(path, base, plan, results)
 
     failures = [result for result in results if not result.ok and not result.skipped]
     typer.echo(run_summary(plan, results, skipped=len(skipped)) + excluded_note)
@@ -274,14 +295,33 @@ def sync(
         raise typer.Exit(code=1)
 
 
+def record_base(
+    path: Path, base: BaseState, plan: Plan, results: list[OpResult]
+) -> None:
+    """
+    Write the base the push leaves behind, and say so when it cannot.
+
+    Runs even when the push stops halfway, so what already went through is
+    not forgotten. A base that cannot be written costs the next push its
+    memory, not this one its result.
+    """
+    state = apply(base, plan, results)
+    if state == base and not base.warnings:
+        return
+    try:
+        save_base(path, state)
+    except OSError as exc:
+        typer.echo(f"warning  could not record the base: {exc}", err=True)
+
+
 def exit_code(
     plan: Plan, results: Sequence[OpResult], *, grades_failed: bool = False
 ) -> int:
     """
-    The exit code of a push: failed when a question was rejected, a write
-    failed or the grade columns could not be computed.
+    The exit code of a push: failed when a question was rejected, a conflict
+    remains, a write failed or the grade columns could not be computed.
     """
-    failed = bool(plan.rejected) or grades_failed
+    failed = bool(plan.rejected) or grades_failed or bool(sync_exit_code(plan))
     return int(failed or any(not result.ok for result in results))
 
 
@@ -320,7 +360,7 @@ def _invalid_note(plan: Plan) -> str:
 
 def read_local_state(path: Path, config: RepoConfig) -> LocalState:
     """
-    Read a course repository into the value `plan_push` diffs.
+    Read a course repository into the value `plan_sync` diffs.
 
     Every read and every parse happens here, before the first network
     call, so a malformed repository costs nothing and writes nothing.
@@ -470,6 +510,10 @@ def describe_notice(notice: Notice) -> str:
             )
         case KeptCancelled():
             return f"event {notice.week}/{notice.time_slot} kept: it is CANCELLED"
+        case ServerDrifted():
+            return describe_server_drifted(notice).removeprefix("warning  ")
+        case _:
+            assert_never(notice)
 
 
 def notice_line(notice: Notice) -> str:

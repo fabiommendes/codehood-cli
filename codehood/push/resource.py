@@ -260,7 +260,7 @@ def content_ref(
     Sha-256, hex, over a canonical JSON rendering of `{v, title,
     description, data}` with no whitespace, prefixed by `REF_PREFIX`. Two
     resources with the same ref are the same resource, which is the whole
-    basis on which `plan_push` decides not to push one again -- so the
+    basis on which `plan_sync` decides not to push one again -- so the
     rendering has to be stable across runs, machines, and Python versions.
 
     A `FILE`'s bytes are digested separately and only their hex digest

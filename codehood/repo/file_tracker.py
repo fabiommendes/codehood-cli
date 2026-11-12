@@ -108,7 +108,7 @@ def find_diffs(
     There is no local state to diff against -- see `dev/specs/to-do/
     push.md`, "There is no local state" -- so every file currently reads
     as added. A caller wanting an actual diff compares against the
-    server's state instead, the way `codehood.push.plan.plan_push` does
+    server's state instead, the way `codehood.push.plan.plan_sync` does
     for resources.
     """
 
