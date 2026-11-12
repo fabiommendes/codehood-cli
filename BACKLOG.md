@@ -46,7 +46,7 @@ Backlog items are categorized in sections, not on priority.
 
 * **`api.generate` ignores the repo's own spec copy.** With no argument it
   tries `./openapi.json`, then falls back to the live dev server, and never
-  looks at `resources/openapi/codehood.json` -- the copy `CLAUDE.md` names
+  looks at `resources/openapi/codehood.json` -- the copy `AGENTS.md` names
   as the one that should be in sync. The default should be the repo copy, so
   a regeneration is reproducible with the server down.
 

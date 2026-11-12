@@ -146,7 +146,7 @@ A test pins the CLI's output against a vector taken from the importer.
 
 ## Architecture
 
-Functional core, imperative shell, per `CLAUDE.md`. New package
+Functional core, imperative shell, per `AGENTS.md`. New package
 `codehood/push/`.
 
 The core is a pure generator. It receives the repository's files and the

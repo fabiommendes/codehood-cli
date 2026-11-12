@@ -6,7 +6,7 @@ right widget so the library can actually be exercised by hand.
 `ROADMAP.md`'s `codehood push` only needs to parse and validate
 `questions/`/`exams/`, and there is no student-facing "take an exam in the
 terminal" command on the roadmap -- so the widget library itself
-(`src/widgets/*` per `CLAUDE.md`'s file layout) is built for whatever future
+(`src/widgets/*` per `AGENTS.md`'s file layout) is built for whatever future
 command needs it (an authoring-time preview, or a real exam-taking screen),
 and `show` is a manual-testing tool, not that future command.
 
