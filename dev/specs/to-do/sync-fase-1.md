@@ -43,11 +43,15 @@ fase: `ch pull` e `ch sync` ficam para a fase 2.
 - R10. O status de questão continua regido por `join_status`, fora da
   comparação. `InvalidQuestion` continua `Keep`. Arquivo em `[push] exclude`
   é sempre `Skip`.
-- R11. Mudança no vínculo recurso-aula e remoção no servidor de um recurso
-  ainda referenciado localmente são `Conflict`.
+- R11. Mudança no vínculo recurso-aula, remoção no servidor de um recurso
+  ainda referenciado localmente e criação no servidor de um recurso já
+  vinculado a uma aula são `Conflict`, com ou sem base.
 - R12. `--dry-run`, `--no-prune`, `--drop-roll-calls` e `--drop-repositories`
   mantêm o comportamento atual. Repositórios e colunas de nota continuam em
-  sentido único: mudança no servidor é sobrescrita, como hoje, com aviso.
+  sentido único, como hoje: mudança no servidor é sobrescrita e coluna criada
+  no servidor é podada. Para colunas de nota o plano avisa sempre que o
+  servidor difere do que a CLI enviou por último, com ou sem base, inclusive
+  quando o `rev` é igual. Repositórios não têm base e ficam sem aviso.
 
 ## Tipos compartilhados
 
