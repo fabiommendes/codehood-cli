@@ -396,6 +396,7 @@ class RubricItem(Model):
     position: int
     retired_at: str | None = Field(alias="retiredAt")
     uses: int
+    updated_at: str | None = Field(alias="updatedAt")
 
 
 class RubricItemCreate(Model):
@@ -977,6 +978,7 @@ class Rubric(Model):
     source_version: str | None = Field(alias="sourceVersion")
     initial: bool
     review: int
+    updated_at: str | None = Field(alias="updatedAt")
     items: list[RubricItem]
 
 

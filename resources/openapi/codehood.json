@@ -6805,6 +6805,11 @@
           "review": {
             "type": "integer"
           },
+          "updatedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
           "items": {
             "type": "array",
             "items": {
@@ -6845,6 +6850,11 @@
                 },
                 "uses": {
                   "type": "integer"
+                },
+                "updatedAt": {
+                  "type": "string",
+                  "nullable": true,
+                  "format": "date-time"
                 }
               },
               "required": [
@@ -6856,7 +6866,8 @@
                 "feedback",
                 "position",
                 "retiredAt",
-                "uses"
+                "uses",
+                "updatedAt"
               ]
             }
           }
@@ -6866,6 +6877,7 @@
           "sourceVersion",
           "initial",
           "review",
+          "updatedAt",
           "items"
         ]
       },
@@ -6920,6 +6932,11 @@
           },
           "uses": {
             "type": "integer"
+          },
+          "updatedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
           }
         },
         "required": [
@@ -6931,7 +6948,8 @@
           "feedback",
           "position",
           "retiredAt",
-          "uses"
+          "uses",
+          "updatedAt"
         ]
       },
       "RubricItemCreate": {
