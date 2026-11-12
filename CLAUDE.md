@@ -58,8 +58,8 @@ Here are some files and folders agents might be interested in:
 
 | Script                                   | Description                                   |
 | :--------------------------------------- | :-------------------------------------------- |
-| `scripts/copy-openapi.py`                | Update OpenAPI spec from a running dev server |
-| `uv run python -m codehood.api.generate` | Update generated files from the openapi spec  |
+| `scripts/copy-openapi.py`                | Refresh `resources/openapi/codehood.json` from the server (see below) |
+| `uv run python -m codehood.api.generate resources/openapi/codehood.json` | Regenerate `codehood/api/generated.py` from the snapshot |
 | `uv run codehood`, `uv run ch`           | Run the Codehood CLI tool.                    |
 | `ch init`                                | Initialize a Codehood project.                |
 | `ch push`                                | Push changes to the Codehood server.          |
@@ -174,7 +174,25 @@ Here are the important endpoints:
     - DELETE module/<id>/ - delete a specific resource
     - PATCH module/<id>/ - update a specific resource
 
-The openapi.json should be in sync with the local file `resources/openapi/codehood.json`.
+### Updating the OpenAPI snapshot
+
+`resources/openapi/codehood.json` is the snapshot of the server's OpenAPI
+document and `codehood/api/generated.py` is generated from it. Refresh both
+together after any change to what the REST API accepts or returns:
+
+- In the server repository (this CLI in its `cli/`): `pnpm run openapi:cli`
+  at the root. It writes the snapshot and regenerates the client.
+- Standalone, next to a server checkout (`../codehood-server/` or
+  `../codehood/`): `uv run python scripts/copy-openapi.py`, then
+  `uv run python -m codehood.api.generate resources/openapi/codehood.json`.
+  The script takes the document from `$CODEHOOD_OPENAPI_JSON` (URL or file),
+  else from the dev server on `localhost:4321`, else by running the checkout's
+  generator.
+
+Both are checked offline: `tests/test_generated_in_sync.py` fails when
+`generated.py` differs from what the snapshot generates, and the server's
+`test/openapi-snapshot.spec.ts` fails when the snapshot differs from the
+server's current document.
 
 The dev server defines a users with pre-seeded data, use them freely to investigate
 behavior.

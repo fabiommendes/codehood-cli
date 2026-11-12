@@ -1,20 +1,20 @@
 """
 Fetch the Codehood OpenAPI document from wherever this machine keeps it.
 
-Tries four locations, in order, and uses the first that yields a valid
+Tries three sources, in order, and uses the first that yields a valid
 document:
 
 1. `$CODEHOOD_OPENAPI_JSON`, a URL or a file path.
 2. The local dev server, `http://localhost:4321/openapi.json`.
-3. The server checkout: the parent repository when this CLI lives in its
-   `cli/` directory, else a sibling `../codehood-server/` or `../codehood/`.
-   Reads `public/openapi.json` from it.
-4. The generator in that checkout, `scripts/generate-openapi.ts`, run
-   through `pnpm exec tsx`. It writes `public/openapi.json`, which is then
-   read as in rule 3.
+3. The generator in the server checkout, `scripts/generate-openapi.ts`, run
+   through `pnpm exec tsx` with `ENVIRONMENT=dev`. The checkout is the parent
+   repository when this CLI lives in its `cli/` directory, else a sibling
+   `../codehood-server/` or `../codehood/`. The generator writes to a
+   temporary file, which is then read.
 
 The result is written to the given path, or to
-`resources/openapi/codehood-latest.json`.
+`resources/openapi/codehood.json`, the snapshot `codehood.api.generate`
+reads.
 """
 
 from __future__ import annotations
@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import tempfile
 from collections.abc import Callable, Iterator
 from pathlib import Path
 from typing import Annotated, Any
@@ -35,12 +36,11 @@ from codehood.api.openapi import load_openapi
 #: Repository root, the parent of the `scripts/` directory this file is in.
 ROOT = Path(__file__).resolve().parent.parent
 
-DEFAULT_OUTPUT = ROOT / "resources" / "openapi" / "codehood-latest.json"
+DEFAULT_OUTPUT = ROOT / "resources" / "openapi" / "codehood.json"
 ENV_VAR = "CODEHOOD_OPENAPI_JSON"
 LOCAL_SERVER_URL = "http://localhost:4321/openapi.json"
 #: The parent comes first: in the server repository this CLI lives in `cli/`.
 SIBLING_REPOS = (ROOT.parent, ROOT.parent / "codehood-server", ROOT.parent / "codehood")
-SPEC_IN_REPO = Path("public") / "openapi.json"
 GENERATOR_IN_REPO = Path("scripts") / "generate-openapi.ts"
 
 #: The dev server is either up or it isn't; waiting longer won't change that.
@@ -94,7 +94,6 @@ type Source = Callable[[], tuple[str, dict[str, Any]] | None]
 def _sources() -> Iterator[Source]:
     yield _from_env
     yield _from_local_server
-    yield _from_sibling_file
     yield _from_sibling_generator
 
 
@@ -121,49 +120,37 @@ def _from_local_server() -> tuple[str, dict[str, Any]] | None:
     return None if document is None else (LOCAL_SERVER_URL, document)
 
 
-def _from_sibling_file() -> tuple[str, dict[str, Any]] | None:
-    for repo in SIBLING_REPOS:
-        path = repo / SPEC_IN_REPO
-        if not path.is_file():
-            continue
-        document = _parse(path.read_text(), str(path))
-        if document is not None:
-            return str(path), document
-    return None
-
-
 def _from_sibling_generator() -> tuple[str, dict[str, Any]] | None:
     for repo in SIBLING_REPOS:
         generator = repo / GENERATOR_IN_REPO
         if not generator.is_file():
             continue
 
-        command = ["pnpm", "exec", "tsx", str(GENERATOR_IN_REPO)]
-        typer.echo(f"running {' '.join(command)} in {repo}")
-        try:
-            result = subprocess.run(
-                command,
-                cwd=repo,
-                capture_output=True,
-                text=True,
-                timeout=GENERATOR_TIMEOUT,
-            )
-        except (OSError, subprocess.TimeoutExpired) as error:
-            _warn(f"could not run the generator in {repo}: {error}")
-            continue
-        if result.returncode != 0:
-            _warn(f"the generator in {repo} failed:\n{result.stderr.strip()}")
-            continue
-
-        # The generator writes `public/openapi.json` rather than printing the
-        # document, so read what it just wrote.
-        path = repo / SPEC_IN_REPO
-        if not path.is_file():
-            _warn(f"the generator ran but {path} still doesn't exist")
-            continue
-        document = _parse(path.read_text(), str(path))
+        with tempfile.TemporaryDirectory() as scratch:
+            target = Path(scratch) / "openapi.json"
+            command = ["pnpm", "exec", "tsx", str(GENERATOR_IN_REPO), str(target)]
+            typer.echo(f"running {' '.join(command)} in {repo}")
+            try:
+                result = subprocess.run(
+                    command,
+                    cwd=repo,
+                    env={**os.environ, "ENVIRONMENT": "dev"},
+                    capture_output=True,
+                    text=True,
+                    timeout=GENERATOR_TIMEOUT,
+                )
+            except (OSError, subprocess.TimeoutExpired) as error:
+                _warn(f"could not run the generator in {repo}: {error}")
+                continue
+            if result.returncode != 0:
+                _warn(f"the generator in {repo} failed:\n{result.stderr.strip()}")
+                continue
+            if not target.is_file():
+                _warn(f"the generator ran but wrote nothing to {target}")
+                continue
+            document = _parse(target.read_text(), str(target))
         if document is not None:
-            return f"{generator} -> {path}", document
+            return str(repo / GENERATOR_IN_REPO), document
     return None
 
 
@@ -206,8 +193,7 @@ def _write(document: dict[str, Any], destination: Path, origin: str) -> None:
     Write `document` in the server's own formatting.
 
     Two-space indent, non-ASCII left alone, trailing newline: byte-identical
-    to what `generate-openapi.ts` writes, so a refresh from any of the four
-    sources produces the same file and `git diff` shows only real changes.
+    to what `generate-openapi.ts` writes, so a refresh from any source produces the same file and `git diff` shows only real changes.
     """
     serialized = json.dumps(document, indent=2, ensure_ascii=False) + "\n"
     previous = destination.read_text() if destination.is_file() else None

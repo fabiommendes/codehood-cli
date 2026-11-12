@@ -1,5 +1,5 @@
 """
-Tests for `scripts/copy-openapi.py`, the four-rule search for the server's
+Tests for `scripts/copy-openapi.py`, the three-source search for the server's
 OpenAPI document.
 
 Every test points `LOCAL_SERVER_URL` at a closed port, so the suite never
@@ -52,10 +52,9 @@ def script(monkeypatch):
 
 @pytest.fixture
 def fake_repo(tmp_path: Path) -> Path:
-    """A sibling checkout with the generator but no `public/openapi.json`."""
+    """A sibling checkout with the generator."""
     repo = tmp_path / "codehood-server"
     (repo / "scripts").mkdir(parents=True)
-    (repo / "public").mkdir()
     (repo / "scripts" / "generate-openapi.ts").write_text("// stub\n")
     return repo
 
@@ -102,9 +101,8 @@ def test_env_var_pointing_nowhere_is_fatal(script, tmp_path, fake_repo):
     """
     An explicit override that quietly fell through to another source would
     hide the human's mistake, so a bad `$CODEHOOD_OPENAPI_JSON` stops the
-    run even though rule 3 below it would have worked.
+    run even though the generator below it would have worked.
     """
-    (fake_repo / "public" / "openapi.json").write_bytes(REAL_SPEC_PATH.read_bytes())
     script.SIBLING_REPOS = (fake_repo,)
     result, output = _invoke(
         script, tmp_path, {"CODEHOOD_OPENAPI_JSON": "/nope/missing.json"}
@@ -132,23 +130,13 @@ def test_env_var_pointing_at_json_that_is_not_a_spec_is_fatal(script, tmp_path):
 
 
 #
-# 3. Sibling checkout
+# 3. The generator in a sibling checkout
 #
-def test_sibling_checkout_is_used_when_the_server_is_down(script, tmp_path, fake_repo):
-    (fake_repo / "public" / "openapi.json").write_bytes(REAL_SPEC_PATH.read_bytes())
-    script.SIBLING_REPOS = (fake_repo,)
-    result, output = _invoke(script, tmp_path)
-    assert result.exit_code == 0
-    assert _is_the_real_spec(output)
-
-
-#
-# 4. The generator in a sibling checkout
-#
-def test_generator_runs_when_the_checkout_has_no_spec(
+def test_generator_writes_to_the_path_it_is_given(
     script, tmp_path, fake_repo, fake_pnpm
 ):
-    fake_pnpm(f'#!/bin/sh\ncp "{REAL_SPEC_PATH}" public/openapi.json\n')
+    """`pnpm exec tsx scripts/generate-openapi.ts <target>`: target is `$4`."""
+    fake_pnpm(f'#!/bin/sh\ncp "{REAL_SPEC_PATH}" "$4"\n')
     script.SIBLING_REPOS = (fake_repo,)
     result, output = _invoke(script, tmp_path)
     assert result.exit_code == 0
@@ -163,7 +151,7 @@ def test_generator_runs_when_the_checkout_has_no_spec(
         # Succeeds but writes nothing.
         "#!/bin/sh\nexit 0\n",
         # Succeeds but writes something that isn't a document.
-        "#!/bin/sh\necho '<html>' > public/openapi.json\n",
+        "#!/bin/sh\necho '<html>' > \"$4\"\n",
     ],
 )
 def test_a_broken_generator_never_writes_output(
@@ -183,6 +171,17 @@ def test_a_broken_generator_never_writes_output(
 #
 # Output formatting
 #
+def test_generator_runs_in_dev_environment(script, tmp_path, fake_repo, fake_pnpm):
+    fake_pnpm(
+        '#!/bin/sh\n[ "$ENVIRONMENT" = dev ] || exit 1\n'
+        f'cp "{REAL_SPEC_PATH}" "$4"\n'
+    )
+    script.SIBLING_REPOS = (fake_repo,)
+    result, output = _invoke(script, tmp_path)
+    assert result.exit_code == 0
+    assert _is_the_real_spec(output)
+
+
 def test_output_is_byte_identical_to_what_the_server_writes(script, tmp_path):
     """
     Two-space indent, non-ASCII unescaped, trailing newline. Any source must
@@ -194,6 +193,10 @@ def test_output_is_byte_identical_to_what_the_server_writes(script, tmp_path):
     result, output = _invoke(script, tmp_path, {"CODEHOOD_OPENAPI_JSON": str(compact)})
     assert result.exit_code == 0
     assert _is_the_real_spec(output)
+
+
+def test_default_output_is_the_snapshot_the_generator_reads(script):
+    assert script.DEFAULT_OUTPUT == REAL_SPEC_PATH
 
 
 def test_nothing_found_exits_nonzero(script, tmp_path):
