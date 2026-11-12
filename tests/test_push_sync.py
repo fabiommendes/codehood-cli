@@ -523,6 +523,54 @@ def _q_plan(local, remote_status, *, entry_variant="a", base="a") -> Plan:
     return plan_sync(state, stored, server)
 
 
+def _null_rev_plan(local: tuple, base: BaseEntry | None, remote_variant="a") -> Plan:
+    """
+    A plan for question `q` held by the server with no `rev`, only a version.
+    """
+    file = _question("a")
+    payload = question_payload(_question(remote_variant))
+    state = LocalState(KEY, DESCRIPTION, START, END, questions=local)
+    stored = BaseState(
+        course={"course": BaseEntry(COURSE_PAYLOAD, COURSE_REF)},
+        questions={"q": base} if base else {},
+    )
+    server = ServerState(
+        course_exists=True,
+        course=RemoteEntry(COURSE_PAYLOAD, COURSE_REF),
+        questions={
+            "q": ServerQuestion(
+                file.version, RemoteEntry(payload, None, "u"), "PUBLISHED"
+            )
+        },
+    )
+    return plan_sync(state, stored, server)
+
+
+def test_a_question_only_the_server_has_and_without_rev_is_a_pull_never_prunable():
+    plan = _null_rev_plan((), None)
+    assert [(p.key, p.change) for p in plan.pulls] == [("q", "create")]
+    assert plan.other_cli == () and plan.conflicts == ()
+
+
+def test_a_null_rev_question_is_in_sync_with_a_new_base_a_missing_one_or_an_old_one():
+    payload = question_payload(_question("a"))
+    version = _question("a").version
+    for base in (
+        BaseEntry(payload, version, "u"),
+        None,
+        BaseEntry(payload, None, "u"),
+    ):
+        plan = _null_rev_plan((_question("a"),), base)
+        assert plan.conflicts == () and plan.other_cli == (), base
+        assert plan.writes == () and plan.pulls == (), base
+
+
+def test_a_null_rev_question_with_no_base_adopts_its_version_as_rev():
+    plan = _null_rev_plan((_question("a"),), None)
+    [update] = plan.base_updates
+    assert update.entry is not None and update.entry.rev == _question("a").version
+
+
 def test_the_question_status_stays_out_of_the_comparison():
     plan = _q_plan(_question("a"), "HIDDEN")
     assert plan.writes == () and plan.notices == () and plan.base_updates == ()
@@ -920,7 +968,7 @@ def test_a_slot_is_not_deleted_under_an_event_edited_on_the_server():
         ("time_slot", "t"),
     ]
     [slot] = [c for c in plan.conflicts if c.kind == "time_slot"]
-    assert slot.fields == ("1/t",) and slot.reason == "referenced"
+    assert slot.fields == ("1/t",) and slot.reason == "slot-in-use"
 
 
 def test_a_slot_is_not_deleted_under_an_event_created_on_the_server():
@@ -1374,7 +1422,7 @@ def test_an_event_a_server_resource_links_to_is_not_pruned():
     [conflict] = [c for c in plan.conflicts if c.kind == "calendar_event"]
     assert (conflict.key, conflict.reason, conflict.fields) == (
         "1/thu",
-        "referenced",
+        "event-linked",
         ("r",),
     )
     assert not [d for d in conflict.ours if isinstance(d, Prune)]
@@ -1414,7 +1462,50 @@ def test_the_reference_conflict_of_an_event_is_stable_across_pushes():
     again = plan_sync(local, _apply_base_updates(base, first), server)
     assert again == first
     assert [c.reason for c in again.conflicts if c.kind == "calendar_event"] == [
-        "referenced"
+        "event-linked"
+    ]
+
+
+def test_ours_on_the_linked_resource_also_prunes_the_event_in_the_same_plan():
+    from codehood.push.ours import resolve_ours
+
+    local, base, server = _linked_state(server_link=(1, "thu"))
+    plan = resolve_ours(
+        plan_sync(local, base, server, ours=["resource/r"]), ["resource/r"]
+    )
+    assert plan.conflicts == () and plan.other_cli == ()
+    assert {type(w) for w in plan.writes} >= {DeleteCalendarEvent, UpsertResource}
+
+
+def test_ours_not_aimed_at_the_linked_resource_keeps_the_event_conflict():
+    local, base, server = _linked_state(server_link=(1, "thu"))
+    plan = plan_sync(local, base, server, ours=["resource/other"])
+    assert [c.reason for c in plan.conflicts if c.kind == "calendar_event"] == [
+        "event-linked"
+    ]
+
+
+def test_ours_on_the_events_holding_a_slot_prunes_the_slot_in_the_same_plan():
+    from codehood.push.ours import resolve_ours
+
+    base = BaseState(
+        course={"course": BaseEntry(COURSE_PAYLOAD, COURSE_REF)},
+        time_slots={"t": BaseEntry(time_slot_payload(_slot("a")), None)},
+        calendar_events={"1/t": BaseEntry(event_payload(_event("a", 1, "t")), "r0")},
+    )
+    state = LocalState(KEY, DESCRIPTION, START, END)
+    server = ServerState(
+        course_exists=True,
+        course=RemoteEntry(COURSE_PAYLOAD, COURSE_REF),
+        calendar_events={(1, "t"): _server_event("b")},
+        time_slots={"t": RemoteEntry(time_slot_payload(_slot("a")))},
+    )
+    globs = ["calendar_event/1/t"]
+    plan = resolve_ours(plan_sync(state, base, server, ours=globs), globs)
+    assert plan.conflicts == ()
+    assert [type(w) for w in plan.writes if not isinstance(w, UpsertCourse)] == [
+        DeleteCalendarEvent,
+        DeleteTimeSlot,
     ]
 
 
@@ -1493,6 +1584,49 @@ def test_dropping_roll_calls_of_an_event_without_a_base_offers_the_prune_as_ours
         DeleteCalendarEvent
     ]
     assert not [p for p in plan.pulls if p.kind == "time_slot"]
+
+
+def _edited_rollcall_state(rev: str = "r0"):
+    local, base, _ = _rollcall_state(with_base=True)
+    server = ServerState(
+        course_exists=True,
+        course=RemoteEntry(COURSE_PAYLOAD, COURSE_REF),
+        calendar_events={(1, "t"): _server_event("b", attendances=3, rev=rev)},
+        time_slots={"t": RemoteEntry(time_slot_payload(_slot("a")))},
+    )
+    return local, base, server
+
+
+def test_a_server_edit_of_a_kept_event_is_shown_and_does_not_overwrite_the_base():
+    local, base, server = _edited_rollcall_state()
+    plan = plan_sync(local, base, server)
+    assert [type(n) for n in plan.notices] == [KeptForRollCall]
+    [conflict] = [c for c in plan.conflicts if c.kind == "calendar_event"]
+    assert conflict.reason == "local-deleted-remote-edited"
+    assert plan.base_updates == ()
+
+
+def test_a_server_edit_by_another_cli_of_a_kept_event_is_shown_as_other_cli():
+    local, base, server = _edited_rollcall_state(rev="theirs")
+    plan = plan_sync(local, base, server)
+    assert [type(n) for n in plan.notices] == [KeptForRollCall]
+    assert [o.key for o in plan.other_cli] == ["1/t"]
+    assert plan.base_updates == ()
+
+
+@pytest.mark.parametrize("pushes_first", [0, 1, 2])
+def test_dropping_roll_calls_after_a_server_edit_conflicts_whatever_ran_before(
+    pushes_first,
+):
+    local, base, server = _edited_rollcall_state()
+    for _ in range(pushes_first):
+        base = _apply_base_updates(base, plan_sync(local, base, server))
+    plan = plan_sync(local, base, server, drop_roll_calls=True)
+    assert not [w for w in plan.writes if isinstance(w, DeleteRollCall)]
+    assert not [w for w in plan.writes if isinstance(w, DeleteCalendarEvent)]
+    assert [c.reason for c in plan.conflicts if c.kind == "calendar_event"] == [
+        "local-deleted-remote-edited"
+    ]
 
 
 #

@@ -295,7 +295,7 @@ def test_fetch_server_state_reports_question_versions():
     assert entry.updated_at == "2026-01-01T00:00:00Z"
 
 
-def test_fetch_server_state_gives_a_question_without_rev_its_version_as_rev():
+def test_fetch_server_state_keeps_a_null_question_rev_null():
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == BASE:
             return httpx.Response(200, json=_course_json())
@@ -312,7 +312,7 @@ def test_fetch_server_state_gives_a_question_without_rev_its_version_as_rev():
     state = fetch_server_state(DISCIPLINE, COURSE, _client(handler))
 
     assert {slug: q.entry.rev for slug, q in state.questions.items()} == {
-        "old": "md5:aaa",
+        "old": None,
         "new": "md5:other",
     }
 

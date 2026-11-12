@@ -254,6 +254,7 @@ def sync(
         drop_roll_calls=drop_roll_calls,
         drop_repositories=drop_repositories,
         message=message,
+        ours=ours,
     )
     for warning in ours_warnings(plan, ours):
         typer.echo(f"warning  {warning}", err=True)

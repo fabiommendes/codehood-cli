@@ -980,8 +980,8 @@ def _server_question(item: dict[str, JsonValue]) -> ServerQuestion:
     """
     One item of the question listing, as its version, status and payload.
 
-    A question written by a CLI that did not send `rev` has none: its `version`
-    stands in, which is the `rev` the current CLI sends.
+    A question the server holds without a `rev` keeps it null: the planner
+    decides what that means.
     """
     status = cast(QuestionStatus, item["status"])
     rev, updated_at = item.get("rev"), item.get("updatedAt")
@@ -991,7 +991,7 @@ def _server_question(item: dict[str, JsonValue]) -> ServerQuestion:
         status=status,
         entry=RemoteEntry(
             project_question(item),
-            rev=rev if isinstance(rev, str) else version,
+            rev=rev if isinstance(rev, str) else None,
             updated_at=updated_at if isinstance(updated_at, str) else None,
         ),
     )

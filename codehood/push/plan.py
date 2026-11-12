@@ -20,9 +20,10 @@ from __future__ import annotations
 
 import hashlib
 import json
-from collections.abc import Callable, Iterable, Iterator, Mapping
+from collections.abc import Callable, Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass, field, replace
 from datetime import date
+from fnmatch import fnmatchcase
 from functools import partial
 from pathlib import Path
 from typing import Literal
@@ -698,6 +699,8 @@ type ConflictReason = Literal[
     "rename",
     "link",
     "referenced",
+    "event-linked",
+    "slot-in-use",
 ]
 
 
@@ -1008,10 +1011,16 @@ def plan_sync(
     drop_roll_calls: bool = False,
     drop_repositories: bool = False,
     message: str | None = None,
+    ours: Sequence[str] = (),
 ) -> Plan:
     """
     Compare a repository, the base and the server by entity, by natural key,
     into a `Plan`.
+
+    `ours` are the `--ours` globs of the push: what they settle counts as
+    already done when the calendar checks what still holds an event or a
+    slot, so one push removes both. The conflicts themselves stay in the
+    plan for `resolve_ours` to settle.
 
     Each entity goes through `three_way` on payloads in the wire format:
     local through the `wire` constructors, base and server as stored. The
@@ -1030,7 +1039,12 @@ def plan_sync(
             local, remote, drop_repositories=drop_repositories, message=message
         )
         + _sync_calendar(
-            local, base, remote, resources, drop_roll_calls=drop_roll_calls
+            local,
+            base,
+            remote,
+            _settled(resources, ours),
+            drop_roll_calls=drop_roll_calls,
+            ours=ours,
         )
         + Plan.of(resources)
         + Plan.of(_sync_questions(local, base, remote))
@@ -1205,6 +1219,17 @@ def _sync_questions(
         if isinstance(file, InvalidQuestion):
             return Keep(Rejected(slug=file.slug, path=file.path, reason=file.reason))
         question = remote.questions.get(key)
+        # A question stored without a `rev` was written by an earlier CLI
+        # when something of ours (a base entry or a local file) tracks it:
+        # its `version` is the `rev` such a CLI sends. One nothing tracks
+        # was made on the server and stays without a `rev`.
+        if (
+            question is not None
+            and server is not None
+            and server.rev is None
+            and (entry is not None or file is not None)
+        ):
+            server = replace(server, rev=question.version)
         if isinstance(file, QuestionFile):
             status = (
                 join_status(file.status, question.status) if question else file.status
@@ -1271,6 +1296,7 @@ def _sync_calendar(
     resources: Iterable[Decision],
     *,
     drop_roll_calls: bool,
+    ours: Sequence[str] = (),
 ) -> Plan:
     """
     The calendar half of a three-way plan.
@@ -1282,6 +1308,7 @@ def _sync_calendar(
     events = {event_key(e.week, e.time_slot): e for e in local.events}
     servers = {event_key(*key): ev for key, ev in remote.calendar_events.items()}
     entries = {key: ev.entry for key, ev in servers.items() if ev.kind != "CANCELLED"}
+    kept_edited: list[Keep] = []
 
     def decide_event(
         key: str,
@@ -1301,15 +1328,22 @@ def _sync_calendar(
             and found.attendances is not None
             and not drop_roll_calls
         ):
-            adopted = BaseEntry(server.payload, server.rev, server.updated_at)
-            return Keep(
-                KeptForRollCall(
-                    week=week, time_slot=time_slot, attendances=found.attendances
-                ),
-                base=None
-                if entry == adopted
-                else BaseUpdate("calendar_event", key, adopted),
+            kept = KeptForRollCall(
+                week=week, time_slot=time_slot, attendances=found.attendances
             )
+            if entry is None or entry.payload == server.payload:
+                # Nothing of the server's to lose: the base follows the
+                # server's rev, so the next push finds it quiet.
+                adopted = BaseEntry(server.payload, server.rev, server.updated_at)
+                return Keep(
+                    kept,
+                    base=None
+                    if entry == adopted
+                    else BaseUpdate("calendar_event", key, adopted),
+                )
+            # The server edited an event the base remembers: the base stays
+            # as evidence and the edit is decided like any other.
+            kept_edited.append(Keep(kept))
         decision = three_way(
             "calendar_event",
             key,
@@ -1326,7 +1360,7 @@ def _sync_calendar(
         if key not in linked:
             return decision
         if isinstance(decision, Prune):
-            return Conflict("calendar_event", key, tuple(linked[key]), "referenced")
+            return Conflict("calendar_event", key, tuple(linked[key]), "event-linked")
         if isinstance(decision, OtherCli | Conflict):
             return replace(decision, ours=_without_prunes(decision.ours))
         return decision
@@ -1353,7 +1387,7 @@ def _sync_calendar(
     }
     deleted = {
         (d.op.week, d.op.time_slot)
-        for d in _only(decided, Prune)
+        for d in _only(_settled(decided, ours), Prune)
         if isinstance(d.op, DeleteCalendarEvent)
     }
     held: dict[str, list[str]] = {}
@@ -1381,7 +1415,7 @@ def _sync_calendar(
             prune=lambda: Prune(DeleteTimeSlot(slug=key)),
         )
         if isinstance(decision, Prune) and key in held:
-            return Conflict("time_slot", key, tuple(held[key]), "referenced")
+            return Conflict("time_slot", key, tuple(held[key]), "slot-in-use")
         if isinstance(decision, OtherCli | Conflict) and key in held:
             return replace(decision, ours=_without_prunes(decision.ours))
         return decision
@@ -1397,7 +1431,7 @@ def _sync_calendar(
         d
         for d in decided
         if isinstance(d, Keep) and not isinstance(d.notice, KeptCancelled)
-    ]
+    ] + kept_edited
     rest = [
         d
         for d in (*decided, *decided_slots)
@@ -1526,6 +1560,26 @@ def _linked_resources(
         if lesson is not None:
             linked.setdefault(event_key(lesson.week, lesson.time_slot), []).append(slug)
     return linked
+
+
+def _settled(decisions: Iterable[Decision], globs: Sequence[str]) -> list[Decision]:
+    """
+    `decisions` with each conflict or other-CLI entry a glob matches replaced
+    by the operations that settle it for the repository.
+    """
+    settled: list[Decision] = []
+    for decision in decisions:
+        if (
+            isinstance(decision, Conflict | OtherCli)
+            and decision.ours
+            and any(
+                fnmatchcase(f"{decision.kind}/{decision.key}", glob) for glob in globs
+            )
+        ):
+            settled.extend(decision.ours)
+        else:
+            settled.append(decision)
+    return settled
 
 
 def _without_prunes(ours: tuple[Put | Prune, ...]) -> tuple[Put | Prune, ...]:

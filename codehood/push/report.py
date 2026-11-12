@@ -64,6 +64,20 @@ REASON_TEXTS: dict[ConflictReason, str] = {
     "rename": "renamed here, changed on the server",
     "link": "its lesson link changed",
     "referenced": "removed on the server but still referenced here",
+    "event-linked": "removed here, but it stays on the server",
+    "slot-in-use": "removed here, but it stays on the server",
+}
+
+#: What follows the entity list of the conflicts that name what holds an entity.
+HELD_TEXTS: dict[ConflictReason, str] = {
+    "event-linked": (
+        "; resources still link to it ({held}): unlink them on the server, "
+        "or push with --ours resource/<slug> to send the local version of each"
+    ),
+    "slot-in-use": (
+        "; events still use it ({held}): settle those events first, "
+        "for example with --ours calendar_event/<key>"
+    ),
 }
 
 #: What a `Pull` did on the server, as a clause.
@@ -95,6 +109,10 @@ def describe_conflict(conflict: Conflict) -> str:
     if conflict.renamed_to is not None:
         name += f" -> {conflict.renamed_to}"
     text = f"conflict  {name}: {REASON_TEXTS[conflict.reason]}"
+    if conflict.reason in HELD_TEXTS:
+        return text + HELD_TEXTS[conflict.reason].format(
+            held=", ".join(conflict.fields)
+        )
     text += _fields(conflict.fields)
     if conflict.ours:
         text += (

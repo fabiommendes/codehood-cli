@@ -91,6 +91,8 @@ def test_every_reason_has_a_text():
         "rename",
         "link",
         "referenced",
+        "event-linked",
+        "slot-in-use",
     ]
     texts = {
         describe_conflict(Conflict("course", "c", (), reason))  # type: ignore[arg-type]
@@ -174,3 +176,24 @@ def test_exit_code_is_zero_with_only_pulls_or_other_cli():
 def test_exit_code_fails_when_a_conflict_remains():
     plan = Plan(conflicts=(Conflict("resource", "a", (), "both-changed"),))
     assert sync_exit_code(plan) == 1
+
+
+def test_an_event_held_by_resources_says_it_was_removed_here_and_how_to_leave():
+    text = describe_conflict(
+        Conflict("calendar_event", "2/tue", ("handout", "notes"), "event-linked")
+    )
+    assert "removed here" in text
+    assert "handout, notes" in text
+    assert "fields" not in text
+    assert "--ours resource/<slug>" in text
+    assert "unlink" in text
+
+
+def test_a_slot_held_by_events_lists_them_and_says_to_settle_them_first():
+    text = describe_conflict(
+        Conflict("time_slot", "tue", ("1/tue", "2/tue"), "slot-in-use")
+    )
+    assert "removed here" in text
+    assert "1/tue, 2/tue" in text
+    assert "fields" not in text
+    assert "events" in text

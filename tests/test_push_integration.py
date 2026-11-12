@@ -30,6 +30,7 @@ from __future__ import annotations
 import os
 import re
 import shutil
+import uuid
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -582,6 +583,90 @@ def test_a_question_edited_keeping_its_rev_shows_as_a_pull(
     assert re.search(r"pull .*question sum", result.output), result.output
     assert "other cli" not in result.output
     assert _question_json(client, "sum")["question"]["stem"] == WEB
+
+
+def test_a_question_created_over_rest_without_a_rev_is_a_pull_and_ours_keeps_it(
+    synced: Path, client: httpx.Client
+):
+    (synced / "questions" / "sum.md").write_text(QUESTION, encoding="utf-8")
+    assert _push(synced).exit_code == 0
+    slug = f"web-{uuid.uuid4().hex[:8]}"
+    body = {
+        "slug": slug,
+        "status": "PUBLISHED",
+        "version": "web-v1",
+        "question": _question_json(client, "sum")["question"],
+    }
+    response = client.post(
+        f"/api/course/{DISCIPLINE}/{SCRATCH}/question",
+        json=body,
+        headers=base_module.auth_headers(client),
+    )
+    assert response.status_code < 400, response.text
+    try:
+        assert _question_json(client, slug)["rev"] is None
+
+        result = _push(synced, "--ours", "*")
+
+        assert re.search(rf"pull .*question {slug}", result.output), result.output
+        assert f"delete question {slug}" not in result.output, result.output
+        assert slug in {
+            q["slug"]
+            for q in client.get(
+                f"/api/course/{DISCIPLINE}/{SCRATCH}/question",
+                params={"statuses": ["DRAFT", "PUBLISHED", "HIDDEN"]},
+                headers=base_module.auth_headers(client),
+            ).json()
+        }
+    finally:
+        client.delete(
+            f"/api/course/{DISCIPLINE}/{SCRATCH}/question/{slug}",
+            headers=base_module.auth_headers(client),
+        )
+
+
+def test_a_server_edit_of_an_event_with_a_roll_call_survives_a_push_and_blocks_the_drop(
+    synced: Path, client: httpx.Client
+):
+    """
+    The seed gives the scratch course a roll call on `0/wed`, which the
+    repository has no lesson for. A plain push keeps it; once the server edits
+    the event, neither a plain push nor `--drop-roll-calls` may forget the edit.
+    """
+
+    def wed() -> generated.CalendarEvent:
+        return generated.read_calendar_event(
+            discipline=DISCIPLINE,
+            course=SCRATCH,
+            week="0",
+            time_slot="wed",
+            client=client,
+        )
+
+    def roll_calls() -> set[tuple[int, str]]:
+        return {
+            (r.week, r.time_slot)
+            for r in generated.list_roll_call(
+                discipline=DISCIPLINE, course=SCRATCH, client=client
+            )
+        }
+
+    assert (0, "wed") in roll_calls()
+    before = wed()
+    assert _push(synced).exit_code == 0
+    _patch(client, "calendar-event/0/wed", {"title": WEB})
+    try:
+        plain = _push(synced)
+        assert "calendar event 0/wed" in plain.output, plain.output
+
+        dropped = _push(synced, "--drop-roll-calls")
+
+        assert dropped.exit_code == 1, dropped.output
+        assert re.search(r"conflict +calendar event 0/wed", dropped.output)
+        assert (0, "wed") in roll_calls()
+        assert wed().title == WEB
+    finally:
+        _patch(client, "calendar-event/0/wed", {"title": before.title})
 
 
 def test_a_rebuilt_base_of_a_full_course_syncs_without_a_decision_or_a_write(
