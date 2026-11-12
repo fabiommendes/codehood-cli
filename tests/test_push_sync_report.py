@@ -149,7 +149,17 @@ def test_the_summary_counts_each_decision():
         conflicts=(Conflict("resource", "b", (), "no-base"),),
         other_cli=(OtherCli("resource", "c", ()),) * 3,
     )
-    assert sync_summary(plan) == ("sync: 2 pulled, 1 conflict(s), 3 from another CLI")
+    assert sync_summary(plan) == (
+        "sync: 2 server change(s) not applied here, 1 conflict(s), 3 from another CLI"
+    )
+
+
+def test_the_course_line_shows_the_kind_only():
+    text = describe_pull(Pull("course", "course", "update", ("description",)))
+    assert text.startswith("pull  course changed")
+    assert "course course" not in text
+    other = describe_other_cli(OtherCli("course", "course", ()))
+    assert "course course" not in other
 
 
 def test_exit_code_is_zero_for_a_clean_plan():

@@ -111,8 +111,10 @@ is in `BACKLOG.md`.
 
 Push keeps one piece of state per checkout, the base: for every synced entity,
 the payload it sent plus the `rev` and `updatedAt` the server answered. It
-lives in `.local/codehood/base/`, which holds its own `.gitignore` (`*`) and is
-created by `ch init`. The former `.codehood/` is gone; an old one is ignored
+lives in `.local/codehood/base/`, which holds its own `.gitignore` (`*`). Every
+write of the base creates that file when it is missing, so a clone or a
+repository from before the base never shows `.local/` to git; `ch init` creates
+it too. The former `.codehood/` is gone; an old one is ignored
 and can be deleted.
 
 The base is what tells an edit made in the repository from one made on the
@@ -120,9 +122,12 @@ server. Without it, "differs from the server" cannot say who moved, and push
 would either overwrite web edits or never delete anything. It is updated only
 for entities whose write succeeded and for those equal on both sides.
 
-Deleting `.local/codehood/` is safe. Entities that match the server are
-adopted into a new base without a write; the ones that differ are conflicts
-instead of silent overwrites. Push reads the whole server state (one request
+Deleting `.local/codehood/` is safe. Entities that match the server, or whose
+local hash equals the one the server stores, are adopted into a new base
+without a write. When the hash is equal but the server's content differs, the
+difference is a pull. The other differences are conflicts instead of silent
+overwrites. An entity only the server has is a pull without a `rev` and `other
+cli` with one (`--ours` deletes it). Push reads the whole server state (one request
 per collection) and compares it by natural key; the same read serves every
 plan.
 
@@ -130,8 +135,8 @@ plan.
 
 A resource on the server whose file is gone locally is deleted when the base
 says the CLI put it there and the server has not changed it since. An entity
-that exists only on the server, with no `rev` (created on the web), is never
-deleted: it is reported as a pull. One with a `rev` that is not the base's
+that exists only on the server, with no `rev` (written by anything but a
+CLI), is never deleted: it is reported as a pull. One with a `rev` that is not the base's
 was pushed by another checkout and is reported as `other cli`.
 
 This destroys blobs and leaves tombstones, so push prints

@@ -1291,7 +1291,10 @@ def test_a_conflict_fails_the_push_and_writes_nothing_for_it(repo, monkeypatch):
     assert result.exit_code == 1, result.output
     assert "conflict  resource week1-slides" in result.output
     assert "--ours resource/week1-slides" in result.output
-    assert "sync: 0 pulled, 1 conflict(s), 0 from another CLI" in result.output
+    assert (
+        "sync: 0 server change(s) not applied here, 1 conflict(s), 0 from another CLI"
+        in result.output
+    )
     assert server.writes == []
     assert server.resources["week1-slides"]["title"] == "edited on the web"
     assert _stored_base(repo, "resources")["week1-slides"] == before

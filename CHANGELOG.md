@@ -5,14 +5,16 @@ Changelog of releases of Codehood CLI.
 ## Unreleased
 
 - `codehood push` is a three-way sync. It compares the repository, the base
-  of the last sync (`.local/codehood/`, created by `ch init`, replaces
+  of the last sync (`.local/codehood/`, created by `ch init` or the first push, replaces
   `.codehood/`) and the server. It sends only local changes and reports
-  server-side changes without writing them: `pull` (web edit or creation),
+  server-side changes without writing them: `pull` (a write that came from no CLI, such as a web edit or creation),
   `conflict` (both sides changed, exit code 1) and `other cli` (pushed from
   another checkout, run `git pull`). `--ours <kind>/<key>` settles conflicts
   and `other cli` entries with the local version, in dependency order. An
   entity created on the server without a `rev` is no longer pruned. Writing
-  server changes into the files (`ch pull`, `ch sync`) comes later.
+  server changes into the files (`ch pull`, `ch sync`) comes later. Push
+  creates the base's `.gitignore` itself, and sends `rev` for questions, so an
+  edit from another CLI is told from a web edit.
 - `codehood push` sends an ordering question with no `[extra]`, `[accept]` or
   `[reject]` section. `mdq` models default those lists to `[]`, which the
   server refused with `400 ... esperado que array tivesse >=1 itens`.

@@ -76,7 +76,8 @@ CHANGE_TEXTS = {
 
 def describe_pull(pull: Pull) -> str:
     """
-    Render a `Pull`: the server's change, left unapplied and unoverwritten.
+    Render a `Pull`: a write that did not come from a CLI, left unapplied
+    here and unoverwritten on the server.
     """
     text = (
         f"pull  {_entity(pull.kind, pull.key)} {CHANGE_TEXTS[pull.change]}; "
@@ -192,7 +193,8 @@ def sync_summary(plan: Plan) -> str:
     if not (plan.pulls or plan.conflicts or plan.other_cli):
         return ""
     return (
-        f"sync: {len(plan.pulls)} pulled, {len(plan.conflicts)} conflict(s), "
+        f"sync: {len(plan.pulls)} server change(s) not applied here, "
+        f"{len(plan.conflicts)} conflict(s), "
         f"{len(plan.other_cli)} from another CLI"
     )
 
@@ -210,6 +212,8 @@ def sync_exit_code(plan: Plan) -> int:
 # Utilities
 #
 def _entity(kind: EntityKind, key: str) -> str:
+    if kind == "course":
+        return KIND_LABELS[kind]
     return f"{KIND_LABELS[kind]} {key}"
 
 

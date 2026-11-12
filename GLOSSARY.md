@@ -25,8 +25,10 @@ Code: `codehood/push/base.py`
 
 What the last successful sync left on the server: per entity, the payload sent
 plus the `rev` and `updatedAt` the server reported. It lives in
-`.local/codehood/base/`, is ignored by Git and can be deleted: the next
-[Push](#push) rebuilds it from entities that match on both sides.
+`.local/codehood/base/`, which holds a `.gitignore` of its own that every write
+creates when missing, and can be deleted: the next [Push](#push) rebuilds it
+from entities that match on both sides or carry the hash it last sent. The rest
+shows as [Conflict](#conflict), [Pull](#pull) or [Other CLI](#other-cli).
 
 ## Classroom invite
 
@@ -285,9 +287,10 @@ but should not be guessable. Primary keys stay auto-incrementing integers; the
 Type: domain
 Code: `Pull`
 
-A change on the server that the repository does not have and the server did
-not take from a CLI, such as an edit or a creation made on the web. [Push](#push)
-reports it and leaves it untouched on both sides.
+A change on the server that the repository does not have and that no CLI
+wrote, such as an edit or a creation made on the web or through the REST API.
+[Push](#push) reports it and leaves it untouched on both sides. Writing it into
+the files is not implemented yet.
 
 ## Push
 

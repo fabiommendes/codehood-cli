@@ -70,8 +70,9 @@ codehood push
 record of the last sync and the server, and never overwrites something that
 changed on the server since. It lists those entities and leaves them alone:
 
-- `pull`: someone edited or created it on the web. Nothing is written in
-  your files yet, and the server's version stays.
+- `pull`: something was written on the server by anything but a CLI, such as
+  an edit or a creation on the web or through the REST API. Nothing is
+  written in your files yet, and the server's version stays.
 - `conflict`: you and the server both changed it. The push exits with code 1.
   `codehood push --ours resource/intro` sends your version (`<kind>/<key>`,
   globs allowed, repeatable).
@@ -79,9 +80,13 @@ changed on the server since. It lists those entities and leaves them alone:
   no longer exists anywhere, `--ours <kind>/<key>` deletes it from the server
   (or sends your copy, if you still have it).
 
-The record of the last sync lives in `.local/codehood/`, ignored by Git. It is
-safe to delete: the next push rebuilds it from what matches the server, and
-reports a conflict where it cannot tell.
+The record of the last sync lives in `.local/codehood/`. Push creates it, with
+its own `.gitignore`, when it is missing, so Git never lists it, even in a
+fresh clone. It is safe to delete: the next push rebuilds it without writing
+anything for what matches the server (or carries the hash it last sent). What
+differs and has no record is a `conflict`, or a `pull` when only the server
+changed it. An entity that exists only on the server and carries a `rev`
+shows as `other cli`; `--ours <kind>/<key>` deletes it.
 
 
 ### Keeping files out of a push
