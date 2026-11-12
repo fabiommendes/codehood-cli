@@ -6071,6 +6071,11 @@
           "acceptingSubmissions": {
             "type": "boolean"
           },
+          "closedAt": {
+            "type": "string",
+            "nullable": true,
+            "format": "date-time"
+          },
           "submissions": {
             "type": "array",
             "items": {
@@ -6171,6 +6176,7 @@
           "author",
           "practiceSession",
           "acceptingSubmissions",
+          "closedAt",
           "submissions",
           "createdAt",
           "updatedAt"
@@ -30479,6 +30485,11 @@
                       "acceptingSubmissions": {
                         "type": "boolean"
                       },
+                      "closedAt": {
+                        "type": "string",
+                        "nullable": true,
+                        "format": "date-time"
+                      },
                       "submissions": {
                         "type": "array",
                         "items": {
@@ -30579,6 +30590,7 @@
                       "author",
                       "practiceSession",
                       "acceptingSubmissions",
+                      "closedAt",
                       "submissions",
                       "createdAt",
                       "updatedAt"
@@ -30712,6 +30724,11 @@
                     "acceptingSubmissions": {
                       "type": "boolean"
                     },
+                    "closedAt": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    },
                     "submissions": {
                       "type": "array",
                       "items": {
@@ -30812,6 +30829,7 @@
                     "author",
                     "practiceSession",
                     "acceptingSubmissions",
+                    "closedAt",
                     "submissions",
                     "createdAt",
                     "updatedAt"
@@ -30909,6 +30927,11 @@
                     "acceptingSubmissions": {
                       "type": "boolean"
                     },
+                    "closedAt": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    },
                     "submissions": {
                       "type": "array",
                       "items": {
@@ -31009,6 +31032,7 @@
                     "author",
                     "practiceSession",
                     "acceptingSubmissions",
+                    "closedAt",
                     "submissions",
                     "createdAt",
                     "updatedAt"
@@ -31118,6 +31142,11 @@
                     "acceptingSubmissions": {
                       "type": "boolean"
                     },
+                    "closedAt": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    },
                     "submissions": {
                       "type": "array",
                       "items": {
@@ -31218,6 +31247,7 @@
                     "author",
                     "practiceSession",
                     "acceptingSubmissions",
+                    "closedAt",
                     "submissions",
                     "createdAt",
                     "updatedAt"
@@ -33259,6 +33289,11 @@
                     "acceptingSubmissions": {
                       "type": "boolean"
                     },
+                    "closedAt": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    },
                     "submissions": {
                       "type": "array",
                       "items": {
@@ -33359,6 +33394,7 @@
                     "author",
                     "practiceSession",
                     "acceptingSubmissions",
+                    "closedAt",
                     "submissions",
                     "createdAt",
                     "updatedAt"
