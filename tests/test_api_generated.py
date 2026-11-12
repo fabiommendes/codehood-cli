@@ -154,3 +154,13 @@ def test_exam_create_and_update_carry_allow_code_run():
         assert field.default is None
     body = generated.ExamCreate(slug="e", title="E", allowCodeRun=True)
     assert body.model_dump(by_alias=True, exclude_none=True)["allowCodeRun"] is True
+
+
+def test_answer_history_is_read_only_state():
+    # The server owns `answerHistory`: it shows up in what `Exam` reads and in
+    # no body the CLI can send (ADR 0011).
+    assert generated.Exam.model_fields["answer_history"].alias == "answerHistory"
+    for model in (generated.ExamCreate, generated.UpdateExamRequest):
+        assert "answer_history" not in model.model_fields
+        body = model(**{"slug": "e", "title": "E"})
+        assert "answerHistory" not in body.model_dump(by_alias=True)

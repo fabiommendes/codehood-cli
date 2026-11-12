@@ -3,7 +3,7 @@
   "info": {
     "title": "Codehood API",
     "version": "0.3.2",
-    "description": "REST API for the Codehood CLI and grading bots. Authenticated with `Authorization: Bearer <key>`, except where noted — see src/urls/README.md."
+    "description": "REST API for the UI, CLI and grading bots. Use a session cookie OR Authorization: Bearer <key>, never both. Unsafe requests with a foreign Origin are rejected unless authenticated by Bearer. Form-like requests require a local Origin without Bearer. See src/urls/README.md."
   },
   "servers": [
     {
@@ -14,10 +14,19 @@
   "security": [
     {
       "BearerAuth": []
+    },
+    {
+      "SessionCookie": []
     }
   ],
   "components": {
     "securitySchemes": {
+      "SessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session",
+        "description": "Browser session. Mutually exclusive with Bearer authentication."
+      },
       "BearerAuth": {
         "type": "http",
         "scheme": "bearer",
@@ -657,6 +666,10 @@
             "type": "boolean",
             "nullable": true
           },
+          "answerHistory": {
+            "type": "boolean",
+            "nullable": true
+          },
           "gradesReleasedAt": {
             "type": "string",
             "nullable": true,
@@ -721,6 +734,7 @@
           "duration",
           "extraTime",
           "allowCodeRun",
+          "answerHistory",
           "gradesReleasedAt",
           "author",
           "rev",
@@ -3363,6 +3377,145 @@
                       "content"
                     ],
                     "additionalProperties": false
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "$schema": {
+                        "type": "string"
+                      },
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "uuid": {
+                        "type": "string",
+                        "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                        "example": "123e4567-e89b-12d3-a456-426614174000"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "author": {
+                        "type": "string"
+                      },
+                      "stem": {
+                        "type": "string"
+                      },
+                      "epilogue": {
+                        "type": "string"
+                      },
+                      "comment": {
+                        "type": "string"
+                      },
+                      "locale": {
+                        "type": "string"
+                      },
+                      "tags": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "uniqueItems": true
+                      },
+                      "weight": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "meta": {
+                        "type": "object",
+                        "additionalProperties": {
+                          "nullable": true
+                        }
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "code"
+                        ]
+                      },
+                      "language": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]",
+                        "example": "python"
+                      },
+                      "file": {
+                        "type": "string",
+                        "minLength": 1,
+                        "pattern": "^(?!\\.\\.?$)(?![\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]+$)[^/\\\\]+$",
+                        "example": "conta.py"
+                      },
+                      "tests": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "format": {
+                              "type": "string",
+                              "pattern": "^[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000`]+$",
+                              "example": "pytest"
+                            },
+                            "text": {
+                              "type": "string"
+                            },
+                            "origin": {
+                              "type": "string",
+                              "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\/)[^?#\\r\\n]*[.][^.\\\\/?#\\r\\n]+$",
+                              "example": "test_conta.py"
+                            }
+                          },
+                          "required": [
+                            "format"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "minItems": 1
+                      },
+                      "rubric": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "value": {
+                              "type": "number"
+                            },
+                            "binding": {
+                              "type": "string",
+                              "enum": [
+                                "manual"
+                              ]
+                            },
+                            "text": {
+                              "type": "string"
+                            },
+                            "feedback": {
+                              "type": "string"
+                            },
+                            "comment": {
+                              "type": "string"
+                            }
+                          },
+                          "required": [
+                            "binding",
+                            "text"
+                          ],
+                          "additionalProperties": false
+                        },
+                        "minItems": 1
+                      },
+                      "template": {
+                        "type": "string"
+                      },
+                      "answerKey": {
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "stem",
+                      "type"
+                    ],
+                    "additionalProperties": false
                   }
                 ]
               }
@@ -5690,6 +5843,145 @@
                   "type",
                   "lines",
                   "content"
+                ],
+                "additionalProperties": false
+              },
+              {
+                "type": "object",
+                "properties": {
+                  "$schema": {
+                    "type": "string"
+                  },
+                  "id": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "uuid": {
+                    "type": "string",
+                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "author": {
+                    "type": "string"
+                  },
+                  "stem": {
+                    "type": "string"
+                  },
+                  "epilogue": {
+                    "type": "string"
+                  },
+                  "comment": {
+                    "type": "string"
+                  },
+                  "locale": {
+                    "type": "string"
+                  },
+                  "tags": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "uniqueItems": true
+                  },
+                  "weight": {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  "meta": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "nullable": true
+                    }
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "code"
+                    ]
+                  },
+                  "language": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]",
+                    "example": "python"
+                  },
+                  "file": {
+                    "type": "string",
+                    "minLength": 1,
+                    "pattern": "^(?!\\.\\.?$)(?![\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]+$)[^/\\\\]+$",
+                    "example": "conta.py"
+                  },
+                  "tests": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "format": {
+                          "type": "string",
+                          "pattern": "^[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000`]+$",
+                          "example": "pytest"
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "origin": {
+                          "type": "string",
+                          "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\/)[^?#\\r\\n]*[.][^.\\\\/?#\\r\\n]+$",
+                          "example": "test_conta.py"
+                        }
+                      },
+                      "required": [
+                        "format"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1
+                  },
+                  "rubric": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "value": {
+                          "type": "number"
+                        },
+                        "binding": {
+                          "type": "string",
+                          "enum": [
+                            "manual"
+                          ]
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "feedback": {
+                          "type": "string"
+                        },
+                        "comment": {
+                          "type": "string"
+                        }
+                      },
+                      "required": [
+                        "binding",
+                        "text"
+                      ],
+                      "additionalProperties": false
+                    },
+                    "minItems": 1
+                  },
+                  "template": {
+                    "type": "string"
+                  },
+                  "answerKey": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "stem",
+                  "type"
                 ],
                 "additionalProperties": false
               }
@@ -9837,6 +10129,10 @@
                         "type": "boolean",
                         "nullable": true
                       },
+                      "answerHistory": {
+                        "type": "boolean",
+                        "nullable": true
+                      },
                       "gradesReleasedAt": {
                         "type": "string",
                         "nullable": true,
@@ -9901,6 +10197,7 @@
                       "duration",
                       "extraTime",
                       "allowCodeRun",
+                      "answerHistory",
                       "gradesReleasedAt",
                       "author",
                       "rev",
@@ -10144,6 +10441,10 @@
                       "type": "boolean",
                       "nullable": true
                     },
+                    "answerHistory": {
+                      "type": "boolean",
+                      "nullable": true
+                    },
                     "gradesReleasedAt": {
                       "type": "string",
                       "nullable": true,
@@ -10208,6 +10509,7 @@
                     "duration",
                     "extraTime",
                     "allowCodeRun",
+                    "answerHistory",
                     "gradesReleasedAt",
                     "author",
                     "rev",
@@ -10345,6 +10647,10 @@
                       "type": "boolean",
                       "nullable": true
                     },
+                    "answerHistory": {
+                      "type": "boolean",
+                      "nullable": true
+                    },
                     "gradesReleasedAt": {
                       "type": "string",
                       "nullable": true,
@@ -10409,6 +10715,7 @@
                     "duration",
                     "extraTime",
                     "allowCodeRun",
+                    "answerHistory",
                     "gradesReleasedAt",
                     "author",
                     "rev",
@@ -10663,6 +10970,10 @@
                       "type": "boolean",
                       "nullable": true
                     },
+                    "answerHistory": {
+                      "type": "boolean",
+                      "nullable": true
+                    },
                     "gradesReleasedAt": {
                       "type": "string",
                       "nullable": true,
@@ -10727,6 +11038,7 @@
                     "duration",
                     "extraTime",
                     "allowCodeRun",
+                    "answerHistory",
                     "gradesReleasedAt",
                     "author",
                     "rev",
@@ -17117,6 +17429,145 @@
                                   "content"
                                 ],
                                 "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "uuid": {
+                                    "type": "string",
+                                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "author": {
+                                    "type": "string"
+                                  },
+                                  "stem": {
+                                    "type": "string"
+                                  },
+                                  "epilogue": {
+                                    "type": "string"
+                                  },
+                                  "comment": {
+                                    "type": "string"
+                                  },
+                                  "locale": {
+                                    "type": "string"
+                                  },
+                                  "tags": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "uniqueItems": true
+                                  },
+                                  "weight": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "meta": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "nullable": true
+                                    }
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "code"
+                                    ]
+                                  },
+                                  "language": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "pattern": "[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]",
+                                    "example": "python"
+                                  },
+                                  "file": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "pattern": "^(?!\\.\\.?$)(?![\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]+$)[^/\\\\]+$",
+                                    "example": "conta.py"
+                                  },
+                                  "tests": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "format": {
+                                          "type": "string",
+                                          "pattern": "^[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000`]+$",
+                                          "example": "pytest"
+                                        },
+                                        "text": {
+                                          "type": "string"
+                                        },
+                                        "origin": {
+                                          "type": "string",
+                                          "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\/)[^?#\\r\\n]*[.][^.\\\\/?#\\r\\n]+$",
+                                          "example": "test_conta.py"
+                                        }
+                                      },
+                                      "required": [
+                                        "format"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "rubric": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "value": {
+                                          "type": "number"
+                                        },
+                                        "binding": {
+                                          "type": "string",
+                                          "enum": [
+                                            "manual"
+                                          ]
+                                        },
+                                        "text": {
+                                          "type": "string"
+                                        },
+                                        "feedback": {
+                                          "type": "string"
+                                        },
+                                        "comment": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "binding",
+                                        "text"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "template": {
+                                    "type": "string"
+                                  },
+                                  "answerKey": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "stem",
+                                  "type"
+                                ],
+                                "additionalProperties": false
                               }
                             ]
                           }
@@ -19479,6 +19930,145 @@
                           "content"
                         ],
                         "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "uuid": {
+                            "type": "string",
+                            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                            "example": "123e4567-e89b-12d3-a456-426614174000"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "author": {
+                            "type": "string"
+                          },
+                          "stem": {
+                            "type": "string"
+                          },
+                          "epilogue": {
+                            "type": "string"
+                          },
+                          "comment": {
+                            "type": "string"
+                          },
+                          "locale": {
+                            "type": "string"
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "uniqueItems": true
+                          },
+                          "weight": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "meta": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "nullable": true
+                            }
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "code"
+                            ]
+                          },
+                          "language": {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]",
+                            "example": "python"
+                          },
+                          "file": {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "^(?!\\.\\.?$)(?![\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]+$)[^/\\\\]+$",
+                            "example": "conta.py"
+                          },
+                          "tests": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "format": {
+                                  "type": "string",
+                                  "pattern": "^[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000`]+$",
+                                  "example": "pytest"
+                                },
+                                "text": {
+                                  "type": "string"
+                                },
+                                "origin": {
+                                  "type": "string",
+                                  "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\/)[^?#\\r\\n]*[.][^.\\\\/?#\\r\\n]+$",
+                                  "example": "test_conta.py"
+                                }
+                              },
+                              "required": [
+                                "format"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "minItems": 1
+                          },
+                          "rubric": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "value": {
+                                  "type": "number"
+                                },
+                                "binding": {
+                                  "type": "string",
+                                  "enum": [
+                                    "manual"
+                                  ]
+                                },
+                                "text": {
+                                  "type": "string"
+                                },
+                                "feedback": {
+                                  "type": "string"
+                                },
+                                "comment": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "binding",
+                                "text"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "minItems": 1
+                          },
+                          "template": {
+                            "type": "string"
+                          },
+                          "answerKey": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "stem",
+                          "type"
+                        ],
+                        "additionalProperties": false
                       }
                     ]
                   }
@@ -20924,6 +21514,145 @@
                                 "type",
                                 "lines",
                                 "content"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                  "example": "123e4567-e89b-12d3-a456-426614174000"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "author": {
+                                  "type": "string"
+                                },
+                                "stem": {
+                                  "type": "string"
+                                },
+                                "epilogue": {
+                                  "type": "string"
+                                },
+                                "comment": {
+                                  "type": "string"
+                                },
+                                "locale": {
+                                  "type": "string"
+                                },
+                                "tags": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "uniqueItems": true
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "meta": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "nullable": true
+                                  }
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "code"
+                                  ]
+                                },
+                                "language": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "pattern": "[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]",
+                                  "example": "python"
+                                },
+                                "file": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "pattern": "^(?!\\.\\.?$)(?![\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]+$)[^/\\\\]+$",
+                                  "example": "conta.py"
+                                },
+                                "tests": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "format": {
+                                        "type": "string",
+                                        "pattern": "^[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000`]+$",
+                                        "example": "pytest"
+                                      },
+                                      "text": {
+                                        "type": "string"
+                                      },
+                                      "origin": {
+                                        "type": "string",
+                                        "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\/)[^?#\\r\\n]*[.][^.\\\\/?#\\r\\n]+$",
+                                        "example": "test_conta.py"
+                                      }
+                                    },
+                                    "required": [
+                                      "format"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "minItems": 1
+                                },
+                                "rubric": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "value": {
+                                        "type": "number"
+                                      },
+                                      "binding": {
+                                        "type": "string",
+                                        "enum": [
+                                          "manual"
+                                        ]
+                                      },
+                                      "text": {
+                                        "type": "string"
+                                      },
+                                      "feedback": {
+                                        "type": "string"
+                                      },
+                                      "comment": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "binding",
+                                      "text"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "minItems": 1
+                                },
+                                "template": {
+                                  "type": "string"
+                                },
+                                "answerKey": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "stem",
+                                "type"
                               ],
                               "additionalProperties": false
                             }
@@ -23317,6 +24046,145 @@
                                 "content"
                               ],
                               "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                  "example": "123e4567-e89b-12d3-a456-426614174000"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "author": {
+                                  "type": "string"
+                                },
+                                "stem": {
+                                  "type": "string"
+                                },
+                                "epilogue": {
+                                  "type": "string"
+                                },
+                                "comment": {
+                                  "type": "string"
+                                },
+                                "locale": {
+                                  "type": "string"
+                                },
+                                "tags": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "uniqueItems": true
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "meta": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "nullable": true
+                                  }
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "code"
+                                  ]
+                                },
+                                "language": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "pattern": "[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]",
+                                  "example": "python"
+                                },
+                                "file": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "pattern": "^(?!\\.\\.?$)(?![\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]+$)[^/\\\\]+$",
+                                  "example": "conta.py"
+                                },
+                                "tests": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "format": {
+                                        "type": "string",
+                                        "pattern": "^[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000`]+$",
+                                        "example": "pytest"
+                                      },
+                                      "text": {
+                                        "type": "string"
+                                      },
+                                      "origin": {
+                                        "type": "string",
+                                        "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\/)[^?#\\r\\n]*[.][^.\\\\/?#\\r\\n]+$",
+                                        "example": "test_conta.py"
+                                      }
+                                    },
+                                    "required": [
+                                      "format"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "minItems": 1
+                                },
+                                "rubric": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "value": {
+                                        "type": "number"
+                                      },
+                                      "binding": {
+                                        "type": "string",
+                                        "enum": [
+                                          "manual"
+                                        ]
+                                      },
+                                      "text": {
+                                        "type": "string"
+                                      },
+                                      "feedback": {
+                                        "type": "string"
+                                      },
+                                      "comment": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "binding",
+                                      "text"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "minItems": 1
+                                },
+                                "template": {
+                                  "type": "string"
+                                },
+                                "answerKey": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "stem",
+                                "type"
+                              ],
+                              "additionalProperties": false
                             }
                           ]
                         }
@@ -25680,6 +26548,145 @@
                           "content"
                         ],
                         "additionalProperties": false
+                      },
+                      {
+                        "type": "object",
+                        "properties": {
+                          "$schema": {
+                            "type": "string"
+                          },
+                          "id": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "uuid": {
+                            "type": "string",
+                            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                            "example": "123e4567-e89b-12d3-a456-426614174000"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "author": {
+                            "type": "string"
+                          },
+                          "stem": {
+                            "type": "string"
+                          },
+                          "epilogue": {
+                            "type": "string"
+                          },
+                          "comment": {
+                            "type": "string"
+                          },
+                          "locale": {
+                            "type": "string"
+                          },
+                          "tags": {
+                            "type": "array",
+                            "items": {
+                              "type": "string"
+                            },
+                            "uniqueItems": true
+                          },
+                          "weight": {
+                            "type": "number",
+                            "minimum": 0
+                          },
+                          "meta": {
+                            "type": "object",
+                            "additionalProperties": {
+                              "nullable": true
+                            }
+                          },
+                          "type": {
+                            "type": "string",
+                            "enum": [
+                              "code"
+                            ]
+                          },
+                          "language": {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]",
+                            "example": "python"
+                          },
+                          "file": {
+                            "type": "string",
+                            "minLength": 1,
+                            "pattern": "^(?!\\.\\.?$)(?![\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]+$)[^/\\\\]+$",
+                            "example": "conta.py"
+                          },
+                          "tests": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "format": {
+                                  "type": "string",
+                                  "pattern": "^[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000`]+$",
+                                  "example": "pytest"
+                                },
+                                "text": {
+                                  "type": "string"
+                                },
+                                "origin": {
+                                  "type": "string",
+                                  "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\/)[^?#\\r\\n]*[.][^.\\\\/?#\\r\\n]+$",
+                                  "example": "test_conta.py"
+                                }
+                              },
+                              "required": [
+                                "format"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "minItems": 1
+                          },
+                          "rubric": {
+                            "type": "array",
+                            "items": {
+                              "type": "object",
+                              "properties": {
+                                "value": {
+                                  "type": "number"
+                                },
+                                "binding": {
+                                  "type": "string",
+                                  "enum": [
+                                    "manual"
+                                  ]
+                                },
+                                "text": {
+                                  "type": "string"
+                                },
+                                "feedback": {
+                                  "type": "string"
+                                },
+                                "comment": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "binding",
+                                "text"
+                              ],
+                              "additionalProperties": false
+                            },
+                            "minItems": 1
+                          },
+                          "template": {
+                            "type": "string"
+                          },
+                          "answerKey": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "stem",
+                          "type"
+                        ],
+                        "additionalProperties": false
                       }
                     ]
                   }
@@ -27119,6 +28126,145 @@
                                 "type",
                                 "lines",
                                 "content"
+                              ],
+                              "additionalProperties": false
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "$schema": {
+                                  "type": "string"
+                                },
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                  "example": "123e4567-e89b-12d3-a456-426614174000"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "author": {
+                                  "type": "string"
+                                },
+                                "stem": {
+                                  "type": "string"
+                                },
+                                "epilogue": {
+                                  "type": "string"
+                                },
+                                "comment": {
+                                  "type": "string"
+                                },
+                                "locale": {
+                                  "type": "string"
+                                },
+                                "tags": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "uniqueItems": true
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "meta": {
+                                  "type": "object",
+                                  "additionalProperties": {
+                                    "nullable": true
+                                  }
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "code"
+                                  ]
+                                },
+                                "language": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "pattern": "[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]",
+                                  "example": "python"
+                                },
+                                "file": {
+                                  "type": "string",
+                                  "minLength": 1,
+                                  "pattern": "^(?!\\.\\.?$)(?![\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]+$)[^/\\\\]+$",
+                                  "example": "conta.py"
+                                },
+                                "tests": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "format": {
+                                        "type": "string",
+                                        "pattern": "^[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000`]+$",
+                                        "example": "pytest"
+                                      },
+                                      "text": {
+                                        "type": "string"
+                                      },
+                                      "origin": {
+                                        "type": "string",
+                                        "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\/)[^?#\\r\\n]*[.][^.\\\\/?#\\r\\n]+$",
+                                        "example": "test_conta.py"
+                                      }
+                                    },
+                                    "required": [
+                                      "format"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "minItems": 1
+                                },
+                                "rubric": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "value": {
+                                        "type": "number"
+                                      },
+                                      "binding": {
+                                        "type": "string",
+                                        "enum": [
+                                          "manual"
+                                        ]
+                                      },
+                                      "text": {
+                                        "type": "string"
+                                      },
+                                      "feedback": {
+                                        "type": "string"
+                                      },
+                                      "comment": {
+                                        "type": "string"
+                                      }
+                                    },
+                                    "required": [
+                                      "binding",
+                                      "text"
+                                    ],
+                                    "additionalProperties": false
+                                  },
+                                  "minItems": 1
+                                },
+                                "template": {
+                                  "type": "string"
+                                },
+                                "answerKey": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": [
+                                "stem",
+                                "type"
                               ],
                               "additionalProperties": false
                             }

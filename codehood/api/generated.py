@@ -323,6 +323,14 @@ class Question3QuestionShortAnswerPreAcceptItem(Model):
     feedback: str | None = None
 
 
+class QuestionCodeRubricItem(Model):
+    value: float | None = None
+    binding: Literal["manual"]
+    text: str
+    feedback: str | None = None
+    comment: str | None = None
+
+
 class RepositoriesItem(Model):
     slug: str
     title: str
@@ -449,6 +457,12 @@ class Start(Model):
     minute: int
 
 
+class TestsItem(Model):
+    format: str
+    text: str | None = None
+    origin: str | None = None
+
+
 class Tolerance(Model):
     absolute: float | None = None
     relative: float | None = None
@@ -572,6 +586,7 @@ class Exam(Model):
     duration: Duration | None
     extra_time: Duration | None = Field(alias="extraTime")
     allow_code_run: bool | None = Field(alias="allowCodeRun")
+    answer_history: bool | None = Field(alias="answerHistory")
     grades_released_at: str | None = Field(alias="gradesReleasedAt")
     author: str
     rev: str | None
@@ -896,6 +911,30 @@ class Question3QuestionTrueFalse(Model):
     choices: list[Question3QuestionMultipleChoiceChoicesItem]
 
 
+class QuestionCode(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    field_schema: str | None = Field(default=None, alias="$schema")
+    id: str | None = None
+    uuid: str | None = None
+    title: str | None = None
+    author: str | None = None
+    stem: str
+    epilogue: str | None = None
+    comment: str | None = None
+    locale: str | None = None
+    tags: list[str] | None = None
+    weight: float | None = None
+    meta: dict[str, object | None] | None = None
+    type: Literal["code"]
+    language: str | None = None
+    file: str | None = None
+    tests: list[TestsItem] | None = None
+    rubric: list[QuestionCodeRubricItem] | None = None
+    template: str | None = None
+    answer_key: str | None = Field(default=None, alias="answerKey")
+
+
 class Resource(Model):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -1134,6 +1173,7 @@ class Question2(Model):
         | Question2QuestionEssay
         | Question2QuestionFillIn
         | Question2QuestionOrdering
+        | QuestionCode
     )
 
 
@@ -1172,6 +1212,7 @@ class QuestionCreate(Model):
         | Question2QuestionEssay
         | Question2QuestionFillIn
         | Question2QuestionOrdering
+        | QuestionCode
     )
 
 
@@ -1188,6 +1229,7 @@ class UpdateQuestionRequest(Model):
         | Question2QuestionEssay
         | Question2QuestionFillIn
         | Question2QuestionOrdering
+        | QuestionCode
         | None
     ) = None
 
