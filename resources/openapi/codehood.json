@@ -495,12 +495,17 @@
           "createdAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
           }
         },
         "required": [
           "slug",
           "name",
-          "createdAt"
+          "createdAt",
+          "updatedAt"
         ]
       },
       "DisciplineCreate": {
@@ -9330,12 +9335,17 @@
                       "createdAt": {
                         "type": "string",
                         "format": "date-time"
+                      },
+                      "updatedAt": {
+                        "type": "string",
+                        "format": "date-time"
                       }
                     },
                     "required": [
                       "slug",
                       "name",
-                      "createdAt"
+                      "createdAt",
+                      "updatedAt"
                     ]
                   }
                 }
@@ -9393,12 +9403,17 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
                     }
                   },
                   "required": [
                     "slug",
                     "name",
-                    "createdAt"
+                    "createdAt",
+                    "updatedAt"
                   ]
                 }
               }
@@ -9443,12 +9458,17 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
                     }
                   },
                   "required": [
                     "slug",
                     "name",
-                    "createdAt"
+                    "createdAt",
+                    "updatedAt"
                   ]
                 }
               }
@@ -9506,12 +9526,17 @@
                     "createdAt": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
                     }
                   },
                   "required": [
                     "slug",
                     "name",
-                    "createdAt"
+                    "createdAt",
+                    "updatedAt"
                   ]
                 }
               }

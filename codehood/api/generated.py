@@ -105,6 +105,7 @@ class Discipline(Model):
     slug: str
     name: str
     created_at: str = Field(alias="createdAt")
+    updated_at: str = Field(alias="updatedAt")
 
 
 class DisciplineCreate(Model):
