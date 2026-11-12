@@ -24,13 +24,14 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Callable, Container, Iterable, Iterator, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import date
 from functools import partial
 from pathlib import Path
 from typing import Literal
 
 from ..models.repo import CourseKey
+from .base import BaseEntry, BaseState
 from .calendar import Event, EventKey, TimeSlot
 from .exclude import ExcludedFile
 from .grades import GradeColumn
@@ -38,10 +39,23 @@ from .project import RemoteEntry, resource_event_of, time_slot_of
 from .question import AnyQuestion, InvalidQuestion, QuestionFile, QuestionStatus
 from .repository import RepositoryTree
 from .resource import ResourceData, ResourceFile
-from .wire import instant
+from .wire import (
+    Payload,
+    course_payload,
+    event_payload,
+    grade_column_payload,
+    instant,
+    question_payload,
+    resource_payload,
+    time_slot_payload,
+)
 
 __all__ = [
     "STATUS_ORDER",
+    "BaseUpdate",
+    "Confirmation",
+    "Conflict",
+    "ConflictReason",
     "Decision",
     "DeleteCalendarEvent",
     "DeleteGradeColumn",
@@ -50,6 +64,7 @@ __all__ = [
     "DeleteResource",
     "DeleteRollCall",
     "DeleteTimeSlot",
+    "EntityKind",
     "Keep",
     "KeptCancelled",
     "KeptDraftPublished",
@@ -58,10 +73,13 @@ __all__ = [
     "KeptRepository",
     "LocalState",
     "Notice",
+    "OtherCli",
     "Plan",
     "Prune",
+    "Pull",
     "Put",
     "Rejected",
+    "ServerDrifted",
     "ServerEvent",
     "ServerQuestion",
     "ServerState",
@@ -75,7 +93,9 @@ __all__ = [
     "UpsertTimeSlot",
     "Write",
     "course_ref",
+    "diff_fields",
     "diff_keyed",
+    "event_key",
     "join_status",
     "merge_event",
     "merge_grade_column",
@@ -83,11 +103,14 @@ __all__ = [
     "merge_repository",
     "merge_resource",
     "merge_time_slot",
+    "parse_event_key",
     "plan_calendar",
     "plan_grades",
     "plan_push",
     "plan_repositories",
+    "plan_sync",
     "protect",
+    "three_way",
 ]
 
 
@@ -458,8 +481,22 @@ class KeptCancelled:
     time_slot: str
 
 
+@dataclass(frozen=True)
+class ServerDrifted:
+    """
+    An entity pushed one way only (a grade column) that the server holds in a
+    form other than the base: the push overwrites it, and this says which
+    `fields` of it are lost.
+    """
+
+    kind: EntityKind
+    key: str
+    fields: tuple[str, ...]
+
+
 Notice = (
     Rejected
+    | ServerDrifted
     | KeptDraftPublished
     | KeptPinnedSlot
     | KeptForRollCall
@@ -475,10 +512,21 @@ class Plan:
 
     `writes` is in execution order. `notices` explain what the plan did not
     write; a `Rejected` one also makes the push fail.
+
+    The rest is what a three-way plan adds. `pulls`, `conflicts` and
+    `other_cli` are the entities the plan does not write to the server.
+    `base_updates` are the changes of the base that need no execution: an
+    entity both sides agree on, and one gone from both. `confirmations` pair a
+    write with the base update to apply once it succeeds.
     """
 
     writes: tuple[Write, ...] = ()
     notices: tuple[Notice, ...] = ()
+    pulls: tuple[Pull, ...] = ()
+    conflicts: tuple[Conflict, ...] = ()
+    other_cli: tuple[OtherCli, ...] = ()
+    base_updates: tuple[BaseUpdate, ...] = ()
+    confirmations: tuple[Confirmation, ...] = ()
 
     @classmethod
     def of(cls, decisions: Iterable[Decision]) -> Plan:
@@ -487,18 +535,45 @@ class Plan:
         """
         writes: list[Write] = []
         notices: list[Notice] = []
+        pulls: list[Pull] = []
+        conflicts: list[Conflict] = []
+        other_cli: list[OtherCli] = []
+        updates: list[BaseUpdate] = []
+        confirmations: list[Confirmation] = []
         for decision in decisions:
             match decision:
-                case Put(op=op, notices=extra):
+                case Put(op=op, notices=extra, base=base):
                     writes.append(op)
                     notices.extend(extra)
-                case Prune(op=op, before=before):
+                    if base is not None:
+                        confirmations.append(Confirmation(op, base))
+                case Prune(op=op, before=before, notices=extra, base=base):
                     writes.extend((*before, op))
-                case Keep(notice=notice):
+                    notices.extend(extra)
+                    if base is not None:
+                        confirmations.append(Confirmation(op, base))
+                case Keep(notice=notice, base=base):
                     notices.append(notice)
-                case Skip():
-                    pass
-        return cls(tuple(writes), tuple(notices))
+                    if base is not None:
+                        updates.append(base)
+                case Skip(base=base):
+                    if base is not None:
+                        updates.append(base)
+                case Pull():
+                    pulls.append(decision)
+                case Conflict():
+                    conflicts.append(decision)
+                case OtherCli():
+                    other_cli.append(decision)
+        return cls(
+            tuple(writes),
+            tuple(notices),
+            tuple(pulls),
+            tuple(conflicts),
+            tuple(other_cli),
+            tuple(updates),
+            tuple(confirmations),
+        )
 
     @property
     def rejected(self) -> tuple[Rejected, ...]:
@@ -508,27 +583,75 @@ class Plan:
         return tuple(n for n in self.notices if isinstance(n, Rejected))
 
     def __add__(self, other: Plan) -> Plan:
-        return Plan(self.writes + other.writes, self.notices + other.notices)
+        return Plan(
+            self.writes + other.writes,
+            self.notices + other.notices,
+            self.pulls + other.pulls,
+            self.conflicts + other.conflicts,
+            self.other_cli + other.other_cli,
+            self.base_updates + other.base_updates,
+            self.confirmations + other.confirmations,
+        )
 
 
 #
 # Decisions
 #
+#: The kinds of entity a plan compares against the base, one per `BaseState`
+#: collection.
+type EntityKind = Literal[
+    "course", "resource", "question", "time_slot", "calendar_event", "grade_column"
+]
+
+
+@dataclass(frozen=True)
+class BaseUpdate:
+    """
+    The base entry of `key` to store, `None` to drop it.
+
+    Carried by a `Skip` or `Keep` it applies at once. Carried by a `Put` or
+    `Prune` it applies once the write succeeds, and then `entry.rev` and
+    `entry.updated_at` are placeholders (`None`): the server's answer to the
+    write fills them. `entry.payload` is always the local payload.
+    """
+
+    kind: EntityKind
+    key: str
+    entry: BaseEntry | None
+
+
+@dataclass(frozen=True)
+class Confirmation:
+    """
+    A `write` of the plan and the base update to apply when it succeeds.
+    """
+
+    write: Write
+    update: BaseUpdate
+
+
 @dataclass(frozen=True)
 class Skip:
     """
     Both sides already agree, or something protects the server's copy.
+
+    `base` is the update to the base that agreeing leaves to record, if any.
     """
+
+    base: BaseUpdate | None = None
 
 
 @dataclass(frozen=True)
 class Put:
     """
     Write `op`, and tell why the write is not the whole story.
+
+    `base` is what to record once the write succeeds.
     """
 
     op: Write
     notices: tuple[Notice, ...] = ()
+    base: BaseUpdate | None = None
 
 
 @dataclass(frozen=True)
@@ -536,10 +659,14 @@ class Prune:
     """
     Delete what the repository no longer holds, after the `before` writes
     the delete depends on.
+
+    `base` is what to record once the delete succeeds.
     """
 
     op: Write
     before: tuple[Write, ...] = ()
+    base: BaseUpdate | None = None
+    notices: tuple[Notice, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -549,9 +676,70 @@ class Keep:
     """
 
     notice: Notice
+    base: BaseUpdate | None = None
 
 
-Decision = Skip | Put | Prune | Keep
+@dataclass(frozen=True)
+class Pull:
+    """
+    The server changed and the repository did not: bring the change down.
+
+    `change` tells a creation, an alteration and a removal apart. `remote` is
+    the server's entry (`None` for a removal) and `fields` the top-level
+    payload keys that differ from the base.
+    """
+
+    kind: EntityKind
+    key: str
+    change: Literal["create", "update", "delete"]
+    fields: tuple[str, ...]
+    remote: RemoteEntry | None = None
+
+
+#: Why a `Conflict` is one.
+type ConflictReason = Literal[
+    "both-changed",
+    "local-edited-remote-deleted",
+    "local-deleted-remote-edited",
+    "both-new",
+    "no-base",
+    "rename",
+    "link",
+    "referenced",
+]
+
+
+@dataclass(frozen=True)
+class Conflict:
+    """
+    Both sides moved apart and no rule says which one wins.
+
+    `ours` holds the operations that settle it for the repository, empty when
+    there is none: a `Put`, a `Prune`, or a `Put` and a `Prune` for a
+    rename. `renamed_to` is the new key of a rename, `key` the old one.
+    """
+
+    kind: EntityKind
+    key: str
+    fields: tuple[str, ...]
+    reason: ConflictReason
+    ours: tuple[Put | Prune, ...] = ()
+    renamed_to: str | None = None
+
+
+@dataclass(frozen=True)
+class OtherCli:
+    """
+    The server changed through another CLI: its source is in git, so the
+    answer is a `git pull`, not a `Pull`.
+    """
+
+    kind: EntityKind
+    key: str
+    fields: tuple[str, ...]
+
+
+Decision = Skip | Put | Prune | Keep | Pull | Conflict | OtherCli
 
 
 def diff_keyed[K, L, S](
@@ -610,17 +798,7 @@ def merge_resource(
         return Prune(DeleteResource(slug=slug))
     if server == (local.ref, local.event):
         return Skip()
-    return Put(
-        UpsertResource(
-            slug=local.slug,
-            title=local.title,
-            description=local.description,
-            data=local.data,
-            ref=local.ref,
-            path=local.path,
-            event=local.event,
-        )
-    )
+    return Put(_upsert_resource(local))
 
 
 def merge_question(
@@ -913,8 +1091,583 @@ def plan_grades(local: LocalState, server: ServerState) -> Plan:
 
 
 #
+# Three-way sync
+#
+#: The `BaseState` key of the one course row.
+COURSE_KEY = "course"
+
+#: Payload fields that make up an entity's key, which a rename changes.
+_SLUG = ("slug",)
+_EVENT_KEY = ("week", "timeSlot")
+
+_MISSING = object()
+
+
+def event_key(week: int, time_slot: str) -> str:
+    """
+    The base key of a calendar event: `"<week>/<time slot>"`.
+    """
+    return f"{week}/{time_slot}"
+
+
+def parse_event_key(key: str) -> tuple[int, str]:
+    """
+    The `(week, time slot)` of a base key made by `event_key`.
+
+    Raises:
+        ValueError: `key` is not of that form.
+    """
+    week, sep, time_slot = key.partition("/")
+    if not sep or not time_slot:
+        raise ValueError(f"not an event key: {key!r}")
+    return int(week), time_slot
+
+
+def diff_fields(a: Payload | None, b: Payload | None) -> tuple[str, ...]:
+    """
+    The sorted top-level keys whose values differ between two payloads, where
+    a side that is `None` holds none.
+    """
+    left, right = a or {}, b or {}
+    return tuple(
+        sorted(
+            key
+            for key in left.keys() | right.keys()
+            if left.get(key, _MISSING) != right.get(key, _MISSING)
+        )
+    )
+
+
+def three_way(
+    kind: EntityKind,
+    key: str,
+    local: Payload | None,
+    base: BaseEntry | None,
+    remote: RemoteEntry | None,
+    *,
+    local_ref: str | None = None,
+    server_ref: str | None = None,
+    put: Callable[[], Put],
+    prune: Callable[[], Decision],
+) -> Decision:
+    """
+    Decide one entity from its local, base and server payloads.
+
+    `put` and `prune` build the write that moves the server to the local
+    side; `prune` may answer a `Keep` when something protects the entity.
+    `local_ref` and `server_ref` are the hash the local side computes and the
+    one the server stores, used only when the base is absent: equal ones mean
+    the server holds what this checkout last sent.
+
+    The server changed through another CLI when its `rev` is not the base's;
+    that takes precedence over a conflict. See the RFC's decision table.
+    """
+
+    stored = base
+
+    def put_() -> Put:
+        assert local is not None
+        return replace(put(), base=BaseUpdate(kind, key, BaseEntry(local)))
+
+    def prune_() -> Decision:
+        decision = prune()
+        if isinstance(decision, Prune):
+            return replace(decision, base=BaseUpdate(kind, key, None))
+        return decision
+
+    def ours_prune() -> tuple[Put | Prune, ...]:
+        decision = prune_()
+        return (decision,) if isinstance(decision, Prune) else ()
+
+    def adopt() -> Skip:
+        assert local is not None and remote is not None
+        entry = BaseEntry(local, remote.rev, remote.updated_at)
+        stale = stored is None or (stored.payload, stored.rev) != (local, remote.rev)
+        return Skip(BaseUpdate(kind, key, entry) if stale else None)
+
+    if base is None:
+        if local is None:
+            if remote is None:
+                return Skip()
+            fields = diff_fields(None, remote.payload)
+            if remote.rev is None:
+                return Pull(kind, key, "create", fields, remote)
+            return OtherCli(kind, key, fields)
+        if remote is None:
+            return put_()
+        if server_ref is not None and server_ref == local_ref:
+            base = BaseEntry(local, remote.rev, remote.updated_at)
+        elif local == remote.payload:
+            return adopt()
+        else:
+            fields = diff_fields(local, remote.payload)
+            return Conflict(kind, key, fields, "no-base", ours=(put_(),))
+    assert base is not None
+    if local is None:
+        if remote is None:
+            return Skip(BaseUpdate(kind, key, None))
+        if remote.payload == base.payload:
+            return prune_()
+        fields = diff_fields(base.payload, remote.payload)
+        if remote.rev != base.rev:
+            return OtherCli(kind, key, fields)
+        return Conflict(kind, key, fields, "local-deleted-remote-edited", ours_prune())
+    if remote is None:
+        if local == base.payload:
+            return Pull(kind, key, "delete", diff_fields(base.payload, None))
+        fields = diff_fields(local, None)
+        return Conflict(
+            kind, key, fields, "local-edited-remote-deleted", ours=(put_(),)
+        )
+    local_changed = local != base.payload
+    remote_changed = remote.payload != base.payload
+    if local == remote.payload:
+        return adopt()
+    if not remote_changed:
+        return put_()
+    if remote.rev != base.rev:
+        return OtherCli(kind, key, diff_fields(base.payload, remote.payload))
+    if not local_changed:
+        return Pull(
+            kind, key, "update", diff_fields(base.payload, remote.payload), remote
+        )
+    return Conflict(
+        kind, key, diff_fields(local, remote.payload), "both-changed", ours=(put_(),)
+    )
+
+
+def plan_sync(
+    local: LocalState,
+    base: BaseState,
+    remote: ServerState,
+    *,
+    drop_roll_calls: bool = False,
+    drop_repositories: bool = False,
+    message: str | None = None,
+) -> Plan:
+    """
+    Compare a repository, the base and the server by entity, by natural key,
+    into a `Plan`.
+
+    Each entity goes through `three_way` on payloads in the wire format:
+    local through the `wire` constructors, base and server as stored. The
+    plan keeps `plan_push`'s order: course, repositories, calendar, resources,
+    questions, grade columns. Repositories and grade columns stay one-way:
+    the repository overwrites, and a grade column the server holds in a form
+    other than the base's gets a `ServerDrifted` notice.
+
+    The course row is never pulled for removal: a course missing on the
+    server is written back.
+    """
+    return (
+        _sync_course(local, base, remote)
+        + plan_repositories(
+            local, remote, drop_repositories=drop_repositories, message=message
+        )
+        + _sync_calendar(local, base, remote, drop_roll_calls=drop_roll_calls)
+        + Plan.of(_sync_resources(local, base, remote))
+        + Plan.of(_sync_questions(local, base, remote))
+        + _sync_grades(local, base, remote)
+    )
+
+
+def _sync_course(local: LocalState, base: BaseState, remote: ServerState) -> Plan:
+    start_at, end_at = _timestamp(local.start), _timestamp(local.end)
+    ref = course_ref(local.description, start_at, end_at)
+    payload = course_payload(local.key, local.description, local.start, local.end)
+    op = UpsertCourse(
+        key=local.key,
+        description=local.description,
+        start_at=start_at,
+        end_at=end_at,
+        ref=ref,
+    )
+    entry = remote.course if remote.course_exists else None
+    if entry is None:
+        return Plan.of(
+            [Put(op, base=BaseUpdate("course", COURSE_KEY, BaseEntry(payload)))]
+        )
+    decision = three_way(
+        "course",
+        COURSE_KEY,
+        payload,
+        base.course.get(COURSE_KEY),
+        entry,
+        local_ref=ref,
+        server_ref=entry.rev,
+        put=lambda: Put(op),
+        prune=lambda: Skip(),
+    )
+    return Plan.of([decision])
+
+
+def _sync_kind(
+    kind: EntityKind,
+    local: Mapping[str, Payload],
+    base: Mapping[str, BaseEntry],
+    remote: Mapping[str, RemoteEntry],
+    decide: Callable[
+        [str, Payload | None, BaseEntry | None, RemoteEntry | None], Decision
+    ],
+    *,
+    key_fields: tuple[str, ...] = _SLUG,
+) -> list[Decision]:
+    """
+    Run `decide` on every key of the three sides: local keys in local order,
+    then the others in key order. A new local entity and a locally deleted
+    one that are the same apart from their key, the deleted one changed on
+    the server, become one rename.
+    """
+    keys = [*local, *sorted((base.keys() | remote.keys()) - local.keys())]
+    decisions = {
+        key: decide(key, local.get(key), base.get(key), remote.get(key)) for key in keys
+    }
+    new = [
+        key
+        for key, decision in decisions.items()
+        if isinstance(decision, Put)
+        and key in local
+        and key not in base
+        and key not in remote
+    ]
+    for old, decision in list(decisions.items()):
+        if old in local or old not in base or old not in remote:
+            continue
+        if not isinstance(decision, OtherCli) and not (
+            isinstance(decision, Conflict)
+            and decision.reason == "local-deleted-remote-edited"
+        ):
+            continue
+        shape = _without(base[old].payload, key_fields)
+        found = next((k for k in new if _without(local[k], key_fields) == shape), None)
+        if found is None:
+            continue
+        new.remove(found)
+        added = decisions.pop(found)
+        if isinstance(decision, Conflict) and isinstance(added, Put):
+            decisions[old] = Conflict(
+                kind,
+                old,
+                decision.fields,
+                "rename",
+                ours=(added, *decision.ours),
+                renamed_to=found,
+            )
+    return list(decisions.values())
+
+
+def _sync_resources(
+    local: LocalState, base: BaseState, remote: ServerState
+) -> list[Decision]:
+    files = {file.slug: file for file in local.resources}
+    excluded = _excluded(local, "resource")
+
+    def decide(
+        key: str,
+        payload: Payload | None,
+        entry: BaseEntry | None,
+        server: RemoteEntry | None,
+    ) -> Decision:
+        if payload is None and key in excluded:
+            return Skip()
+        file = files.get(key)
+        decision = three_way(
+            "resource",
+            key,
+            payload,
+            entry,
+            server,
+            local_ref=file.ref if file else None,
+            server_ref=server.rev if server else None,
+            put=lambda: Put(_upsert_resource(files[key])),
+            prune=lambda: Prune(DeleteResource(slug=key)),
+        )
+        if not isinstance(decision, Pull):
+            return decision
+        ours = (
+            (_put("resource", key, payload, _upsert_resource(file)),)
+            if file is not None and payload is not None
+            else ()
+        )
+        if decision.change == "delete":
+            if file is not None and file.event is not None:
+                return Conflict("resource", key, decision.fields, "referenced", ours)
+            return decision
+        assert decision.remote is not None
+        before = resource_event_of(entry.payload) if entry else None
+        if resource_event_of(decision.remote.payload) != before:
+            return Conflict("resource", key, decision.fields, "link", ours)
+        return decision
+
+    return _sync_kind(
+        "resource",
+        {slug: resource_payload(file) for slug, file in files.items()},
+        base.resources,
+        remote.resources,
+        decide,
+    )
+
+
+def _sync_questions(
+    local: LocalState, base: BaseState, remote: ServerState
+) -> list[Decision]:
+    files = {q.slug: q for q in local.questions}
+    excluded = _excluded(local, "question")
+    entries = {
+        slug: question.entry
+        for slug, question in remote.questions.items()
+        if question.entry is not None
+    }
+    unreadable = remote.questions.keys() - entries.keys()
+
+    def decide(
+        key: str,
+        payload: Payload | None,
+        entry: BaseEntry | None,
+        server: RemoteEntry | None,
+    ) -> Decision:
+        if payload is None and key in excluded or key in unreadable:
+            return Skip()
+        file = files.get(key)
+        if isinstance(file, InvalidQuestion):
+            return Keep(Rejected(slug=file.slug, path=file.path, reason=file.reason))
+        question = remote.questions.get(key)
+        if isinstance(file, QuestionFile):
+            status = (
+                join_status(file.status, question.status) if question else file.status
+            )
+            notices: tuple[Notice, ...] = ()
+            if question is not None and (file.status, question.status) == (
+                "DRAFT",
+                "PUBLISHED",
+            ):
+                notices = (
+                    KeptDraftPublished(
+                        slug=file.slug, status=question.status, path=file.path
+                    ),
+                )
+
+            def put() -> Put:
+                return Put(_upsert_question(file, status), notices)
+
+        else:
+
+            def put() -> Put:
+                raise AssertionError("a missing question is never written")
+
+        decision = three_way(
+            "question",
+            key,
+            payload,
+            entry,
+            server,
+            local_ref=file.version if file else None,
+            server_ref=question.version if question else None,
+            put=put,
+            prune=lambda: Prune(DeleteQuestion(slug=key)),
+        )
+        if not isinstance(decision, Skip) or file is None or question is None:
+            return decision
+        if status != question.status:
+            assert payload is not None
+            return _put(
+                "question", key, payload, _upsert_question(file, status), notices
+            )
+        if notices:
+            return Keep(notices[0], decision.base)
+        return decision
+
+    return _sync_kind(
+        "question",
+        {
+            slug: question_payload(file)
+            for slug, file in files.items()
+            if isinstance(file, QuestionFile)
+        },
+        base.questions,
+        entries,
+        decide,
+    )
+
+
+def _sync_calendar(
+    local: LocalState,
+    base: BaseState,
+    remote: ServerState,
+    *,
+    drop_roll_calls: bool,
+) -> Plan:
+    """
+    The calendar half of a three-way plan, ordered as `plan_calendar` is.
+    """
+    events = {event_key(e.week, e.time_slot): e for e in local.events}
+    servers = {event_key(*key): ev for key, ev in remote.calendar_events.items()}
+    entries = {
+        key: ev.entry
+        for key, ev in servers.items()
+        if ev.entry is not None and ev.kind != "CANCELLED"
+    }
+
+    def decide_event(
+        key: str,
+        payload: Payload | None,
+        entry: BaseEntry | None,
+        server: RemoteEntry | None,
+    ) -> Decision:
+        week, time_slot = parse_event_key(key)
+        found = servers.get(key)
+        if found is not None and found.kind == "CANCELLED":
+            return Keep(KeptCancelled(week=week, time_slot=time_slot))
+        if found is not None and found.entry is None:
+            return Skip()
+        event = events.get(key)
+        return three_way(
+            "calendar_event",
+            key,
+            payload,
+            entry,
+            server,
+            local_ref=event.ref if event else None,
+            server_ref=server.rev if server else None,
+            put=lambda: Put(UpsertCalendarEvent(event=events[key])),
+            prune=lambda: merge_event(
+                (week, time_slot), None, found, drop_roll_calls=drop_roll_calls
+            ),
+        )
+
+    cancelled = {
+        k: RemoteEntry({}) for k, ev in servers.items() if ev.kind == "CANCELLED"
+    }
+    decided = _sync_kind(
+        "calendar_event",
+        {key: event_payload(event) for key, event in events.items()},
+        base.calendar_events,
+        {**entries, **cancelled},
+        decide_event,
+        key_fields=_EVENT_KEY,
+    )
+    pinned, pin_notices = _pin_slots(decided, {slot.slug for slot in local.slots})
+    slots = {slot.slug: slot for slot in local.slots}
+
+    def decide_slot(
+        key: str,
+        payload: Payload | None,
+        entry: BaseEntry | None,
+        server: RemoteEntry | None,
+    ) -> Decision:
+        if payload is None and key in pinned:
+            return Skip()
+        return three_way(
+            "time_slot",
+            key,
+            payload,
+            entry,
+            server,
+            put=lambda: Put(UpsertTimeSlot(slot=slots[key])),
+            prune=lambda: Prune(DeleteTimeSlot(slug=key)),
+        )
+
+    decided_slots = _sync_kind(
+        "time_slot",
+        {key: time_slot_payload(slot) for key, slot in slots.items()},
+        base.time_slots,
+        remote.time_slots,
+        decide_slot,
+    )
+    reported = [
+        d
+        for d in decided
+        if isinstance(d, Keep) and not isinstance(d.notice, KeptCancelled)
+    ]
+    rest = [
+        d
+        for d in (*decided, *decided_slots)
+        if isinstance(d, Skip | Pull | Conflict | OtherCli)
+    ]
+    return Plan.of(
+        [
+            *_only(decided, Prune),
+            *_only(decided_slots, Prune),
+            *_only(decided_slots, Put),
+            *_only(decided, Put),
+            *reported,
+            *rest,
+        ]
+    ) + Plan(notices=pin_notices)
+
+
+def _sync_grades(local: LocalState, base: BaseState, remote: ServerState) -> Plan:
+    """
+    The grade columns of a plan: the repository overwrites the server, and a
+    column the server changed since the base is overwritten with a notice.
+    """
+    if local.grade_columns is None:
+        return Plan()
+    columns = {column.slug: column for column in local.grade_columns}
+    payloads = {slug: grade_column_payload(column) for slug, column in columns.items()}
+    decisions: list[Decision] = []
+    keys = [
+        *columns,
+        *sorted(
+            (base.grade_columns.keys() | remote.grade_columns.keys()) - columns.keys()
+        ),
+    ]
+    for key in keys:
+        entry, server = base.grade_columns.get(key), remote.grade_columns.get(key)
+        column = columns.get(key)
+        drift: tuple[Notice, ...] = ()
+        if entry is not None and server is not None and server.payload != entry.payload:
+            drift = (
+                ServerDrifted(
+                    "grade_column", key, diff_fields(entry.payload, server.payload)
+                ),
+            )
+        if column is None:
+            if server is None:
+                if entry is not None:
+                    decisions.append(Skip(BaseUpdate("grade_column", key, None)))
+                continue
+            decisions.append(
+                Prune(
+                    DeleteGradeColumn(slug=key),
+                    base=BaseUpdate("grade_column", key, None),
+                    notices=drift,
+                )
+            )
+            continue
+        payload = payloads[key]
+        if server is not None and server.rev == column.rev:
+            stale = entry is None or (entry.payload, entry.rev) != (payload, server.rev)
+            update = BaseUpdate(
+                "grade_column", key, BaseEntry(payload, server.rev, server.updated_at)
+            )
+            decisions.append(Skip(update if stale else None))
+            continue
+        put = _put("grade_column", key, payload, UpsertGradeColumn(column=column))
+        decisions.append(replace(put, notices=drift))
+    return Plan.of(decisions)
+
+
+#
 # Utilities
 #
+def _put(
+    kind: EntityKind,
+    key: str,
+    payload: Payload,
+    op: Write,
+    notices: tuple[Notice, ...] = (),
+) -> Put:
+    """
+    A `Put` of `op` that records `payload` in the base once it succeeds.
+    """
+    return Put(op, notices, BaseUpdate(kind, key, BaseEntry(payload)))
+
+
+def _without(payload: Payload, fields: tuple[str, ...]) -> Payload:
+    return {k: v for k, v in payload.items() if k not in fields}
+
+
 def _excluded(local: LocalState, kind: str) -> frozenset[str]:
     """
     The slugs of `kind` that an `exclude` pattern leaves out of the push.
@@ -950,6 +1703,18 @@ def _pin_slots(
         for slug, found in sorted(weeks.items())
     )
     return frozenset(pinned), notices
+
+
+def _upsert_resource(file: ResourceFile) -> UpsertResource:
+    return UpsertResource(
+        slug=file.slug,
+        title=file.title,
+        description=file.description,
+        data=file.data,
+        ref=file.ref,
+        path=file.path,
+        event=file.event,
+    )
 
 
 def _upsert_question(question: QuestionFile, status: QuestionStatus) -> UpsertQuestion:
