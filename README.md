@@ -64,6 +64,25 @@ pushing changes to the Codehood server using a simple command:
 codehood push
 ```
 
+### When the server changed
+
+`codehood push` sends only what you changed locally. It compares your files, a
+record of the last sync and the server, and never overwrites something that
+changed on the server since. It lists those entities and leaves them alone:
+
+- `pull`: someone edited or created it on the web. Nothing is written in
+  your files yet, and the server's version stays.
+- `conflict`: you and the server both changed it. The push exits with code 1.
+  `codehood push --ours resource/intro` sends your version (`<kind>/<key>`,
+  globs allowed, repeatable).
+- `other cli`: another checkout pushed it. Run `git pull` first. If the file
+  no longer exists anywhere, `--ours <kind>/<key>` deletes it from the server
+  (or sends your copy, if you still have it).
+
+The record of the last sync lives in `.local/codehood/`, ignored by Git. It is
+safe to delete: the next push rebuilds it from what matches the server, and
+reports a conflict where it cannot tell.
+
 
 ### Keeping files out of a push
 

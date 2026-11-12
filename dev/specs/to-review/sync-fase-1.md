@@ -36,7 +36,15 @@ fase: `ch pull` e `ch sync` ficam para a fase 2.
 - R7. A base só é atualizada para as entidades cuja operação deu certo, e para
   as que estavam iguais dos dois lados.
 - R8. `--ours <glob>` resolve um `Conflict` enviando a versão local.
-  `--theirs` não existe nesta fase.
+  `--theirs` não existe nesta fase. Também resolve um `OtherCli`: ele carrega
+  `ours` como o `Conflict` (um `Put` quando o local tem a entidade, um `Prune`
+  quando não tem), para o caso de a fonte ter sumido do git e o `git pull`
+  nunca trazer o arquivo. Sem `--ours`, nada é escrito. O relatório de
+  `OtherCli` sugere `git pull` primeiro e cita `--ours <kind>/<key>` como
+  saída. As proteções (`--no-prune`, `protect`, roll calls, recurso
+  referenciado, time slot em uso) continuam valendo. As operações resolvidas
+  por `--ours` entram nas escritas na ordem de dependência do planejador
+  (`write_rank`).
 - R9. O relatório em texto lista cada `Pull`, `Conflict` e `OtherCli` com a
   chave, o tipo e os campos que diferem. `OtherCli` sugere `git pull`. O
   código de saída é diferente de zero quando sobra `Conflict`.

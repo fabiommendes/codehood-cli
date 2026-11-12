@@ -18,6 +18,16 @@ once at creation and stored only as a SHA-256 hash, revocable individually, and
 sent as `Authorization: Bearer <key>`. A request authenticated by one acts as
 the key's owner.
 
+## Base
+
+Type: platform
+Code: `codehood/push/base.py`
+
+What the last successful sync left on the server: per entity, the payload sent
+plus the `rev` and `updatedAt` the server reported. It lives in
+`.local/codehood/base/`, is ignored by Git and can be deleted: the next
+[Push](#push) rebuilds it from entities that match on both sides.
+
 ## Classroom invite
 
 Type: domain 
@@ -34,8 +44,19 @@ Type: domain
 
 The command-line tool instructors use to author a course locally and push it to
 the server. It is the reason course content is a Git repository of plain text
-rather than something typed into web forms. Sync is one-way — there is no
-`codehood pull`, because the server never modifies content.
+rather than something typed into web forms. `codehood push` never overwrites
+a change made on the server; writing those changes back into the files
+(`codehood pull`) is not implemented yet.
+
+## Conflict
+
+Type: domain
+Code: `Conflict`
+
+An entity changed in the repository and on the server since the last sync, or
+exists on both without a [Base](#base) and differs. [Push](#push) writes
+nothing for it and exits non-zero. `--ours <kind>/<key>` settles it with the
+repository's version.
 
 ## Content hash
 
@@ -204,6 +225,16 @@ glossary (`mdq.spec/CONTEXT.md`) uses "question" and "exam" unqualified, since
 it has no server-side counterpart to disambiguate from; this glossary adds the
 "local"/"remote" qualifiers because both senses coexist here.
 
+## Other CLI
+
+Type: domain
+Code: `OtherCli`
+
+An entity whose `rev` on the server is not the [Base](#base)'s: another
+checkout pushed it, and its source lives in Git. [Push](#push) leaves it alone
+and asks for a `git pull`. `--ours <kind>/<key>` overrides that when the file
+is gone everywhere.
+
 ## Passphrase
 
 Type: domain 
@@ -249,16 +280,27 @@ A random ten-character URL-safe string on rows whose identifier appears in a URL
 but should not be guessable. Primary keys stay auto-incrementing integers; the
 `publicId` is generated with nanoid in the service layer, not the database.
 
+## Pull
+
+Type: domain
+Code: `Pull`
+
+A change on the server that the repository does not have and the server did
+not take from a CLI, such as an edit or a creation made on the web. [Push](#push)
+reports it and leaves it untouched on both sides.
+
 ## Push
 
 Also: `codehood push`, sync
 Type: domain
 
-The one-way sync that makes the server's copy of a [Course](#course) match the
-local repository. Not atomic and not transactional: an interrupted push leaves
-a coherent partial state, and running it again converges. The
-repository is the source of truth, so content the repository no longer has is
-deleted from the server rather than kept.
+The sync that sends what changed in the local repository to the server,
+comparing local, [Base](#base) and server. Not atomic and not transactional:
+an interrupted push leaves a coherent partial state, and running it again
+converges. Content the repository dropped since the last sync is deleted from
+the server, unless the server changed it meanwhile. Changes made on the server
+are reported ([Pull](#pull), [Conflict](#conflict), [Other CLI](#other-cli)),
+never overwritten.
 
 ## Push plan
 

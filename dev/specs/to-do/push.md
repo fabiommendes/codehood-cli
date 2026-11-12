@@ -1,8 +1,11 @@
 # `codehood push`: syncing a course repository
 
-`codehood push` makes the server's copy of a course match the local
-repository. The repository is the source of truth; the server holds a
-projection of it.
+`codehood push` sends what changed in the local repository to the server. The
+repository is where course content is authored; the server holds a projection
+of it, and the server may change too (the web, another checkout). Push
+compares local, base and server, and never overwrites a server-side change: it
+reports it. The design is in the server repository's
+`dev/rfc/sync-bidirecional.md`.
 
 This spec covers the first slice: the course's own description, and its
 resources. Questions, exams and the calendar are separate specs.
@@ -104,29 +107,32 @@ its first H1, then the filename stem. Description comes from a
 An explicit manifest declaring all of this, and `LINK` resources with it,
 is in `BACKLOG.md`.
 
-### There is no local state
+### The base is the only local state
 
-Push hashes the repository, asks the server what it holds, and plans the
-difference. `.codehood/` stores nothing, and deleting it changes nothing.
+Push keeps one piece of state per checkout, the base: for every synced entity,
+the payload it sent plus the `rev` and `updatedAt` the server answered. It
+lives in `.local/codehood/base/`, which holds its own `.gitignore` (`*`) and is
+created by `ch init`. The former `.codehood/` is gone; an old one is ignored
+and can be deleted.
 
-A local cache of "what was last pushed" is only ever an optimisation, and
-one nobody has measured a need for: a course repository is Markdown and a
-few PDFs, and hashing it is milliseconds. A cache that can disagree with the
-server can also make push silently wrong, which is a bad trade for one
-saved round-trip.
+The base is what tells an edit made in the repository from one made on the
+server. Without it, "differs from the server" cannot say who moved, and push
+would either overwrite web edits or never delete anything. It is updated only
+for entities whose write succeeded and for those equal on both sides.
 
-This deletes `repo/history.py` and the `history` parameter threaded through
-`find_diffs`.
-
-Until the server grows a per-course manifest endpoint, push
-reads `GET /api/course/{discipline}/{course}/resource` and ignores every
-field but `slug` and `contentHash`.
+Deleting `.local/codehood/` is safe. Entities that match the server are
+adopted into a new base without a write; the ones that differ are conflicts
+instead of silent overwrites. Push reads the whole server state (one request
+per collection) and compares it by natural key; the same read serves every
+plan.
 
 ### Deletion is part of the sync
 
-A resource on the server whose file is gone locally is deleted. The
-repository is the source of truth: a mistake is fixed by fixing the
-repository and pushing again.
+A resource on the server whose file is gone locally is deleted when the base
+says the CLI put it there and the server has not changed it since. An entity
+that exists only on the server, with no `rev` (created on the web), is never
+deleted: it is reported as a pull. One with a `rev` that is not the base's
+was pushed by another checkout and is reported as `other cli`.
 
 This destroys blobs and leaves tombstones, so push prints
 what it will delete before doing it.
@@ -193,19 +199,29 @@ design, so it cannot express the one dependency push has.
 ## CLI surface
 
 ```
-codehood push [PATH] [--dry-run] [--no-prune]
+codehood push [PATH] [--dry-run] [--no-prune] [--ours GLOB]...
 ```
 
 - `PATH` defaults to the current directory and must be a course repository.
 - `--dry-run` prints the plan and exits 0 without a single write.
 - `--no-prune` plans deletions and reports them but does not execute them.
-  Deletion is on by default: the repository is the source of truth.
+  Deletion is on by default.
+- `--ours GLOB` settles the conflicts and the `other cli` entries whose
+  `<kind>/<key>` matches (for example `resource/intro` or
+  `calendar_event/1/mon`) with the local version: an upsert when the
+  repository has the entity, a deletion when it does not. Repeatable. The
+  other protections still apply. There is no `--theirs` yet.
 
 Output is one line per operation, in plan order, with its outcome. A push
 where every operation succeeds and nothing changed prints nothing but a
 summary.
 
-Exit codes: 0 when every operation succeeded, 1 when any failed. A failure
+Pulls, conflicts and `other cli` entries are listed with their key, kind and
+differing fields; the entity is left alone on both sides. A conflict makes
+the exit code 1; the other two do not. `other cli` suggests `git pull` first.
+
+Exit codes: 0 when every operation succeeded, 1 when any failed or a conflict
+remains. A failure
 does not stop the push (a sync is not atomic): remaining operations still run, and
 the failures are listed at the end. The exception is the course row: every
 other operation hangs off it, so when its `PUT` fails (say, the edition does
@@ -224,6 +240,12 @@ none is sent, and the summary counts them apart from the failures.
 - End-to-end against the dev server on `localhost:4321`: `init` a course,
   push it, screenshot `/cs101/ada_2026-1/resources`, delete a local file,
   push again, screenshot the resource gone.
+- Sync against the dev server (`tests/test_push_integration.py`): an edit or a
+  creation made through the REST API survives a push and shows as a pull; an
+  edit on both sides is a conflict and `--ours` settles it; a deleted base is
+  rebuilt without writes; an entity only the server has, with a `rev`, is
+  `other cli` until `--ours` deletes it; an unchanged second push writes
+  nothing.
 
 The end-to-end run covers `MD` and `CODE` resources. `FILE` waits on the
 upload endpoint.
