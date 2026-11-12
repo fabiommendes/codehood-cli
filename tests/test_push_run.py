@@ -31,8 +31,6 @@ from codehood.push.plan import (
     DeleteQuestion,
     DeleteResource,
     DeleteTimeSlot,
-    ServerEvent,
-    ServerQuestion,
     UpsertCalendarEvent,
     UpsertCourse,
     UpsertGradeColumn,
@@ -40,8 +38,10 @@ from codehood.push.plan import (
     UpsertResource,
     UpsertTimeSlot,
 )
+from codehood.push.project import RemoteEntry, time_slot_of
 from codehood.push.resource import CodeData, FileData, LinkData, MdData
 from codehood.push.run import fetch_server_state, fetch_students, run_plan
+from codehood.push.wire import time_slot_payload
 
 EXAMPLE_MDQ = """---
 title: Example question
@@ -247,7 +247,14 @@ def test_fetch_server_state_reports_course_and_resource_refs():
 
     state = fetch_server_state(DISCIPLINE, COURSE, _client(handler))
     assert state.course_exists is True
-    assert dict(state.resources) == {"week1-slides": "ref-a", "week1-notes": "ref-b"}
+    assert {slug: e.rev for slug, e in state.resources.items()} == {
+        "week1-slides": "ref-a",
+        "week1-notes": "ref-b",
+    }
+    assert state.resources["week1-slides"].updated_at == "2026-01-01T00:00:00Z"
+    assert state.resources["week1-slides"].payload["slug"] == "week1-slides"
+    assert state.course is not None
+    assert state.course.payload["startAt"] == "2026-01-01T00:00:00.000Z"
 
 
 def test_fetch_server_state_reports_question_versions():
@@ -274,11 +281,18 @@ def test_fetch_server_state_reports_question_versions():
         raise AssertionError(f"unexpected request: {request.url}")
 
     state = fetch_server_state(DISCIPLINE, COURSE, _client(handler))
-    assert dict(state.questions) == {
-        "week1-big-o": ServerQuestion("md5:aaa", "PUBLISHED"),
-        "week1-sorting": ServerQuestion("md5:bbb", "HIDDEN"),
-        "week1-draft": ServerQuestion("md5:ccc", "DRAFT"),
+    assert {
+        slug: (question.version, question.status)
+        for slug, question in state.questions.items()
+    } == {
+        "week1-big-o": ("md5:aaa", "PUBLISHED"),
+        "week1-sorting": ("md5:bbb", "HIDDEN"),
+        "week1-draft": ("md5:ccc", "DRAFT"),
     }
+    entry = state.questions["week1-big-o"].entry
+    assert entry is not None
+    assert entry.payload["slug"] == "week1-big-o"
+    assert entry.updated_at == "2026-01-01T00:00:00Z"
 
 
 def test_fetch_server_state_course_missing_skips_the_question_listing():
@@ -345,14 +359,54 @@ def test_fetch_server_state_recomputes_time_slot_refs_locally():
         raise AssertionError(f"unexpected request: {request.url}")
 
     state = fetch_server_state(DISCIPLINE, COURSE, _client(handler))
-    expected_ref = TimeSlot(
+    local = TimeSlot(
         slug="mon",
         day="MONDAY",
         start=TimeOfDay(hour=14, minute=0),
         duration=Duration(hours=2, minutes=0),
         title="Lecture",
-    ).ref
-    assert dict(state.time_slots) == {"mon": expected_ref}
+    )
+    assert dict(state.time_slots) == {
+        "mon": RemoteEntry(time_slot_payload(local), updated_at="2026-01-01T00:00:00Z")
+    }
+    assert time_slot_of(state.time_slots["mon"].payload).ref == local.ref
+
+
+def test_fetch_server_state_reads_every_entity_from_its_listing():
+    """
+    The listings carry the whole body, so a course costs one request per
+    collection however many entities it holds: no `GET` per item.
+    """
+    paths: list[str] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        paths.append(request.url.path)
+        listings = {
+            f"{BASE}/resource": [_resource_json("a", "ra"), _resource_json("b", "rb")],
+            f"{BASE}/question": [_question_json("q", "v")],
+            f"{BASE}/time-slot": [_timeslot_json("mon", "MONDAY", 14, 0, 2, 0)],
+            f"{BASE}/calendar-event": [
+                _calendar_event_json(0, "mon", "MONDAY", 14, 0, 2, 0, "Intro", None)
+            ],
+            f"{BASE}/grade-column": [],
+            f"{BASE}/roll-call": [],
+        }
+        if request.url.path == BASE:
+            return httpx.Response(200, json=_course_json())
+        return httpx.Response(200, json=listings[request.url.path])
+
+    fetch_server_state(DISCIPLINE, COURSE, _client(handler))
+    assert sorted(paths) == sorted(
+        [
+            BASE,
+            f"{BASE}/resource",
+            f"{BASE}/question",
+            f"{BASE}/time-slot",
+            f"{BASE}/calendar-event",
+            f"{BASE}/grade-column",
+            f"{BASE}/roll-call",
+        ]
+    )
 
 
 def test_fetch_server_state_reports_calendar_events_as_markers():
@@ -404,10 +458,24 @@ def test_fetch_server_state_reports_calendar_events_as_markers():
         raise AssertionError(f"unexpected request: {request.url}")
 
     state = fetch_server_state(DISCIPLINE, COURSE, _client(handler))
-    assert dict(state.calendar_events) == {
-        (0, "mon"): ServerEvent(ref="ref-a", kind="REGULAR"),
-        (3, "mon"): ServerEvent(ref="ref-b", kind="CANCELLED"),
+    events = state.calendar_events
+    assert {key: (e.ref, e.kind, e.attendances) for key, e in events.items()} == {
+        (0, "mon"): ("ref-a", "REGULAR", None),
+        (3, "mon"): ("ref-b", "CANCELLED", None),
     }
+    entry = events[(0, "mon")].entry
+    assert entry == RemoteEntry(
+        {
+            "kind": "REGULAR",
+            "title": "Intro",
+            "description": "Welcome.",
+            "week": 0,
+            "timeSlot": "mon",
+            "repositories": [],
+        },
+        rev="ref-a",
+        updated_at="2026-01-01T00:00:00Z",
+    )
 
 
 #

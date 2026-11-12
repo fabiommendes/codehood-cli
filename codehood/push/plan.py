@@ -34,9 +34,11 @@ from ..models.repo import CourseKey
 from .calendar import Event, EventKey, TimeSlot
 from .exclude import ExcludedFile
 from .grades import GradeColumn
+from .project import RemoteEntry, resource_event_of, time_slot_of
 from .question import AnyQuestion, InvalidQuestion, QuestionFile, QuestionStatus
 from .repository import RepositoryTree
 from .resource import ResourceData, ResourceFile
+from .wire import instant
 
 __all__ = [
     "STATUS_ORDER",
@@ -141,41 +143,49 @@ class ServerEvent:
     """
     What the sync preflight reports about one calendar event.
 
-    A marker, not a payload: `ref` decides whether to rewrite it and
-    `kind` whether to touch it at all -- see the mapping's "Sync
-    preflight".
+    `ref` decides whether to rewrite it and `kind` whether to touch it at
+    all -- see the mapping's "Sync preflight". `entry` is the event as the
+    server holds it, projected to the payload.
     """
 
     ref: str
     kind: Literal["REGULAR", "HOLIDAY", "CANCELLED"]
     attendances: int | None = None
+    entry: RemoteEntry | None = None
 
 
 @dataclass(frozen=True)
 class ServerQuestion:
     """
     What the sync preflight reports about one question.
+
+    `entry` is the question as the server holds it, projected to the
+    payload: its `rev` is the server's own, and the version label stays in
+    `version`.
     """
 
     version: str
     status: QuestionStatus = "DRAFT"
+    entry: RemoteEntry | None = None
 
 
 @dataclass(frozen=True)
 class ServerState:
     """
-    What the server currently holds for a course, as markers only.
+    What the server currently holds for a course.
+
+    Each entity carries a `RemoteEntry`: its payload, projected back from
+    what the server returned, and the `rev` and `updatedAt` it carries.
     """
 
     course_exists: bool = False
-    #: The `rev` the course row carries: the `course_ref` of its last push.
-    course_rev: str | None = None
-    resources: Mapping[str, str] = field(default_factory=dict)
-    resource_events: Mapping[str, EventKey | None] = field(default_factory=dict)
+    #: The course row. Its `rev` is the `course_ref` of its last push.
+    course: RemoteEntry | None = None
+    resources: Mapping[str, RemoteEntry] = field(default_factory=dict)
     questions: Mapping[str, ServerQuestion] = field(default_factory=dict)
-    time_slots: Mapping[str, str] = field(default_factory=dict)
+    time_slots: Mapping[str, RemoteEntry] = field(default_factory=dict)
     calendar_events: Mapping[tuple[int, str], ServerEvent] = field(default_factory=dict)
-    grade_columns: Mapping[str, str] = field(default_factory=dict)
+    grade_columns: Mapping[str, RemoteEntry] = field(default_factory=dict)
     #: Slug -> sha1 of the head commit's root tree, `None` before the first
     #: commit.
     repositories: Mapping[str, str | None] = field(default_factory=dict)
@@ -752,7 +762,8 @@ def plan_push(
     start_at, end_at = _timestamp(local.start), _timestamp(local.end)
     ref = course_ref(local.description, start_at, end_at)
     course = Plan()
-    if not server.course_exists or server.course_rev != ref:
+    course_rev = server.course.rev if server.course is not None else None
+    if not server.course_exists or course_rev != ref:
         course = Plan(
             writes=(
                 UpsertCourse(
@@ -782,8 +793,8 @@ def plan_resources(local: LocalState, server: ServerState) -> Plan:
     for the slugs an `exclude` pattern leaves out.
     """
     markers = {
-        slug: (ref, server.resource_events.get(slug))
-        for slug, ref in server.resources.items()
+        slug: (entry.rev or "", _resource_event(entry))
+        for slug, entry in server.resources.items()
     }
     merge = protect(merge_resource, _excluded(local, "resource"))
     return Plan.of(
@@ -837,7 +848,7 @@ def plan_calendar(
     slots = list(
         diff_keyed(
             {slot.slug: slot for slot in local.slots},
-            server.time_slots,
+            {slug: _slot_ref(entry) for slug, entry in server.time_slots.items()},
             protect(merge_time_slot, pinned),
         )
     )
@@ -895,7 +906,7 @@ def plan_grades(local: LocalState, server: ServerState) -> Plan:
     return Plan.of(
         diff_keyed(
             {column.slug: column for column in local.grade_columns},
-            server.grade_columns,
+            {slug: entry.rev or "" for slug, entry in server.grade_columns.items()},
             merge_grade_column,
         )
     )
@@ -970,4 +981,19 @@ def _timestamp(day: date) -> str:
     A date as the UTC midnight timestamp the server's `startAt`/`endAt`
     expect.
     """
-    return f"{day.isoformat()}T00:00:00.000Z"
+    return instant(day)
+
+
+def _resource_event(entry: RemoteEntry) -> EventKey | None:
+    """
+    The lesson a server resource is attached to, from its payload.
+    """
+    return resource_event_of(entry.payload)
+
+
+def _slot_ref(entry: RemoteEntry) -> str:
+    """
+    The `ref` of a server time slot, which stores none: recomputed from its
+    payload through the same `TimeSlot` the core uses.
+    """
+    return time_slot_of(entry.payload).ref

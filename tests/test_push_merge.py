@@ -59,9 +59,11 @@ from codehood.push.plan import (
     plan_push,
     protect,
 )
+from codehood.push.project import RemoteEntry
 from codehood.push.question import InvalidQuestion, QuestionFile
 from codehood.push.repository import RepositoryEntry, RepositoryTree
 from codehood.push.resource import MdData, ResourceFile, content_ref
+from codehood.push.wire import Payload, time_slot_payload
 
 KEY = CourseKey("cs101", "ada", "2026-1")
 QUESTION = mdq.parse(
@@ -334,11 +336,14 @@ def server_states(draw) -> ServerState:
     resource_slugs = draw(slugs)
     return ServerState(
         course_exists=draw(st.booleans()),
-        course_rev=draw(st.sampled_from((None, "stale"))),
+        course=draw(st.sampled_from((None, RemoteEntry({}, rev="stale")))),
         resources={
-            slug: draw(st.sampled_from(("stale", "x"))) for slug in resource_slugs
+            slug: RemoteEntry(
+                {"event": _event_payload(draw(optional_event_key))},
+                rev=draw(st.sampled_from(("stale", "x"))),
+            )
+            for slug in resource_slugs
         },
-        resource_events={slug: draw(optional_event_key) for slug in resource_slugs},
         questions={
             slug: ServerQuestion(
                 draw(st.sampled_from(("v1", "v2"))), draw(st.sampled_from(STATUS_ORDER))
@@ -346,7 +351,7 @@ def server_states(draw) -> ServerState:
             for slug in draw(slugs)
         },
         time_slots={
-            slug: draw(st.sampled_from(("stale", _slot(slug).ref)))
+            slug: _slot_entry(draw(st.sampled_from((_stale_slot(slug), _slot(slug)))))
             for slug in draw(st.lists(st.sampled_from(tuple(SLOT_DAYS)), unique=True))
         },
         calendar_events={
@@ -357,11 +362,26 @@ def server_states(draw) -> ServerState:
             )
             for key in draw(st.lists(event_keys, unique=True, max_size=4))
         },
-        grade_columns={slug: "stale" for slug in draw(slugs)},
+        grade_columns={slug: RemoteEntry({}, rev="stale") for slug in draw(slugs)},
         repositories={
             slug: draw(st.sampled_from((None, "a" * 40))) for slug in draw(slugs)
         },
     )
+
+
+def _event_payload(key: EventKey | None) -> Payload | None:
+    return None if key is None else {"week": key.week, "timeSlot": key.time_slot}
+
+
+def _slot_entry(slot: TimeSlot) -> RemoteEntry:
+    return RemoteEntry(time_slot_payload(slot))
+
+
+def _stale_slot(slug: str) -> TimeSlot:
+    """
+    A slot no local one equals.
+    """
+    return replace(_slot(slug), title="stale")
 
 
 def apply(server: ServerState, plan: Plan) -> ServerState:
@@ -369,29 +389,28 @@ def apply(server: ServerState, plan: Plan) -> ServerState:
     A pure model of the server: fold the writes of `plan` into `server`.
     """
     resources = dict(server.resources)
-    resource_events = dict(server.resource_events)
     questions = dict(server.questions)
     time_slots = dict(server.time_slots)
     events = dict(server.calendar_events)
     columns = dict(server.grade_columns)
     repositories = dict(server.repositories)
-    course_rev, exists = server.course_rev, server.course_exists
+    course, exists = server.course, server.course_exists
     for op in plan.writes:
         match op:
             case UpsertCourse():
-                course_rev, exists = op.ref, True
+                course, exists = RemoteEntry({}, rev=op.ref), True
             case UpsertResource():
-                resources[op.slug] = op.ref
-                resource_events[op.slug] = op.event
+                resources[op.slug] = RemoteEntry(
+                    {"event": _event_payload(op.event)}, rev=op.ref
+                )
             case DeleteResource():
                 resources.pop(op.slug, None)
-                resource_events.pop(op.slug, None)
             case UpsertQuestion():
                 questions[op.slug] = ServerQuestion(op.version, op.status)
             case DeleteQuestion():
                 questions.pop(op.slug, None)
             case UpsertTimeSlot():
-                time_slots[op.slot.slug] = op.slot.ref
+                time_slots[op.slot.slug] = _slot_entry(op.slot)
             case DeleteTimeSlot():
                 time_slots.pop(op.slug, None)
             case UpsertCalendarEvent():
@@ -408,7 +427,7 @@ def apply(server: ServerState, plan: Plan) -> ServerState:
             case DeleteCalendarEvent():
                 events.pop((op.week, op.time_slot), None)
             case UpsertGradeColumn():
-                columns[op.column.slug] = op.column.rev
+                columns[op.column.slug] = RemoteEntry({}, rev=op.column.rev)
             case DeleteGradeColumn():
                 columns.pop(op.slug, None)
             case UpsertRepository():
@@ -417,9 +436,8 @@ def apply(server: ServerState, plan: Plan) -> ServerState:
                 repositories.pop(op.slug, None)
     return ServerState(
         course_exists=exists,
-        course_rev=course_rev,
+        course=course,
         resources=resources,
-        resource_events=resource_events,
         questions=questions,
         time_slots=time_slots,
         calendar_events=events,

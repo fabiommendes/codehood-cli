@@ -15,15 +15,15 @@ from __future__ import annotations
 import warnings
 from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Protocol, cast
 from urllib.parse import quote
 
 import httpx
+from pydantic import JsonValue, TypeAdapter
 
 from ..api import generated
-from ..api.base import CodehoodAPIError, auth_headers
+from ..api.base import CodehoodAPIError, auth_headers, query_params
 from ..grades import ExamResult, ExamState
-from .calendar import Duration, EventKey, TimeOfDay, TimeSlot
 from .grades import ServerStudent
 from .plan import (
     DeleteCalendarEvent,
@@ -45,6 +45,16 @@ from .plan import (
     UpsertTimeSlot,
     Write,
 )
+from .project import (
+    RemoteEntry,
+    project_calendar_event,
+    project_course,
+    project_grade_column,
+    project_question,
+    project_resource,
+    project_time_slot,
+)
+from .question import QuestionStatus
 from .repository import RepositoryEntry, batch_entries
 from .resource import CodeData, FileData, LinkData, MdData, ResourceData
 from .wire import wire_question
@@ -252,18 +262,17 @@ def fetch_server_state(
     Read what the server currently holds for a course.
 
     The mapping's `cli.course.preSync` RPC does not exist on the server
-    (see `ROADBLOCKS.md`), so this reads the list endpoints instead and
-    projects each one down to the markers `plan_push` compares: `GET
-    /api/course/{discipline}/{course}` to check the course exists,
-    `.../resource` to `slug -> ref`, `.../question` to `slug -> version`,
-    `.../time-slot` to `slug -> ref`, `.../calendar-event` to
-    `(week, timeSlot) -> ServerEvent`, and `.../grade-column` to
-    `slug -> rev`; `.../roll-call` adds each event's attendance count.
+    (see `ROADBLOCKS.md`), so this reads the list endpoints instead: `GET
+    /api/course/{discipline}/{course}` for the course, then `.../resource`,
+    `.../question`, `.../time-slot`, `.../calendar-event` and
+    `.../grade-column`; `.../roll-call` adds each event's attendance count.
+    The listings carry whole bodies, so each entity becomes a `RemoteEntry`
+    (see `project.py`) without a request of its own: a course costs six
+    requests, seven when it has events, plus the repository listing.
     `repositories` gives `slug -> tree`; without it no repository is listed.
 
-    A time slot carries no `ref` column server-side, so its ref is
-    recomputed here from the fields the listing did return -- which is
-    what lets a slot the CLI never wrote still compare equal.
+    A time slot carries no `ref` column server-side, so its entry has no
+    `rev`.
 
     Returns:
         A course that does not exist yet reports nothing at all,
@@ -281,18 +290,7 @@ def fetch_server_state(
     resources = generated.list_resource(
         discipline=discipline, course=course, client=client
     )
-    # `deleteQuestion` archives rather than removes a row -- see
-    # `ROADBLOCKS.md` -- so an archived question would otherwise look
-    # "current" forever and get re-planned for deletion on every push.
-    # Filtering to the live statuses keeps a deleted question gone for good,
-    # which is what `plan_push`'s convergence (a second push plans nothing)
-    # requires.
-    questions = generated.list_question(
-        discipline=discipline,
-        course=course,
-        statuses=["DRAFT", "PUBLISHED", "HIDDEN"],
-        client=client,
-    )
+    questions = _list_questions(discipline, course, client)
     time_slots = generated.list_timeslot(
         discipline=discipline, course=course, client=client
     )
@@ -315,31 +313,44 @@ def fetch_server_state(
     )
     return ServerState(
         course_exists=True,
-        course_rev=remote_course.rev,
-        resources={resource.slug: resource.rev or "" for resource in resources},
-        resource_events={
-            resource.slug: (
-                EventKey(week=resource.event.week, time_slot=resource.event.time_slot)
-                if resource.event is not None
-                else None
+        course=RemoteEntry(
+            project_course(remote_course),
+            rev=remote_course.rev,
+            updated_at=remote_course.updated_at,
+        ),
+        resources={
+            resource.slug: RemoteEntry(
+                project_resource(resource),
+                rev=resource.rev,
+                updated_at=resource.updated_at,
             )
             for resource in resources
         },
         questions={
-            question.slug: ServerQuestion(
-                version=question.version, status=question.status
-            )
+            str(question["slug"]): _server_question(question)
             for question in questions
-            if question.status != "ARCHIVED"
+            if question["status"] != "ARCHIVED"
         },
-        time_slots={slot.slug: _time_slot_ref(slot) for slot in time_slots},
+        time_slots={
+            slot.slug: RemoteEntry(
+                project_time_slot(slot), rev=None, updated_at=slot.updated_at
+            )
+            for slot in time_slots
+        },
         calendar_events={
             (event.week, event.time_slot.slug): _server_event(
                 event, roll_calls.get((event.week, event.time_slot.slug))
             )
             for event in calendar_events
         },
-        grade_columns={column.slug: column.rev or "" for column in grade_columns},
+        grade_columns={
+            column.slug: RemoteEntry(
+                project_grade_column(column),
+                rev=column.rev,
+                updated_at=column.updated_at,
+            )
+            for column in grade_columns
+        },
         repositories=dict(repositories.list_trees()) if repositories else {},
     )
 
@@ -844,29 +855,60 @@ def _server_event(
     item: generated.CalendarEvent, attendances: int | None
 ) -> ServerEvent:
     """
-    Project one item of the calendar-event listing down to its markers.
+    Project one item of the calendar-event listing down to its markers and
+    its payload.
 
     `attendances` is the size of the event's roll call, `None` without one.
     """
-    return ServerEvent(ref=item.rev or "", kind=item.kind, attendances=attendances)
-
-
-def _time_slot_ref(item: generated.TimeSlot) -> str:
-    """
-    Recompute a server-listed time slot's `ref` from the fields the listing
-    returned, via the same `TimeSlot` dataclass the core uses -- the server
-    stores no `ref` column of its own.
-    """
-    slot = TimeSlot(
-        slug=item.slug,
-        day=item.day,
-        start=TimeOfDay(hour=item.start.hour, minute=item.start.minute),
-        duration=Duration(
-            hours=item.duration.hours or 0, minutes=item.duration.minutes or 0
+    return ServerEvent(
+        ref=item.rev or "",
+        kind=item.kind,
+        attendances=attendances,
+        entry=RemoteEntry(
+            project_calendar_event(item), rev=item.rev, updated_at=item.updated_at
         ),
-        title=item.title,
     )
-    return slot.ref
+
+
+def _list_questions(
+    discipline: str, course: str, client: httpx.Client
+) -> list[dict[str, JsonValue]]:
+    """
+    `GET .../question` as plain JSON, with the live statuses only.
+
+    Not `generated.list_question`: its models drop the fields of a question
+    type they do not declare, and the payload compares the whole document.
+    `deleteQuestion` archives rather than removes a row -- see
+    `ROADBLOCKS.md` -- so an archived question would otherwise look
+    "current" forever and get re-planned for deletion on every push.
+    Filtering to the live statuses keeps a deleted question gone for good,
+    which is what `plan_push`'s convergence (a second push plans nothing)
+    requires.
+    """
+    response = client.get(
+        f"/api/course/{discipline}/{course}/question",
+        params=query_params({"statuses": ["DRAFT", "PUBLISHED", "HIDDEN"]}),
+        headers=auth_headers(client),
+    )
+    response.raise_for_status()
+    return TypeAdapter(list[dict[str, JsonValue]]).validate_python(response.json())
+
+
+def _server_question(item: dict[str, JsonValue]) -> ServerQuestion:
+    """
+    One item of the question listing, as its version, status and payload.
+    """
+    status = cast(QuestionStatus, item["status"])
+    rev, updated_at = item.get("rev"), item.get("updatedAt")
+    return ServerQuestion(
+        version=str(item["version"]),
+        status=status,
+        entry=RemoteEntry(
+            project_question(item),
+            rev=rev if isinstance(rev, str) else None,
+            updated_at=updated_at if isinstance(updated_at, str) else None,
+        ),
+    )
 
 
 def _request_data(data: ResourceData) -> RequestData:

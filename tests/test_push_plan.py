@@ -53,8 +53,10 @@ from codehood.push.plan import (
     plan_calendar,
     plan_push,
 )
+from codehood.push.project import RemoteEntry
 from codehood.push.question import InvalidQuestion, QuestionFile, question_version
 from codehood.push.resource import MdData, ResourceFile, content_ref
+from codehood.push.wire import time_slot_payload
 
 EXAMPLE_MDQ = """---
 title: Example question
@@ -108,16 +110,31 @@ def _server(
 ) -> ServerState:
     return ServerState(
         course_exists=course_exists,
-        course_rev=course_rev,
-        resources=resources or {},
+        course=RemoteEntry({}, rev=course_rev) if course_rev is not None else None,
+        resources={
+            slug: RemoteEntry({"event": None}, rev=ref)
+            for slug, ref in (resources or {}).items()
+        },
         # A bare version is a published question, as an unmarked file is.
         questions={
             slug: v if isinstance(v, ServerQuestion) else ServerQuestion(v, "PUBLISHED")
             for slug, v in (questions or {}).items()
         },
-        time_slots=time_slots or {},
+        time_slots={
+            slug: _slot_entry(slug, slot) for slug, slot in (time_slots or {}).items()
+        },
         calendar_events=calendar_events or {},
     )
+
+
+def _slot_entry(slug: str, slot: TimeSlot | str) -> RemoteEntry:
+    """
+    The server's copy of a slot. A string stands for a slot no local one
+    equals.
+    """
+    if isinstance(slot, str):
+        slot = TimeSlot(slug, "SUNDAY", TimeOfDay(0, 0), Duration(0, 1), title=slot)
+    return RemoteEntry(time_slot_payload(slot))
 
 
 def _writes(plan: Plan) -> list:
@@ -534,7 +551,7 @@ def test_new_time_slot_is_upserted():
 
 
 def test_unchanged_time_slot_produces_no_op():
-    plan = list(_calendar(_local(slots=[MON]), _server(time_slots={"mon": MON.ref})))
+    plan = list(_calendar(_local(slots=[MON]), _server(time_slots={"mon": MON})))
     assert not any(isinstance(o, (UpsertTimeSlot, DeleteTimeSlot)) for o in plan)
 
 
@@ -604,7 +621,7 @@ def test_struck_through_lesson_cancels_a_regular_server_event():
         week=0, time_slot="mon", title="Intro", description="Welcome.", kind="CANCELLED"
     )
     server = _server(
-        time_slots={"mon": MON.ref},
+        time_slots={"mon": MON},
         calendar_events={
             (0, "mon"): ServerEvent(ref=REGULAR_EVENT.ref, kind="REGULAR")
         },
@@ -616,7 +633,7 @@ def test_struck_through_lesson_cancels_a_regular_server_event():
 
     # Once cancelled, it stays so: restoring the title does not undo it.
     server = _server(
-        time_slots={"mon": MON.ref},
+        time_slots={"mon": MON},
         calendar_events={(0, "mon"): ServerEvent(ref=cancelled.ref, kind="CANCELLED")},
     )
     plan = list(_calendar(_local(slots=[MON], events=[REGULAR_EVENT]), server))
@@ -701,7 +718,7 @@ def test_plan_calendar_renaming_a_slot_deletes_its_events_and_the_old_slot_befor
 
     local = _local(slots=[new_mon], events=[local_event])
     server = _server(
-        time_slots={"mon-14_00": old_1400.ref, "mon-18_00": old_1800.ref},
+        time_slots={"mon-14_00": old_1400, "mon-18_00": old_1800},
         calendar_events={
             (0, "mon-14_00"): ServerEvent(ref="ref-a", kind="REGULAR"),
             (0, "mon-18_00"): ServerEvent(ref="ref-b", kind="REGULAR"),
@@ -836,7 +853,7 @@ def test_plan_calendar_op_order_is_delete_events_delete_slots_upsert_slots_upser
 
     local = _local(slots=local_slots, events=local_events)
     server = _server(
-        time_slots={slot.slug: slot.ref for slot in server_slots},
+        time_slots={slot.slug: slot for slot in server_slots},
         calendar_events={
             (event.week, event.time_slot): ServerEvent(ref=event.ref, kind=event.kind)
             for event in server_events
@@ -851,7 +868,7 @@ def _apply_calendar(plan, server_time_slots, server_calendar_events):
     server_calendar_events = dict(server_calendar_events)
     for op in plan:
         if isinstance(op, UpsertTimeSlot):
-            server_time_slots[op.slot.slug] = op.slot.ref
+            server_time_slots[op.slot.slug] = op.slot
         elif isinstance(op, DeleteTimeSlot):
             server_time_slots.pop(op.slug, None)
         elif isinstance(op, UpsertCalendarEvent):
@@ -918,7 +935,7 @@ def test_plan_push_after_applying_its_own_plan_yields_nothing():
         elif isinstance(op, UpsertQuestion):
             server_questions[op.slug] = ServerQuestion(op.version, op.status)
         elif isinstance(op, UpsertTimeSlot):
-            server_time_slots[op.slot.slug] = op.slot.ref
+            server_time_slots[op.slot.slug] = op.slot
         elif isinstance(op, UpsertCalendarEvent):
             server_calendar_events[(op.event.week, op.event.time_slot)] = ServerEvent(
                 ref=op.event.ref, kind=op.event.kind
@@ -950,7 +967,7 @@ def _server_with_roll_call(attendances: int | None) -> ServerState:
     `attendances` presences (`None` for an event without a roll call).
     """
     return _server(
-        time_slots={"mon": MON.ref},
+        time_slots={"mon": MON},
         calendar_events={
             (5, "mon"): ServerEvent(ref="ref", kind="REGULAR", attendances=attendances)
         },
@@ -1000,7 +1017,7 @@ def test_dropping_roll_calls_deletes_roll_call_then_event_then_slot():
 
 def test_event_with_a_roll_call_still_local_with_new_content_is_upserted_without_a_warning():
     server = _server(
-        time_slots={"mon": MON.ref},
+        time_slots={"mon": MON},
         calendar_events={
             (0, "mon"): ServerEvent(ref="stale", kind="REGULAR", attendances=32)
         },

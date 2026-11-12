@@ -40,12 +40,14 @@ from codehood.push.plan import (
     Write,
     plan_push,
 )
+from codehood.push.project import RemoteEntry
 from codehood.push.resource import (
     MdData,
     ResourceFile,
     content_ref,
     scan_resources,
 )
+from codehood.push.wire import Payload
 
 COURSE_KEY = CourseKey("cs101", "ada", "2026-1")
 SHORT_KEY = CourseKey("d", "c", "e")
@@ -562,7 +564,7 @@ def test_plan_orders_every_calendar_op_before_any_resource_op():
         resources=(resource,),
     )
     server = ServerState(
-        resources={"stale": "ref"},
+        resources={"stale": _remote("ref")},
         calendar_events={(9, "mon"): ServerEvent(ref="r", kind="REGULAR")},
     )
     ops = list(plan_push(local, server).writes)
@@ -859,12 +861,19 @@ def _attached(rel: str = "resources/a.md") -> ResourceFile:
 KEY = EventKey(week=1, time_slot="mon")
 
 
+def _remote(rev: str, event: EventKey | None = None) -> RemoteEntry:
+    """
+    A server resource with `rev`, attached to `event`.
+    """
+    if event is None:
+        return RemoteEntry({"event": None}, rev=rev)
+    key: Payload = {"week": event.week, "timeSlot": event.time_slot}
+    return RemoteEntry({"event": key}, rev=rev)
+
+
 def test_resource_with_matching_ref_and_event_is_skipped():
     resource = _attached()
-    server = ServerState(
-        resources={resource.slug: resource.ref},
-        resource_events={resource.slug: KEY},
-    )
+    server = ServerState(resources={resource.slug: _remote(resource.ref, KEY)})
     assert _plan_resources(resource, server) == []
 
 
@@ -880,36 +889,27 @@ def test_resource_is_upserted_when_the_server_event_differs_despite_equal_ref(
     server_event,
 ):
     resource = _attached()
-    server = ServerState(
-        resources={resource.slug: resource.ref},
-        resource_events={resource.slug: server_event},
-    )
+    server = ServerState(resources={resource.slug: _remote(resource.ref, server_event)})
     [op] = _plan_resources(resource, server)
     assert (op.slug, op.event) == (resource.slug, KEY)
 
 
-def test_resource_missing_from_server_events_counts_as_having_no_event():
+def test_resource_without_an_event_on_the_server_counts_as_having_none():
     resource = _attached()
-    server = ServerState(resources={resource.slug: resource.ref})
+    server = ServerState(resources={resource.slug: _remote(resource.ref)})
     [op] = _plan_resources(resource, server)
     assert op.event == KEY
 
 
 def test_unattached_resource_is_skipped_when_the_server_has_no_event_either():
     resource = _resource("resources/a.md")
-    for events in ({}, {resource.slug: None}):
-        server = ServerState(
-            resources={resource.slug: resource.ref}, resource_events=events
-        )
-        assert _plan_resources(resource, server) == []
+    server = ServerState(resources={resource.slug: _remote(resource.ref)})
+    assert _plan_resources(resource, server) == []
 
 
 def test_unattached_resource_is_upserted_when_the_server_still_has_an_event():
     resource = _resource("resources/a.md")
-    server = ServerState(
-        resources={resource.slug: resource.ref},
-        resource_events={resource.slug: KEY},
-    )
+    server = ServerState(resources={resource.slug: _remote(resource.ref, KEY)})
     [op] = _plan_resources(resource, server)
     assert op.event is None
 
@@ -950,9 +950,12 @@ def test_fetch_server_state_reads_each_resource_s_event_key():
         base_url="http://localhost:4321", transport=httpx.MockTransport(handler)
     )
     state = fetch_server_state("cs101", "ada_2026-1", client)
-    assert state.resources == {"a": "ra", "b": "rb"}
-    assert state.resource_events.get("a") == EventKey(week=3, time_slot="tue")
-    assert state.resource_events.get("b") is None
+    assert {slug: entry.rev for slug, entry in state.resources.items()} == {
+        "a": "ra",
+        "b": "rb",
+    }
+    assert state.resources["a"].payload["event"] == {"week": 3, "timeSlot": "tue"}
+    assert state.resources["b"].payload["event"] is None
 
 
 def test_dry_run_plans_the_resource_whose_server_event_was_lost(tmp_path, monkeypatch):

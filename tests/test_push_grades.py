@@ -31,6 +31,7 @@ from codehood.push.plan import (
     UpsertGradeColumn,
     plan_grades,
 )
+from codehood.push.project import RemoteEntry
 
 
 def _server_student(username: str, **overrides) -> ServerStudent:
@@ -320,19 +321,27 @@ def test_plan_upserts_a_new_or_changed_column_and_skips_an_unchanged_one():
     changed = GradeColumn("changed", "Changed", "number", 1, (("ana", 2.0),))
     same = GradeColumn("same", "Same", "label", 2, (("ana", "MS"),))
     server = ServerState(
-        course_exists=True, grade_columns={"changed": "stale", "same": same.rev}
+        course_exists=True,
+        grade_columns={
+            "changed": RemoteEntry({}, rev="stale"),
+            "same": RemoteEntry({}, rev=same.rev),
+        },
     )
     ops = list(plan_grades(_local((new, changed, same)), server).writes)
     assert ops == [UpsertGradeColumn(column=new), UpsertGradeColumn(column=changed)]
 
 
 def test_plan_deletes_a_column_the_repository_no_longer_declares():
-    server = ServerState(course_exists=True, grade_columns={"gone": "rev"})
+    server = ServerState(
+        course_exists=True, grade_columns={"gone": RemoteEntry({}, rev="rev")}
+    )
     assert plan_grades(_local(()), server).writes == (DeleteGradeColumn(slug="gone"),)
 
 
 def test_plan_leaves_the_server_alone_when_the_columns_were_not_computed():
-    server = ServerState(course_exists=True, grade_columns={"kept": "rev"})
+    server = ServerState(
+        course_exists=True, grade_columns={"kept": RemoteEntry({}, rev="rev")}
+    )
     assert plan_grades(_local(None), server) == Plan()
 
 
@@ -341,11 +350,13 @@ def test_a_second_plan_after_applying_the_first_is_empty():
         GradeColumn("a", "A", "number", 0, (("ana", 1.0),)),
         GradeColumn("b", "B", "label", 1, ()),
     )
-    server = ServerState(course_exists=True, grade_columns={"old": "rev"})
-    applied: dict[str, str] = dict(server.grade_columns)
+    server = ServerState(
+        course_exists=True, grade_columns={"old": RemoteEntry({}, rev="rev")}
+    )
+    applied = dict(server.grade_columns)
     for op in plan_grades(_local(columns), server).writes:
         if isinstance(op, UpsertGradeColumn):
-            applied[op.column.slug] = op.column.rev
+            applied[op.column.slug] = RemoteEntry({}, rev=op.column.rev)
         elif isinstance(op, DeleteGradeColumn):
             del applied[op.slug]
 
