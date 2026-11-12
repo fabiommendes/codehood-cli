@@ -725,6 +725,37 @@ def test_query_parameters_are_snake_cased_but_keep_their_wire_names(monkeypatch)
     )
 
 
+def test_header_parameters_are_sent_as_headers_only_when_set(monkeypatch):
+    """
+    `If-Match` becomes an `if_match=` argument, and a call that sets it
+    sends the header under its wire name; a call that leaves it out sends
+    no such header, not an empty one.
+    """
+    monkeypatch.setattr("codehood.api.generate.ENDPOINTS", {"health"})
+    spec = json.loads(json.dumps(PARAMS_SPEC))
+    spec["paths"]["/api/health"]["get"]["parameters"] = [
+        {"name": "If-Match", "in": "header", "schema": {"type": "string"}},
+    ]
+    source = Generator(spec).generate()
+    assert "if_match: str | None = None" in source.split("def health(")[1]
+
+    sent: list[httpx.Headers] = []
+
+    def respond(request: httpx.Request) -> httpx.Response:
+        sent.append(request.headers)
+        return httpx.Response(200, json={"id": 1})
+
+    client = httpx.Client(
+        transport=httpx.MockTransport(respond), base_url="http://test"
+    )
+    health = _exec_generated(source)["health"]
+    assert callable(health)
+    health(if_match='"2026-01-01T00:00:00.000Z"', client=client)
+    health(client=client)
+    assert sent[0]["if-match"] == '"2026-01-01T00:00:00.000Z"'
+    assert "if-match" not in sent[1]
+
+
 def test_path_parameters_are_snake_cased_and_still_substitute(monkeypatch):
     """
     The `{...}` placeholder in the path is the server's name for the

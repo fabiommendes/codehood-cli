@@ -165,6 +165,7 @@ class Generator:
             },
             needs_auth_headers=needs_auth_headers,
             needs_query_params=any("query_params(" in part for part in body),
+            needs_header_params=any("header_params(" in part for part in body),
         )
         parts = [GENERATED_HEADER, imports, *body]
         return "\n\n".join(part.rstrip() for part in parts) + "\n"
@@ -208,6 +209,7 @@ class Generator:
         pydantic_names: set[str],
         needs_auth_headers: bool,
         needs_query_params: bool,
+        needs_header_params: bool,
     ) -> str:
         lines = ["from __future__ import annotations", ""]
         typing_names = sorted(
@@ -221,6 +223,8 @@ class Generator:
         if needs_auth_headers:
             base_imports.append("auth_headers")
         base_imports.append("get_client")
+        if needs_header_params:
+            base_imports.append("header_params")
         if needs_query_params:
             base_imports.append("query_params")
         lines.append("import httpx")
@@ -1217,6 +1221,7 @@ def render_function(
 
     path_params = [param for param in params if param.location == "path"]
     query_params = [param for param in params if param.location == "query"]
+    header_params = [param for param in params if param.location == "header"]
 
     path_expr = repr(endpoint.path)
     if path_params:
@@ -1238,8 +1243,19 @@ def render_function(
         call_kwargs.append(f"params=query_params({{{pairs}}})")
     if body_type is not None:
         call_kwargs.append('json=body.model_dump(mode="json", by_alias=True)')
+    headers = []
     if spec.requires_auth(operation):
-        call_kwargs.append("headers=auth_headers(client)")
+        headers.append("auth_headers(client)")
+    if header_params:
+        pairs = ", ".join(
+            f"{param.wire_name!r}: {param.name}" for param in header_params
+        )
+        # Same as a query parameter: an unset header is not sent at all.
+        headers.append(f"header_params({{{pairs}}})")
+    if len(headers) == 1:
+        call_kwargs.append(f"headers={headers[0]}")
+    elif headers:
+        call_kwargs.append(f"headers={{{', '.join(f'**{h}' for h in headers)}}}")
     call_args = path_expr + ("" if not call_kwargs else ", " + ", ".join(call_kwargs))
 
     lines = [f"def {func_name}(*, {', '.join(signature_parts)}) -> {success_type}:"]

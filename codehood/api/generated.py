@@ -8,7 +8,13 @@ import httpx
 from pydantic import ConfigDict, Field, TypeAdapter
 
 from ..models.base import Model
-from .base import CodehoodAPIError, auth_headers, get_client, query_params
+from .base import (
+    CodehoodAPIError,
+    auth_headers,
+    get_client,
+    header_params,
+    query_params,
+)
 
 
 class BlobMissingInput(Model):
@@ -1281,6 +1287,40 @@ class InvalidCredentials(CodehoodAPIError):
         return self.payload.timestamp
 
 
+class PreconditionFailed(CodehoodAPIError):
+    class Payload(Model):
+        model_config = ConfigDict(populate_by_name=True)
+
+        type: Literal["error"]
+        code: Literal["precondition-failed"]
+        status: Literal[412]
+        message: str
+        timestamp: str
+        updated_at: str | None = Field(alias="updatedAt")
+
+    payload: Payload
+
+    @property
+    def type(self) -> Literal["error"]:
+        return self.payload.type
+
+    @property
+    def code(self) -> Literal["precondition-failed"]:
+        return self.payload.code
+
+    @property
+    def message(self) -> str:
+        return self.payload.message
+
+    @property
+    def timestamp(self) -> str:
+        return self.payload.timestamp
+
+    @property
+    def updated_at(self) -> str | None:
+        return self.payload.updated_at
+
+
 def blob_missing(
     *, body: BlobMissingInput, client: httpx.Client | None = None
 ) -> BlobMissingResult:
@@ -1555,6 +1595,7 @@ def delete_calendar_event(
     course: str,
     week: str,
     time_slot: str,
+    if_match: str | None = None,
     client: httpx.Client | None = None,
 ) -> Deleted:
     """
@@ -1565,8 +1606,13 @@ def delete_calendar_event(
         "/api/course/{discipline}/{course}/calendar-event/{week}/{timeSlot}".format(
             discipline=discipline, course=course, week=week, timeSlot=time_slot
         ),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Deleted.model_validate(response.json())
     response.raise_for_status()
@@ -1574,7 +1620,11 @@ def delete_calendar_event(
 
 
 def delete_course(
-    *, discipline: str, course: str, client: httpx.Client | None = None
+    *,
+    discipline: str,
+    course: str,
+    if_match: str | None = None,
+    client: httpx.Client | None = None,
 ) -> Deleted:
     """
     Delete a single Course by primary key.
@@ -1584,22 +1634,35 @@ def delete_course(
         "/api/course/{discipline}/{course}".format(
             discipline=discipline, course=course
         ),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Deleted.model_validate(response.json())
     response.raise_for_status()
     raise CodehoodAPIError(response.status_code, Model())
 
 
-def delete_discipline(*, slug: str, client: httpx.Client | None = None) -> Deleted:
+def delete_discipline(
+    *, slug: str, if_match: str | None = None, client: httpx.Client | None = None
+) -> Deleted:
     """
     Delete a single Discipline by primary key.
     """
     client = client if client is not None else get_client()
     response = client.delete(
-        "/api/discipline/{slug}".format(slug=slug), headers=auth_headers(client)
+        "/api/discipline/{slug}".format(slug=slug),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Deleted.model_validate(response.json())
     response.raise_for_status()
@@ -1621,7 +1684,12 @@ def delete_edition(*, slug: str, client: httpx.Client | None = None) -> Deleted:
 
 
 def delete_exam(
-    *, discipline: str, course: str, slug: str, client: httpx.Client | None = None
+    *,
+    discipline: str,
+    course: str,
+    slug: str,
+    if_match: str | None = None,
+    client: httpx.Client | None = None,
 ) -> Deleted:
     """
     Delete a single Exam by primary key.
@@ -1631,8 +1699,13 @@ def delete_exam(
         "/api/course/{discipline}/{course}/exam/{slug}".format(
             discipline=discipline, course=course, slug=slug
         ),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Deleted.model_validate(response.json())
     response.raise_for_status()
@@ -1640,7 +1713,12 @@ def delete_exam(
 
 
 def delete_grade_column(
-    *, discipline: str, course: str, slug: str, client: httpx.Client | None = None
+    *,
+    discipline: str,
+    course: str,
+    slug: str,
+    if_match: str | None = None,
+    client: httpx.Client | None = None,
 ) -> Deleted:
     """
     Delete a single Grade Column by primary key.
@@ -1650,8 +1728,13 @@ def delete_grade_column(
         "/api/course/{discipline}/{course}/grade-column/{slug}".format(
             discipline=discipline, course=course, slug=slug
         ),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Deleted.model_validate(response.json())
     response.raise_for_status()
@@ -1659,7 +1742,12 @@ def delete_grade_column(
 
 
 def delete_question(
-    *, discipline: str, course: str, slug: str, client: httpx.Client | None = None
+    *,
+    discipline: str,
+    course: str,
+    slug: str,
+    if_match: str | None = None,
+    client: httpx.Client | None = None,
 ) -> Deleted:
     """
     Delete a single Question by primary key.
@@ -1669,8 +1757,13 @@ def delete_question(
         "/api/course/{discipline}/{course}/question/{slug}".format(
             discipline=discipline, course=course, slug=slug
         ),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Deleted.model_validate(response.json())
     response.raise_for_status()
@@ -1678,7 +1771,12 @@ def delete_question(
 
 
 def delete_resource(
-    *, discipline: str, course: str, slug: str, client: httpx.Client | None = None
+    *,
+    discipline: str,
+    course: str,
+    slug: str,
+    if_match: str | None = None,
+    client: httpx.Client | None = None,
 ) -> Deleted:
     """
     Delete a single Resource by primary key.
@@ -1688,8 +1786,13 @@ def delete_resource(
         "/api/course/{discipline}/{course}/resource/{slug}".format(
             discipline=discipline, course=course, slug=slug
         ),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Deleted.model_validate(response.json())
     response.raise_for_status()
@@ -1702,6 +1805,7 @@ def delete_roll_call(
     course: str,
     week: str,
     time_slot: str,
+    if_match: str | None = None,
     client: httpx.Client | None = None,
 ) -> Deleted:
     """
@@ -1712,8 +1816,13 @@ def delete_roll_call(
         "/api/course/{discipline}/{course}/roll-call/{week}/{timeSlot}".format(
             discipline=discipline, course=course, week=week, timeSlot=time_slot
         ),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Deleted.model_validate(response.json())
     response.raise_for_status()
@@ -1721,7 +1830,12 @@ def delete_roll_call(
 
 
 def delete_timeslot(
-    *, discipline: str, course: str, slug: str, client: httpx.Client | None = None
+    *,
+    discipline: str,
+    course: str,
+    slug: str,
+    if_match: str | None = None,
+    client: httpx.Client | None = None,
 ) -> Deleted:
     """
     Delete a single TimeSlot by primary key.
@@ -1731,8 +1845,13 @@ def delete_timeslot(
         "/api/course/{discipline}/{course}/time-slot/{slug}".format(
             discipline=discipline, course=course, slug=slug
         ),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Deleted.model_validate(response.json())
     response.raise_for_status()
@@ -2292,7 +2411,12 @@ def read_user(*, username: str, client: httpx.Client | None = None) -> User:
 
 
 def repository_delete(
-    *, discipline: str, course: str, slug: str, client: httpx.Client | None = None
+    *,
+    discipline: str,
+    course: str,
+    slug: str,
+    if_match: str | None = None,
+    client: httpx.Client | None = None,
 ) -> RepositoryDeleted:
     """
     Delete a single Repository.
@@ -2302,8 +2426,13 @@ def repository_delete(
         "/api/course/{discipline}/{course}/repository/{slug}".format(
             discipline=discipline, course=course, slug=slug
         ),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return RepositoryDeleted.model_validate(response.json())
     response.raise_for_status()
@@ -2333,6 +2462,8 @@ def repository_upsert(
     *,
     discipline: str,
     course: str,
+    if_match: str | None = None,
+    if_none_match: Literal["*"] | None = None,
     body: RepositoryCreate,
     client: httpx.Client | None = None,
 ) -> Repository:
@@ -2345,8 +2476,16 @@ def repository_upsert(
             discipline=discipline, course=course
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={
+            **auth_headers(client),
+            **header_params({"If-Match": if_match, "If-None-Match": if_none_match}),
+        },
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Repository.model_validate(response.json())
     response.raise_for_status()
@@ -2386,6 +2525,7 @@ def rubric_item_delete(
     slug: str,
     question: str,
     key: str,
+    if_match: str | None = None,
     client: httpx.Client | None = None,
 ) -> RubricItemDeleted:
     """
@@ -2396,8 +2536,13 @@ def rubric_item_delete(
         "/api/course/{discipline}/{course}/exam/{slug}/question/{question}/rubric/item/{key}".format(
             discipline=discipline, course=course, slug=slug, question=question, key=key
         ),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return RubricItemDeleted.model_validate(response.json())
     response.raise_for_status()
@@ -2411,6 +2556,8 @@ def rubric_item_put(
     slug: str,
     question: str,
     key: str,
+    if_match: str | None = None,
+    if_none_match: Literal["*"] | None = None,
     body: RubricItemPut,
     client: httpx.Client | None = None,
 ) -> RubricItem:
@@ -2423,8 +2570,16 @@ def rubric_item_put(
             discipline=discipline, course=course, slug=slug, question=question, key=key
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={
+            **auth_headers(client),
+            **header_params({"If-Match": if_match, "If-None-Match": if_none_match}),
+        },
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return RubricItem.model_validate(response.json())
     response.raise_for_status()
@@ -2465,6 +2620,7 @@ def rubric_item_update(
     slug: str,
     question: str,
     key: str,
+    if_match: str | None = None,
     body: RubricItemUpdate,
     client: httpx.Client | None = None,
 ) -> RubricItem:
@@ -2477,8 +2633,13 @@ def rubric_item_update(
             discipline=discipline, course=course, slug=slug, question=question, key=key
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return RubricItem.model_validate(response.json())
     response.raise_for_status()
@@ -2569,6 +2730,7 @@ def rubric_update(
     course: str,
     slug: str,
     question: str,
+    if_match: str | None = None,
     body: RubricUpdate,
     client: httpx.Client | None = None,
 ) -> Rubric:
@@ -2581,8 +2743,13 @@ def rubric_update(
             discipline=discipline, course=course, slug=slug, question=question
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Rubric.model_validate(response.json())
     response.raise_for_status()
@@ -2595,6 +2762,7 @@ def update_calendar_event(
     course: str,
     week: str,
     time_slot: str,
+    if_match: str | None = None,
     body: UpdateCalendarEventRequest,
     client: httpx.Client | None = None,
 ) -> CalendarEvent:
@@ -2607,8 +2775,13 @@ def update_calendar_event(
             discipline=discipline, course=course, week=week, timeSlot=time_slot
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return CalendarEvent.model_validate(response.json())
     response.raise_for_status()
@@ -2619,6 +2792,7 @@ def update_course(
     *,
     discipline: str,
     course: str,
+    if_match: str | None = None,
     body: UpdateCourseRequest,
     client: httpx.Client | None = None,
 ) -> Course:
@@ -2631,8 +2805,13 @@ def update_course(
             discipline=discipline, course=course
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Course.model_validate(response.json())
     response.raise_for_status()
@@ -2640,7 +2819,11 @@ def update_course(
 
 
 def update_discipline(
-    *, slug: str, body: UpdateDisciplineRequest, client: httpx.Client | None = None
+    *,
+    slug: str,
+    if_match: str | None = None,
+    body: UpdateDisciplineRequest,
+    client: httpx.Client | None = None,
 ) -> Discipline:
     """
     Update a single Discipline.
@@ -2649,8 +2832,13 @@ def update_discipline(
     response = client.patch(
         "/api/discipline/{slug}".format(slug=slug),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Discipline.model_validate(response.json())
     response.raise_for_status()
@@ -2680,6 +2868,7 @@ def update_exam(
     discipline: str,
     course: str,
     slug: str,
+    if_match: str | None = None,
     body: UpdateExamRequest,
     client: httpx.Client | None = None,
 ) -> Exam:
@@ -2692,8 +2881,13 @@ def update_exam(
             discipline=discipline, course=course, slug=slug
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Exam.model_validate(response.json())
     response.raise_for_status()
@@ -2705,6 +2899,7 @@ def update_grade_column(
     discipline: str,
     course: str,
     slug: str,
+    if_match: str | None = None,
     body: UpdateGradeColumnRequest,
     client: httpx.Client | None = None,
 ) -> GradeColumn:
@@ -2717,8 +2912,13 @@ def update_grade_column(
             discipline=discipline, course=course, slug=slug
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return GradeColumn.model_validate(response.json())
     response.raise_for_status()
@@ -2730,6 +2930,7 @@ def update_question(
     discipline: str,
     course: str,
     slug: str,
+    if_match: str | None = None,
     body: UpdateQuestionRequest,
     client: httpx.Client | None = None,
 ) -> Question2 | Question3:
@@ -2742,8 +2943,13 @@ def update_question(
             discipline=discipline, course=course, slug=slug
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return TypeAdapter(Question2 | Question3).validate_python(response.json())
     response.raise_for_status()
@@ -2755,6 +2961,7 @@ def update_resource(
     discipline: str,
     course: str,
     slug: str,
+    if_match: str | None = None,
     body: UpdateResourceRequest,
     client: httpx.Client | None = None,
 ) -> Resource:
@@ -2767,8 +2974,13 @@ def update_resource(
             discipline=discipline, course=course, slug=slug
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Resource.model_validate(response.json())
     response.raise_for_status()
@@ -2781,6 +2993,7 @@ def update_roll_call(
     course: str,
     week: str,
     time_slot: str,
+    if_match: str | None = None,
     body: UpdateRollCallRequest,
     client: httpx.Client | None = None,
 ) -> RollCall:
@@ -2793,8 +3006,13 @@ def update_roll_call(
             discipline=discipline, course=course, week=week, timeSlot=time_slot
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return RollCall.model_validate(response.json())
     response.raise_for_status()
@@ -2806,6 +3024,7 @@ def update_timeslot(
     discipline: str,
     course: str,
     slug: str,
+    if_match: str | None = None,
     body: UpdateTimeslotRequest,
     client: httpx.Client | None = None,
 ) -> TimeSlot:
@@ -2818,8 +3037,13 @@ def update_timeslot(
             discipline=discipline, course=course, slug=slug
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={**auth_headers(client), **header_params({"If-Match": if_match})},
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return TimeSlot.model_validate(response.json())
     response.raise_for_status()
@@ -2848,6 +3072,8 @@ def upsert_calendar_event(
     *,
     discipline: str,
     course: str,
+    if_match: str | None = None,
+    if_none_match: Literal["*"] | None = None,
     body: CalendarEventCreate,
     client: httpx.Client | None = None,
 ) -> CalendarEvent:
@@ -2860,15 +3086,29 @@ def upsert_calendar_event(
             discipline=discipline, course=course
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={
+            **auth_headers(client),
+            **header_params({"If-Match": if_match, "If-None-Match": if_none_match}),
+        },
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return CalendarEvent.model_validate(response.json())
     response.raise_for_status()
     raise CodehoodAPIError(response.status_code, Model())
 
 
-def upsert_course(*, body: CourseCreate, client: httpx.Client | None = None) -> Course:
+def upsert_course(
+    *,
+    if_match: str | None = None,
+    if_none_match: Literal["*"] | None = None,
+    body: CourseCreate,
+    client: httpx.Client | None = None,
+) -> Course:
     """
     Upsert a single Course. Creates if it does not exist, update otherwise.
     """
@@ -2876,8 +3116,16 @@ def upsert_course(*, body: CourseCreate, client: httpx.Client | None = None) -> 
     response = client.put(
         "/api/course",
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={
+            **auth_headers(client),
+            **header_params({"If-Match": if_match, "If-None-Match": if_none_match}),
+        },
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Course.model_validate(response.json())
     response.raise_for_status()
@@ -2885,7 +3133,11 @@ def upsert_course(*, body: CourseCreate, client: httpx.Client | None = None) -> 
 
 
 def upsert_discipline(
-    *, body: DisciplineCreate, client: httpx.Client | None = None
+    *,
+    if_match: str | None = None,
+    if_none_match: Literal["*"] | None = None,
+    body: DisciplineCreate,
+    client: httpx.Client | None = None,
 ) -> Discipline:
     """
     Upsert a single Discipline. Creates if it does not exist, update otherwise.
@@ -2894,8 +3146,16 @@ def upsert_discipline(
     response = client.put(
         "/api/discipline",
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={
+            **auth_headers(client),
+            **header_params({"If-Match": if_match, "If-None-Match": if_none_match}),
+        },
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Discipline.model_validate(response.json())
     response.raise_for_status()
@@ -2924,6 +3184,8 @@ def upsert_exam(
     *,
     discipline: str,
     course: str,
+    if_match: str | None = None,
+    if_none_match: Literal["*"] | None = None,
     body: ExamCreate,
     client: httpx.Client | None = None,
 ) -> Exam:
@@ -2936,8 +3198,16 @@ def upsert_exam(
             discipline=discipline, course=course
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={
+            **auth_headers(client),
+            **header_params({"If-Match": if_match, "If-None-Match": if_none_match}),
+        },
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Exam.model_validate(response.json())
     response.raise_for_status()
@@ -2948,6 +3218,8 @@ def upsert_grade_column(
     *,
     discipline: str,
     course: str,
+    if_match: str | None = None,
+    if_none_match: Literal["*"] | None = None,
     body: GradeColumnCreate,
     client: httpx.Client | None = None,
 ) -> GradeColumn:
@@ -2960,8 +3232,16 @@ def upsert_grade_column(
             discipline=discipline, course=course
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={
+            **auth_headers(client),
+            **header_params({"If-Match": if_match, "If-None-Match": if_none_match}),
+        },
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return GradeColumn.model_validate(response.json())
     response.raise_for_status()
@@ -2972,6 +3252,8 @@ def upsert_question(
     *,
     discipline: str,
     course: str,
+    if_match: str | None = None,
+    if_none_match: Literal["*"] | None = None,
     body: QuestionCreate,
     client: httpx.Client | None = None,
 ) -> Question2 | Question3:
@@ -2984,8 +3266,16 @@ def upsert_question(
             discipline=discipline, course=course
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={
+            **auth_headers(client),
+            **header_params({"If-Match": if_match, "If-None-Match": if_none_match}),
+        },
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return TypeAdapter(Question2 | Question3).validate_python(response.json())
     response.raise_for_status()
@@ -2996,6 +3286,8 @@ def upsert_resource(
     *,
     discipline: str,
     course: str,
+    if_match: str | None = None,
+    if_none_match: Literal["*"] | None = None,
     body: ResourceCreate,
     client: httpx.Client | None = None,
 ) -> Resource:
@@ -3008,8 +3300,16 @@ def upsert_resource(
             discipline=discipline, course=course
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={
+            **auth_headers(client),
+            **header_params({"If-Match": if_match, "If-None-Match": if_none_match}),
+        },
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return Resource.model_validate(response.json())
     response.raise_for_status()
@@ -3020,6 +3320,8 @@ def upsert_timeslot(
     *,
     discipline: str,
     course: str,
+    if_match: str | None = None,
+    if_none_match: Literal["*"] | None = None,
     body: TimeSlotCreate,
     client: httpx.Client | None = None,
 ) -> TimeSlot:
@@ -3032,8 +3334,16 @@ def upsert_timeslot(
             discipline=discipline, course=course
         ),
         json=body.model_dump(mode="json", by_alias=True),
-        headers=auth_headers(client),
+        headers={
+            **auth_headers(client),
+            **header_params({"If-Match": if_match, "If-None-Match": if_none_match}),
+        },
     )
+    if response.status_code == 412:
+        raise PreconditionFailed(
+            response.status_code,
+            PreconditionFailed.Payload.model_validate(response.json()),
+        )
     if response.status_code == 200:
         return TimeSlot.model_validate(response.json())
     response.raise_for_status()

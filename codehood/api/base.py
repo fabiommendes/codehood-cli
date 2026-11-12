@@ -83,6 +83,16 @@ def query_params(params: Mapping[str, QueryValue]) -> dict[str, QueryValue]:
     return {name: value for name, value in params.items() if value is not None}
 
 
+def header_params(params: Mapping[str, str | None]) -> dict[str, str]:
+    """
+    Drop the header parameters a caller left unset.
+
+    An optional header such as `If-Match` is either sent with a value or not
+    sent at all; an empty one is a malformed precondition to the server.
+    """
+    return {name: value for name, value in params.items() if value is not None}
+
+
 class CodehoodAPIError(Exception):
     """
     Base class for every exception `codehood_cli.api.generated` raises.
