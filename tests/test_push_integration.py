@@ -83,6 +83,8 @@ def logged_in(client: httpx.Client) -> None:
     result = generated.login(
         body=generated.LoginRequest(login="ada", password="ada"), client=client
     )
+    # The login sets a session cookie; the server rejects it next to the Bearer.
+    client.cookies.clear()
     base_module.save_token(SERVER_URL, result.token)
 
 
@@ -178,7 +180,8 @@ def test_push_writes_the_calendar_and_reconverges_on_a_second_run(
     first = runner.invoke(app, ["push", str(course_repo)])
     assert first.exit_code == 0, first.output
     assert "mon" in _time_slot_slugs(client)
-    assert (0, "mon") in _calendar_event_keys(client)
+    # Start is Thu 2026-01-01, so the first Monday falls in the next ISO week.
+    assert (1, "mon") in _calendar_event_keys(client)
 
     second = runner.invoke(app, ["push", str(course_repo), "--dry-run"])
     assert second.exit_code == 0, second.output
@@ -194,7 +197,7 @@ def test_push_then_delete_then_push_converges_on_the_real_server(
 ):
     first = runner.invoke(app, ["push", str(course_repo)])
     assert first.exit_code == 0, first.output
-    assert {"hello", "greet"} <= _slugs(client)
+    assert {"hello", "greet.py"} <= _slugs(client)
 
     (course_repo / "resources" / "hello.md").unlink()
 
@@ -203,7 +206,7 @@ def test_push_then_delete_then_push_converges_on_the_real_server(
 
     slugs = _slugs(client)
     assert "hello" not in slugs
-    assert "greet" in slugs
+    assert "greet.py" in slugs
 
 
 def test_push_questions_matches_the_repository_exactly_and_reconverges(
@@ -271,7 +274,7 @@ def test_push_attaches_a_linked_resource_to_its_lesson_and_reconverges(
     event = server_resources["hello"].event
     assert event is not None
     assert (event.week, event.time_slot) == (expected.week, expected.time_slot)
-    assert server_resources["greet"].event is None
+    assert server_resources["greet.py"].event is None
 
     second = runner.invoke(app, ["push", str(course_repo), "--dry-run"])
     assert second.exit_code == 0, second.output
