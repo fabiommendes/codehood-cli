@@ -1203,6 +1203,10 @@ SERVER_EVENT = st.tuples(
     st.sampled_from([None, None, 3]),
     st.sampled_from(["r0", "other", None]),
 )
+#: A resource side: for each slug, `None` (no lesson) or the lesson it links to.
+RESOURCE_SIDE = st.dictionaries(
+    st.sampled_from(["r1", "r2"]), st.sampled_from([None, *EVENT_KEYS])
+)
 
 
 @settings(max_examples=400, deadline=None)
@@ -1214,6 +1218,9 @@ SERVER_EVENT = st.tuples(
     server_slots=SLOT_SIDE,
     server_events=st.dictionaries(st.sampled_from(EVENT_KEYS), SERVER_EVENT),
     drop_roll_calls=st.booleans(),
+    local_resources=RESOURCE_SIDE,
+    base_resources=RESOURCE_SIDE,
+    server_resources=RESOURCE_SIDE,
 )
 def test_no_slot_is_deleted_while_an_event_still_holds_it(
     local_slots,
@@ -1223,7 +1230,15 @@ def test_no_slot_is_deleted_while_an_event_still_holds_it(
     server_slots,
     server_events,
     drop_roll_calls,
+    local_resources,
+    base_resources,
+    server_resources,
 ):
+    from codehood.push.calendar import EventKey
+
+    def file(slug, lesson):
+        return _resource("a", slug, EventKey(*lesson) if lesson else None)
+
     events = {}
     for (week, slot), (variant, kind, attendances, rev) in server_events.items():
         entry = RemoteEntry(event_payload(_event(variant, week, slot)), rev, "u")
@@ -1236,6 +1251,7 @@ def test_no_slot_is_deleted_while_an_event_still_holds_it(
             END,
             slots=tuple(_slot(v, s) for s, v in local_slots.items()),
             events=tuple(_event(v, w, s) for (w, s), v in local_events.items()),
+            resources=tuple(file(k, v) for k, v in local_resources.items()),
         ),
         BaseState(
             course={"course": BaseEntry(COURSE_PAYLOAD, COURSE_REF)},
@@ -1247,6 +1263,10 @@ def test_no_slot_is_deleted_while_an_event_still_holds_it(
                 event_key(w, s): BaseEntry(event_payload(_event(v, w, s)), "r0")
                 for (w, s), v in base_events.items()
             },
+            resources={
+                k: BaseEntry(resource_payload(file(k, v)), "r0")
+                for k, v in base_resources.items()
+            },
         ),
         ServerState(
             course_exists=True,
@@ -1256,9 +1276,24 @@ def test_no_slot_is_deleted_while_an_event_still_holds_it(
                 for s, v in server_slots.items()
             },
             calendar_events=events,
+            resources={
+                k: RemoteEntry(resource_payload(file(k, v)), "r0")
+                for k, v in server_resources.items()
+            },
         ),
         drop_roll_calls=drop_roll_calls,
     )
+    linked = dict(server_resources)
+    for write in plan.writes:
+        if isinstance(write, DeleteResource):
+            linked.pop(write.slug, None)
+        elif isinstance(write, UpsertResource) and write.slug in linked:
+            linked[write.slug] = (
+                (write.event.week, write.event.time_slot) if write.event else None
+            )
+    for write in plan.writes:
+        if isinstance(write, DeleteCalendarEvent):
+            assert (write.week, write.time_slot) not in set(linked.values())
     after = set(events)
     for write in plan.writes:
         if isinstance(write, DeleteCalendarEvent):
@@ -1268,3 +1303,300 @@ def test_no_slot_is_deleted_while_an_event_still_holds_it(
     for write in plan.writes:
         if isinstance(write, DeleteTimeSlot):
             assert write.slug not in {slot for _, slot in after}
+
+
+#
+# Events a server resource is still linked to
+#
+def _linked_state(
+    *, local_link=None, base_link=None, server_link, event_local=False, drop=False
+):
+    """
+    One resource `r` and the lesson `1/thu`, gone from the checkout, with the
+    resource linked on the server as `server_link` says.
+    """
+    from codehood.push.calendar import EventKey
+
+    def file(link):
+        return _resource("a", event=EventKey(*link) if link else None)
+
+    local = LocalState(
+        KEY,
+        DESCRIPTION,
+        START,
+        END,
+        resources=(file(local_link),),
+        events=(_event("a", 1, "thu"),) if event_local else (),
+    )
+    base = BaseState(
+        course={"course": BaseEntry(COURSE_PAYLOAD, COURSE_REF)},
+        resources={"r": BaseEntry(resource_payload(file(base_link)), "r0")},
+        calendar_events={
+            "1/thu": BaseEntry(event_payload(_event("a", 1, "thu")), "r0")
+        },
+    )
+    server = ServerState(
+        course_exists=True,
+        course=RemoteEntry(COURSE_PAYLOAD, COURSE_REF),
+        resources={"r": RemoteEntry(resource_payload(file(server_link)), "r0")},
+        calendar_events={(1, "thu"): _server_event_for(1, "thu")},
+    )
+    return local, base, server
+
+
+def _apply_base_updates(base: BaseState, plan: Plan) -> BaseState:
+    fields = {
+        "resource": "resources",
+        "time_slot": "time_slots",
+        "calendar_event": "calendar_events",
+    }
+    changes = {}
+    for update in plan.base_updates:
+        name = fields[update.kind]
+        entries = dict(changes.get(name, getattr(base, name)))
+        if update.entry is None:
+            entries.pop(update.key, None)
+        else:
+            entries[update.key] = update.entry
+        changes[name] = entries
+    return replace(base, **changes)
+
+
+def test_an_event_a_server_resource_links_to_is_not_pruned():
+    local, base, server = _linked_state(server_link=(1, "thu"))
+    plan = plan_sync(local, base, server)
+    assert not [w for w in plan.writes if isinstance(w, DeleteCalendarEvent)]
+    [conflict] = [c for c in plan.conflicts if c.kind == "calendar_event"]
+    assert (conflict.key, conflict.reason, conflict.fields) == (
+        "1/thu",
+        "referenced",
+        ("r",),
+    )
+    assert not [d for d in conflict.ours if isinstance(d, Prune)]
+
+
+def test_an_event_is_pruned_when_the_plan_moves_the_linked_resource_away():
+    local, base, server = _linked_state(base_link=(1, "thu"), server_link=(1, "thu"))
+    plan = plan_sync(local, base, server)
+    assert [type(w) for w in plan.writes if not isinstance(w, UpsertCourse)] == [
+        DeleteCalendarEvent,
+        UpsertResource,
+    ]
+    assert plan.conflicts == ()
+
+
+def test_an_event_is_pruned_when_the_plan_deletes_the_linked_resource():
+    local, base, server = _linked_state(base_link=(1, "thu"), server_link=(1, "thu"))
+    local = replace(local, resources=())
+    plan = plan_sync(local, base, server)
+    assert {type(w) for w in plan.writes} >= {DeleteCalendarEvent, DeleteResource}
+
+
+def test_a_referenced_event_edited_by_another_cli_does_not_offer_its_prune():
+    local, base, server = _linked_state(server_link=(1, "thu"))
+    entry = RemoteEntry(event_payload(_event("b", 1, "thu")), "other", "u")
+    server = replace(
+        server, calendar_events={(1, "thu"): ServerEvent("other", "REGULAR", entry)}
+    )
+    plan = plan_sync(local, base, server)
+    [other] = [o for o in plan.other_cli if o.kind == "calendar_event"]
+    assert not [d for d in other.ours if isinstance(d, Prune)]
+
+
+def test_the_reference_conflict_of_an_event_is_stable_across_pushes():
+    local, base, server = _linked_state(server_link=(1, "thu"))
+    first = plan_sync(local, base, server)
+    again = plan_sync(local, _apply_base_updates(base, first), server)
+    assert again == first
+    assert [c.reason for c in again.conflicts if c.kind == "calendar_event"] == [
+        "referenced"
+    ]
+
+
+#
+# Events kept for their roll call
+#
+def _rollcall_state(*, with_base: bool, rev: str | None = "r0", slot=True):
+    base = BaseState(
+        course={"course": BaseEntry(COURSE_PAYLOAD, COURSE_REF)},
+        calendar_events={"1/t": BaseEntry(event_payload(_event("a")), "r0")}
+        if with_base
+        else {},
+        time_slots={"t": BaseEntry(time_slot_payload(_slot("a")))}
+        if with_base and slot
+        else {},
+    )
+    server = ServerState(
+        course_exists=True,
+        course=RemoteEntry(COURSE_PAYLOAD, COURSE_REF),
+        calendar_events={(1, "t"): _server_event(attendances=3, rev=rev)},
+        time_slots={"t": RemoteEntry(time_slot_payload(_slot("a")))} if slot else {},
+    )
+    return LocalState(KEY, DESCRIPTION, START, END), base, server
+
+
+def _quiet(plan: Plan) -> bool:
+    return (
+        plan.writes == ()
+        and plan.pulls == ()
+        and plan.other_cli == ()
+        and plan.conflicts == ()
+    )
+
+
+@pytest.mark.parametrize("with_base", [True, False])
+@pytest.mark.parametrize("rev", ["r0", "other", None])
+def test_an_event_with_a_roll_call_is_kept_with_or_without_a_base(with_base, rev):
+    local, base, server = _rollcall_state(with_base=with_base, rev=rev)
+    plan = plan_sync(local, base, server)
+    assert [type(n) for n in plan.notices] == [KeptForRollCall]
+    assert _quiet(plan)
+
+
+@pytest.mark.parametrize("with_base", [True, False])
+def test_a_kept_event_is_stable_and_its_slot_is_left_alone(with_base):
+    local, base, server = _rollcall_state(with_base=with_base, rev="other")
+    first = plan_sync(local, base, server)
+    base = _apply_base_updates(base, first)
+    assert base.calendar_events["1/t"].rev == "other"
+    again = plan_sync(local, base, server)
+    assert [type(n) for n in again.notices] == [KeptForRollCall]
+    assert _quiet(again) and again.base_updates == ()
+
+
+def test_a_slot_only_the_server_has_for_a_kept_event_is_not_pulled():
+    local, base, server = _rollcall_state(with_base=False, rev="other")
+    assert _quiet(plan_sync(local, base, server))
+
+
+def test_dropping_roll_calls_prunes_the_event_the_base_agrees_with():
+    local, base, server = _rollcall_state(with_base=True)
+    plan = plan_sync(local, base, server, drop_roll_calls=True)
+    assert [type(w) for w in plan.writes if not isinstance(w, UpsertCourse)][:2] == [
+        DeleteRollCall,
+        DeleteCalendarEvent,
+    ]
+    assert plan.notices == ()
+
+
+def test_dropping_roll_calls_of_an_event_without_a_base_offers_the_prune_as_ours():
+    local, base, server = _rollcall_state(with_base=False, rev="other")
+    plan = plan_sync(local, base, server, drop_roll_calls=True)
+    assert plan.writes == ()
+    [other] = plan.other_cli
+    assert [type(d.op) for d in other.ours if isinstance(d, Prune)] == [
+        DeleteCalendarEvent
+    ]
+    assert not [p for p in plan.pulls if p.kind == "time_slot"]
+
+
+#
+# A slot deleted locally and edited on the server, still in use
+#
+def test_a_slot_deleted_locally_and_edited_on_the_server_does_not_offer_its_prune():
+    entry = RemoteEntry(event_payload(_event("a", 2, "t")), None, "u")
+    base = BaseState(
+        course={"course": BaseEntry(COURSE_PAYLOAD, COURSE_REF)},
+        time_slots={"t": BaseEntry(time_slot_payload(_slot("a")), None)},
+    )
+    plan = _cal(
+        base=base,
+        events={(2, "t"): ServerEvent("", "REGULAR", entry)},
+        slots={"t": RemoteEntry(time_slot_payload(_slot("b")))},
+    )
+    [conflict] = [c for c in plan.conflicts if c.kind == "time_slot"]
+    assert conflict.reason == "local-deleted-remote-edited"
+    assert not [d for d in conflict.ours if isinstance(d, Prune)]
+    _no_slot_delete(plan)
+
+
+#
+# The hash covers every field of the payload
+#
+def _mutations(payload: Payload, changes: dict[str, Any]) -> list[Payload]:
+    return [{**payload, key: value} for key, value in changes.items()]
+
+
+def test_the_event_hash_changes_with_every_field_of_its_payload():
+    base = Event(1, "t", title="a", description="d", kind="REGULAR")
+    variants = [
+        replace(base, title="b"),
+        replace(base, description="e"),
+        replace(base, kind="HOLIDAY"),
+        replace(base, repositories=("x",)),
+    ]
+    assert len({v.ref for v in variants} | {base.ref}) == len(variants) + 1
+    for variant in variants:
+        assert event_payload(variant) != event_payload(base)
+    assert set(event_payload(base)) - {"week", "timeSlot"} == {
+        "kind",
+        "title",
+        "description",
+        "repositories",
+    }
+
+
+def test_the_resource_hash_changes_with_every_field_of_its_payload():
+    from codehood.push.calendar import EventKey
+    from codehood.push.resource import CodeData, LinkData
+
+    def ref(title="t", description=None, data=None, event=None):
+        return content_ref(title, description, data or MdData("c"), event)
+
+    base = ref()
+    others = [
+        ref(title="u"),
+        ref(description="d"),
+        ref(data=MdData("d")),
+        ref(data=CodeData("c", "python")),
+        ref(data=CodeData("c", "ruby")),
+        ref(data=LinkData("http://x")),
+        ref(event=EventKey(1, "t")),
+        ref(event=EventKey(2, "t")),
+        ref(event=EventKey(1, "u")),
+    ]
+    assert len({base, *others}) == len(others) + 1
+
+
+def test_the_course_hash_changes_with_every_field_of_its_payload():
+    base = course_ref("d", "s", "e")
+    assert len({base, course_ref("x", "s", "e"), course_ref("d", "x", "e")}) == 3
+    assert course_ref("d", "s", "x") != base
+
+
+def test_the_grade_column_hash_changes_with_every_field_of_its_payload():
+    base = GradeColumn("g", "T", "number", 0, (("ada", 1.0),))
+    variants = [
+        replace(base, title="U"),
+        replace(base, kind="text"),
+        replace(base, position=1),
+        replace(base, values=(("ada", 2.0),)),
+        replace(base, values=(("bob", 1.0),)),
+    ]
+    assert len({v.rev for v in variants} | {base.rev}) == len(variants) + 1
+    assert set(grade_column_payload(base)) - {"slug"} == {
+        "title",
+        "kind",
+        "position",
+        "values",
+    }
+
+
+def test_a_kind_changed_on_the_server_without_a_base_is_a_conflict_not_a_pull():
+    local = _event("a")
+    holiday = replace(local, kind="HOLIDAY")
+    entry = RemoteEntry(event_payload(holiday), holiday.ref, "u")
+    plan = _cal((local,), events={(1, "t"): ServerEvent(holiday.ref, "HOLIDAY", entry)})
+    assert [(c.key, c.reason) for c in plan.conflicts] == [("1/t", "no-base")]
+    assert plan.pulls == ()
+
+
+def test_a_kind_changed_locally_without_a_base_is_a_conflict_not_a_pull():
+    server = _event("a")
+    holiday = replace(server, kind="HOLIDAY")
+    entry = RemoteEntry(event_payload(server), server.ref, "u")
+    plan = _cal(
+        (holiday,), events={(1, "t"): ServerEvent(server.ref, "REGULAR", entry)}
+    )
+    assert [(c.key, c.reason) for c in plan.conflicts] == [("1/t", "no-base")]
+    assert plan.pulls == ()

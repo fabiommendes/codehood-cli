@@ -254,10 +254,13 @@ class Event:
         `md5(f"{title}#{description}")`, per the mapping.
 
         With repositories, their sorted slugs also enter the digest, so
-        linking or unlinking one re-sends the event. Without them the digest
-        stays the old one, so existing refs do not change.
+        linking or unlinking one re-sends the event; so does a `kind` other
+        than `REGULAR`. Without either the digest stays the old one, so
+        existing refs do not change.
         """
         text = f"{self.title}#{self.description}"
+        if self.kind != "REGULAR":
+            text += f"#kind:{self.kind}"
         if self.repositories:
             text += "#repositories:" + ",".join(sorted(self.repositories))
         digest = text.encode("utf-8")

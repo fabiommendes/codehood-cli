@@ -1222,13 +1222,16 @@ def plan_sync(
     The course row is never pulled for removal: a course missing on the
     server is written back.
     """
+    resources = _sync_resources(local, base, remote)
     return (
         _sync_course(local, base, remote)
         + plan_repositories(
             local, remote, drop_repositories=drop_repositories, message=message
         )
-        + _sync_calendar(local, base, remote, drop_roll_calls=drop_roll_calls)
-        + Plan.of(_sync_resources(local, base, remote))
+        + _sync_calendar(
+            local, base, remote, resources, drop_roll_calls=drop_roll_calls
+        )
+        + Plan.of(resources)
         + Plan.of(_sync_questions(local, base, remote))
         + _sync_grades(local, base, remote)
     )
@@ -1464,12 +1467,17 @@ def _sync_calendar(
     local: LocalState,
     base: BaseState,
     remote: ServerState,
+    resources: Iterable[Decision],
     *,
     drop_roll_calls: bool,
 ) -> Plan:
     """
-    The calendar half of a three-way plan, ordered as `plan_calendar` is.
+    The calendar half of a three-way plan.
+
+    `resources` are the decisions on resources: an event is only pruned when
+    no server resource stays linked to it once they run.
     """
+    linked = _linked_resources(remote, resources)
     events = {event_key(e.week, e.time_slot): e for e in local.events}
     servers = {event_key(*key): ev for key, ev in remote.calendar_events.items()}
     entries = {key: ev.entry for key, ev in servers.items() if ev.kind != "CANCELLED"}
@@ -1485,7 +1493,23 @@ def _sync_calendar(
         if found is not None and found.kind == "CANCELLED":
             return Keep(KeptCancelled(week=week, time_slot=time_slot))
         event = events.get(key)
-        return three_way(
+        if (
+            payload is None
+            and server is not None
+            and found is not None
+            and found.attendances is not None
+            and not drop_roll_calls
+        ):
+            adopted = BaseEntry(server.payload, server.rev, server.updated_at)
+            return Keep(
+                KeptForRollCall(
+                    week=week, time_slot=time_slot, attendances=found.attendances
+                ),
+                base=None
+                if entry == adopted
+                else BaseUpdate("calendar_event", key, adopted),
+            )
+        decision = three_way(
             "calendar_event",
             key,
             payload,
@@ -1498,6 +1522,13 @@ def _sync_calendar(
                 (week, time_slot), None, found, drop_roll_calls=drop_roll_calls
             ),
         )
+        if key not in linked:
+            return decision
+        if isinstance(decision, Prune):
+            return Conflict("calendar_event", key, tuple(linked[key]), "referenced")
+        if isinstance(decision, OtherCli | Conflict):
+            return replace(decision, ours=_without_prunes(decision.ours))
+        return decision
 
     cancelled = {
         k: RemoteEntry({}) for k, ev in servers.items() if ev.kind == "CANCELLED"
@@ -1511,6 +1542,14 @@ def _sync_calendar(
         key_fields=_EVENT_KEY,
     )
     pinned, pin_notices = _pin_slots(decided, {slot.slug for slot in local.slots})
+    pinned = pinned | {
+        parse_event_key(d.key)[1]
+        for d in decided
+        if isinstance(d, OtherCli | Conflict)
+        and d.key not in events
+        and (found := servers.get(d.key)) is not None
+        and found.attendances is not None
+    }
     deleted = {
         (d.op.week, d.op.time_slot)
         for d in _only(decided, Prune)
@@ -1542,7 +1581,7 @@ def _sync_calendar(
         )
         if isinstance(decision, Prune) and key in held:
             return Conflict("time_slot", key, tuple(held[key]), "referenced")
-        if isinstance(decision, OtherCli) and key in held:
+        if isinstance(decision, OtherCli | Conflict) and key in held:
             return replace(decision, ours=_without_prunes(decision.ours))
         return decision
 
@@ -1665,6 +1704,27 @@ def _excluded(local: LocalState, kind: str) -> frozenset[str]:
     The slugs of `kind` that an `exclude` pattern leaves out of the push.
     """
     return frozenset(file.slug for file in local.excluded if file.kind == kind)
+
+
+def _linked_resources(
+    remote: ServerState, decisions: Iterable[Decision]
+) -> dict[str, list[str]]:
+    """
+    The slugs of the server resources linked to each event key once the
+    writes in `decisions` have run.
+    """
+    moved: dict[str, EventKey | None] = {}
+    for decision in decisions:
+        if isinstance(decision, Put) and isinstance(decision.op, UpsertResource):
+            moved[decision.op.slug] = decision.op.event
+        elif isinstance(decision, Prune) and isinstance(decision.op, DeleteResource):
+            moved[decision.op.slug] = None
+    linked: dict[str, list[str]] = {}
+    for slug, entry in sorted(remote.resources.items()):
+        lesson = moved[slug] if slug in moved else resource_event_of(entry.payload)
+        if lesson is not None:
+            linked.setdefault(event_key(lesson.week, lesson.time_slot), []).append(slug)
+    return linked
 
 
 def _without_prunes(ours: tuple[Put | Prune, ...]) -> tuple[Put | Prune, ...]:

@@ -450,20 +450,18 @@ def test_event_ref_changes_with_title_or_description():
     assert base.ref != diff_description.ref
 
 
-def test_event_ref_ignores_week_time_slot_and_kind():
+def test_event_ref_ignores_week_and_time_slot_but_not_kind():
     """
-    `ref` hashes title and description only -- the diff rule (acceptance
-    criterion 4) depends on this exact scope: a `kind` flip has to be
-    invisible to `ref` alone, or `plan_calendar` would have nothing left to
-    catch it with.
+    `week` and `time_slot` are the key of the event, so they stay out of the
+    digest; a `kind` flip changes what the server holds and has to show in it.
     """
-    a = Event(
-        week=0, time_slot="mon", title="Intro", description="Welcome.", kind="REGULAR"
-    )
-    b = Event(
-        week=5, time_slot="tue", title="Intro", description="Welcome.", kind="HOLIDAY"
+    a = Event(week=0, time_slot="mon", title="Intro", description="Welcome.")
+    b = Event(week=5, time_slot="tue", title="Intro", description="Welcome.")
+    holiday = Event(
+        week=0, time_slot="mon", title="Intro", description="Welcome.", kind="HOLIDAY"
     )
     assert a.ref == b.ref
+    assert a.ref != holiday.ref
 
 
 def _base_slot() -> TimeSlot:
@@ -588,7 +586,8 @@ def test_allocate_events_land_on_distinct_real_slot_keys_with_nonnegative_weeks(
     assert all(week >= 0 for week, _ in keys)
     # Weeks count from the course start, so none passes the course end.
     last_week = (
-        calendar.end - timedelta(days=calendar.end.weekday())
+        calendar.end
+        - timedelta(days=calendar.end.weekday())
         - (calendar.start - timedelta(days=calendar.start.weekday()))
     ).days // 7
     assert all(week <= last_week for week, _ in keys)
