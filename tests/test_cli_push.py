@@ -1263,3 +1263,85 @@ def test_an_unreadable_base_file_is_reported_and_treated_as_absent(repo, monkeyp
     assert "base 'resources'" in result.output
     assert server.writes == []
     assert "week1-slides" in _stored_base(repo, "resources")
+
+
+#
+# Conflicts and `--ours`
+#
+def _conflicted(repo, monkeypatch) -> FakeCourseServer:
+    """
+    A pushed course whose slides were then edited on both sides.
+    """
+    server = FakeCourseServer()
+    assert _push(repo, monkeypatch, server).exit_code == 0
+    server.edit("resources", "week1-slides", title="edited on the web")
+    (repo / "resources" / "week1" / "slides.md").write_text(
+        "# Slides\n\nEdited here.\n", encoding="utf-8"
+    )
+    server.calls.clear()
+    return server
+
+
+def test_a_conflict_fails_the_push_and_writes_nothing_for_it(repo, monkeypatch):
+    server = _conflicted(repo, monkeypatch)
+    before = _stored_base(repo, "resources")["week1-slides"]
+
+    result = _push(repo, monkeypatch, server)
+
+    assert result.exit_code == 1, result.output
+    assert "conflict  resource week1-slides" in result.output
+    assert "--ours resource/week1-slides" in result.output
+    assert "sync: 0 pulled, 1 conflict(s), 0 from another CLI" in result.output
+    assert server.writes == []
+    assert server.resources["week1-slides"]["title"] == "edited on the web"
+    assert _stored_base(repo, "resources")["week1-slides"] == before
+
+
+def test_ours_sends_the_local_version_and_records_it(repo, monkeypatch):
+    server = _conflicted(repo, monkeypatch)
+
+    result = _push(repo, monkeypatch, server, "--ours", "resource/week1-*")
+
+    assert result.exit_code == 0, result.output
+    assert server.writes == [("PUT", f"{BASE}/resource")]
+    assert "Edited here." in json.dumps(server.resources["week1-slides"])
+    stored = _stored_base(repo, "resources")["week1-slides"]
+    assert stored["updatedAt"] == server.resources["week1-slides"]["updatedAt"]
+    assert "Edited here." in json.dumps(stored["payload"])
+
+    server.calls.clear()
+    assert _push(repo, monkeypatch, server).exit_code == 0
+    assert server.writes == []
+
+
+def test_a_dry_run_with_ours_plans_the_write_and_sends_nothing(repo, monkeypatch):
+    server = _conflicted(repo, monkeypatch)
+    before = _stored_base(repo, "resources")["week1-slides"]
+
+    result = _push(repo, monkeypatch, server, "--ours", "resource/*", "--dry-run")
+
+    assert result.exit_code == 0, result.output
+    assert "planned  resource week1-slides" in result.output
+    assert server.writes == []
+    assert _stored_base(repo, "resources")["week1-slides"] == before
+
+
+def test_an_ours_glob_that_matches_no_conflict_is_a_warning(repo, monkeypatch):
+    server = _conflicted(repo, monkeypatch)
+
+    result = _push(repo, monkeypatch, server, "--ours", "question/*")
+
+    assert result.exit_code == 1, result.output
+    assert "--ours question/* matches no conflict" in result.output
+    assert server.writes == []
+
+
+def test_a_failed_ours_write_keeps_the_base_and_fails_the_push(repo, monkeypatch):
+    server = _conflicted(repo, monkeypatch)
+    before = _stored_base(repo, "resources")["week1-slides"]
+    server.failing.add(f"{BASE}/resource")
+
+    result = _push(repo, monkeypatch, server, "--ours", "resource/week1-slides")
+
+    assert result.exit_code == 1, result.output
+    assert _stored_base(repo, "resources")["week1-slides"] == before

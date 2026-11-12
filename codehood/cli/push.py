@@ -34,6 +34,7 @@ from ..push.links import (
     rewrite_event_links,
     rewrite_repository_links,
 )
+from ..push.ours import ours_warnings, resolve_ours
 from ..push.plan import (
     DeleteCalendarEvent,
     DeleteGradeColumn,
@@ -63,7 +64,12 @@ from ..push.plan import (
     plan_sync,
 )
 from ..push.question import scan_questions
-from ..push.report import describe_server_drifted, sync_exit_code, sync_lines
+from ..push.report import (
+    describe_server_drifted,
+    sync_exit_code,
+    sync_lines,
+    sync_summary,
+)
 from ..push.repository import scan_repositories
 from ..push.resource import read_course_readme, scan_resources
 from ..push.run import (
@@ -138,6 +144,17 @@ def push(
             help="Commit message for every repository this push changes.",
         ),
     ] = None,
+    ours: Annotated[
+        list[str] | None,
+        typer.Option(
+            "--ours",
+            help=(
+                "Settle the conflicts matching this glob, written <kind>/<key> "
+                "(e.g. resource/intro), by sending the local version. "
+                "Repeatable."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """
     Sync the repository's course row, repositories, calendar, resources,
@@ -171,6 +188,7 @@ def push(
             drop_roll_calls=drop_roll_calls,
             drop_repositories=drop_repositories,
             message=message,
+            ours=ours or [],
         )
     except httpx.TransportError as exc:
         typer.echo(f"error: could not reach {config.server.url}: {exc}", err=True)
@@ -187,6 +205,7 @@ def sync(
     drop_roll_calls: bool,
     drop_repositories: bool = False,
     message: str | None = None,
+    ours: Sequence[str] = (),
 ) -> None:
     """
     Read the server's state, plan the push, and run it or print it.
@@ -236,6 +255,9 @@ def sync(
         drop_repositories=drop_repositories,
         message=message,
     )
+    for warning in ours_warnings(plan, ours):
+        typer.echo(f"warning  {warning}", err=True)
+    plan = resolve_ours(plan, ours)
 
     for file in local.excluded:
         typer.echo(f"excluded  {file.path}")
@@ -253,6 +275,7 @@ def sync(
         for op in plan.writes:
             typer.echo(f"planned  {describe(op)}")
         typer.echo(dry_run_summary(plan) + excluded_note)
+        _echo_sync_summary(plan)
         if exit_code(plan, (), grades_failed=grades_failed):
             raise typer.Exit(code=1)
         return
@@ -285,6 +308,7 @@ def sync(
 
     failures = [result for result in results if not result.ok and not result.skipped]
     typer.echo(run_summary(plan, results, skipped=len(skipped)) + excluded_note)
+    _echo_sync_summary(plan)
     if failures:
         typer.echo("failures:")
         for result in failures:
@@ -323,6 +347,11 @@ def exit_code(
     """
     failed = bool(plan.rejected) or grades_failed or bool(sync_exit_code(plan))
     return int(failed or any(not result.ok for result in results))
+
+
+def _echo_sync_summary(plan: Plan) -> None:
+    if summary := sync_summary(plan):
+        typer.echo(summary)
 
 
 def dry_run_summary(plan: Plan) -> str:

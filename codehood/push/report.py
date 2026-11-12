@@ -96,7 +96,10 @@ def describe_conflict(conflict: Conflict) -> str:
     text = f"conflict  {name}: {REASON_TEXTS[conflict.reason]}"
     text += _fields(conflict.fields)
     if conflict.ours:
-        text += f"; to keep the local version, push with --ours {conflict.key}"
+        text += (
+            "; to keep the local version, push with "
+            f"--ours {conflict.kind}/{conflict.key}"
+        )
     return text
 
 
