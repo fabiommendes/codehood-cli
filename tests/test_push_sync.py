@@ -7,8 +7,9 @@ and the two properties (convergence, and safety of `Put` and `Prune`).
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date
+from functools import cache
 from pathlib import Path
 from typing import Any
 
@@ -99,6 +100,7 @@ def _resource(variant: str, slug: str = "r", event=None) -> ResourceFile:
     )
 
 
+@cache
 def _question(variant: str, slug: str = "q", *, draft: bool = False) -> QuestionFile:
     body = QUESTION.format(x=variant)
     return QuestionFile(
@@ -473,7 +475,7 @@ def test_rename_with_the_server_unchanged_is_a_put_and_a_prune():
 
 def test_rename_edited_by_another_cli_asks_for_a_git_pull():
     plan = _rename(remote_title="edited", remote_rev="theirs")
-    assert [o.key for o in plan.other_cli] == ["old"]
+    assert [(o.key, o.renamed_to) for o in plan.other_cli] == [("old", "new")]
     assert plan.writes == () and plan.conflicts == ()
 
 
@@ -845,10 +847,243 @@ def test_a_new_grade_column_is_put_and_recorded():
 
 
 #
+# Review findings
+#
+def test_a_new_invalid_question_is_rejected_as_plan_push_does():
+    invalid = InvalidQuestion(slug="q", path=Path("questions/q.md"), reason="bad")
+    local = LocalState(KEY, DESCRIPTION, START, END, questions=(invalid,))
+    base = BaseState(course={"course": BaseEntry(COURSE_PAYLOAD, COURSE_REF)})
+    server = ServerState(
+        course_exists=True, course=RemoteEntry(COURSE_PAYLOAD, COURSE_REF)
+    )
+    plan = plan_sync(local, base, server)
+    assert [type(n) for n in plan.notices] == [Rejected]
+    assert plan.writes == () and plan.conflicts == ()
+
+
+def _slot_state(*, base_events=(), server_events=None, server_slot=True):
+    base = BaseState(
+        course={"course": BaseEntry(COURSE_PAYLOAD, COURSE_REF)},
+        time_slots={"t": BaseEntry(time_slot_payload(_slot("a")), None)},
+        calendar_events={
+            event_key(w, s): BaseEntry(event_payload(_event("a", w, s)), "r0")
+            for w, s in base_events
+        },
+    )
+    return _cal(
+        base=base,
+        events=server_events or {},
+        slots={"t": RemoteEntry(time_slot_payload(_slot("a")))} if server_slot else {},
+    )
+
+
+def _no_slot_delete(plan):
+    assert not [w for w in plan.writes if isinstance(w, DeleteTimeSlot)]
+
+
+def test_a_slot_is_not_deleted_under_an_event_edited_on_the_server():
+    plan = _slot_state(
+        base_events=[(1, "t")], server_events={(1, "t"): _server_event("b")}
+    )
+    _no_slot_delete(plan)
+    assert [(c.kind, c.key) for c in plan.conflicts] == [
+        ("calendar_event", "1/t"),
+        ("time_slot", "t"),
+    ]
+    [slot] = [c for c in plan.conflicts if c.kind == "time_slot"]
+    assert slot.fields == ("1/t",) and slot.reason == "referenced"
+
+
+def test_a_slot_is_not_deleted_under_an_event_created_on_the_server():
+    entry = RemoteEntry(event_payload(_event("a", 2, "t")), None, "u")
+    plan = _slot_state(
+        server_events={(2, "t"): ServerEvent("", "REGULAR", None, entry)}
+    )
+    _no_slot_delete(plan)
+    assert [c.key for c in plan.conflicts if c.kind == "time_slot"] == ["t"]
+
+
+def test_a_slot_is_not_deleted_under_an_event_the_server_does_not_describe():
+    plan = _slot_state(server_events={(2, "t"): ServerEvent("r", "REGULAR")})
+    _no_slot_delete(plan)
+
+
+def test_a_slot_is_deleted_when_its_events_are_deleted_too():
+    plan = _slot_state(
+        base_events=[(1, "t")], server_events={(1, "t"): _server_event("a")}
+    )
+    assert [type(w) for w in plan.writes if not isinstance(w, UpsertCourse)] == [
+        DeleteCalendarEvent,
+        DeleteTimeSlot,
+    ]
+
+
+def test_a_lost_lesson_link_without_a_base_is_a_conflict():
+    from codehood.push.calendar import EventKey
+
+    file = _resource("a", event=EventKey(2, "t"))
+    plan = plan_sync(
+        LocalState(KEY, DESCRIPTION, START, END, resources=(file,)),
+        BaseState(course={"course": BaseEntry(COURSE_PAYLOAD, COURSE_REF)}),
+        ServerState(
+            course_exists=True,
+            course=RemoteEntry(COURSE_PAYLOAD, COURSE_REF),
+            resources={
+                "r": RemoteEntry(resource_payload(_resource("a")), file.ref, "u")
+            },
+        ),
+    )
+    assert [(c.kind, c.reason) for c in plan.conflicts] == [("resource", "link")]
+    assert plan.pulls == ()
+
+
+def test_the_question_promoted_locally_after_both_sides_edited_it_the_same_is_put():
+    plan = _q_plan(_question("b"), "DRAFT", entry_variant="b", base="a")
+    [write] = plan.writes
+    assert isinstance(write, UpsertQuestion) and write.status == "PUBLISHED"
+    [confirmation] = plan.confirmations
+    assert confirmation.update.entry == BaseEntry(question_payload(_question("b")))
+
+
+def _grade_state(local, base, remote, *, base_rev=COLUMN.rev, remote_rev=COLUMN.rev):
+    return plan_sync(
+        LocalState(KEY, DESCRIPTION, START, END, grade_columns=local),
+        BaseState(
+            course={"course": BaseEntry(COURSE_PAYLOAD, COURSE_REF)},
+            grade_columns={
+                c.slug: BaseEntry(grade_column_payload(c), base_rev, "u") for c in base
+            },
+        ),
+        ServerState(
+            course_exists=True,
+            course=RemoteEntry(COURSE_PAYLOAD, COURSE_REF),
+            grade_columns={
+                c.slug: RemoteEntry(grade_column_payload(c), remote_rev, "u")
+                for c in remote
+            },
+        ),
+    )
+
+
+DRIFT = (ServerDrifted("grade_column", "total", ("values",)),)
+
+
+def test_a_grade_column_edited_on_the_server_keeping_its_rev_is_overwritten():
+    plan = _grade_state((COLUMN,), (COLUMN,), (EDITED,))
+    assert [type(w) for w in plan.writes] == [UpsertGradeColumn]
+    assert plan.notices == DRIFT
+
+
+def test_a_grade_column_edited_on_the_server_without_a_base_is_overwritten():
+    plan = _grade_state((COLUMN,), (), (EDITED,))
+    assert [type(w) for w in plan.writes] == [UpsertGradeColumn]
+    assert plan.notices == DRIFT
+    assert plan.base_updates == ()
+    [confirmation] = plan.confirmations
+    assert confirmation.update.entry == BaseEntry(grade_column_payload(COLUMN))
+
+
+def test_a_grade_column_without_a_server_rev_and_a_base_is_overwritten_with_a_notice():
+    plan = _grade_state((COLUMN,), (), (EDITED,), remote_rev=None)
+    assert [type(w) for w in plan.writes] == [UpsertGradeColumn]
+    assert plan.notices == DRIFT
+
+
+def test_a_grade_column_with_another_rev_and_no_base_is_overwritten_quietly():
+    plan = _grade_state((COLUMN,), (), (EDITED,), remote_rev="other")
+    assert [type(w) for w in plan.writes] == [UpsertGradeColumn]
+    assert plan.notices == ()
+
+
+def test_a_grade_column_the_server_holds_as_the_file_is_adopted_into_the_base():
+    plan = _grade_state((COLUMN,), (), (COLUMN,))
+    assert plan.writes == () and plan.notices == ()
+    [update] = plan.base_updates
+    assert update.entry == BaseEntry(grade_column_payload(COLUMN), COLUMN.rev, "u")
+
+
+def test_a_grade_column_that_exists_only_on_the_server_is_pruned_with_a_notice():
+    plan = _grade_state((), (), (COLUMN,))
+    assert [type(w) for w in plan.writes] == [DeleteGradeColumn]
+    [notice] = plan.notices
+    assert notice == ServerDrifted(
+        "grade_column", "total", diff_fields(None, grade_column_payload(COLUMN))
+    )
+
+
+#
 # Properties
 #
-VARIANT = st.sampled_from(["a", "b", "c"])
-MAYBE = st.none() | VARIANT
+VARIANTS = (None, "a", "b", "c")
+BASE_REVS = ("r0", None)
+REMOTE_REVS = ("r0", "other", None, "local-ref")
+
+
+def _grade(variant: str) -> GradeColumn:
+    value = {"a": 7.0, "b": 8.0, "c": 9.0}[variant]
+    return GradeColumn("total", "Total", "number", 0, (("ana", value),))
+
+
+def _remote_grade(variant, payload, rev, ref):
+    return {"grade_columns": {"total": RemoteEntry(payload, rev, "u")}}
+
+
+#: One-way: only the properties run over it, the decision table does not hold.
+GRADE = Adapter(
+    "grade_column",
+    "total",
+    True,
+    _grade,
+    lambda v: grade_column_payload(_grade(v)),
+    lambda v: _grade(v).rev,
+    lambda e: {"grade_columns": (e,)},
+    _remote_grade,
+    "grade_columns",
+    (UpsertGradeColumn, DeleteGradeColumn),
+    UpsertGradeColumn,
+    DeleteGradeColumn,
+)
+EVERY_ADAPTER = {**ADAPTERS, "grade_column": GRADE}
+
+
+def _space(adapters):
+    """
+    Every `(name, local, base, remote, base_rev, remote_rev)`; a type without
+    a `rev` has one point per revision, not eight.
+    """
+    return [
+        (name, local, base, remote, base_rev, remote_rev)
+        for name in adapters
+        for local in VARIANTS
+        for base in VARIANTS
+        for remote in VARIANTS
+        for base_rev in (BASE_REVS if adapters[name].has_rev else BASE_REVS[:1])
+        for remote_rev in (REMOTE_REVS if adapters[name].has_rev else REMOTE_REVS[:1])
+    ]
+
+
+SPACE = _space(EVERY_ADAPTER)
+SPACE_WITHOUT_GRADES = _space(ADAPTERS)
+
+
+def _exhaustive(adapter, local, base, remote, base_rev, remote_rev) -> Plan:
+    """
+    Plan one point of `SPACE`, where "local-ref" is the hash of the local
+    side, the one a server `rev` equals when this checkout sent the entity.
+    """
+    ref = adapter.ref(local) if local is not None else None
+    state = _scenario(
+        adapter,
+        local,
+        base,
+        remote,
+        base_rev=base_rev,
+        remote_rev=ref if remote_rev == "local-ref" else remote_rev,
+        remote_ref=ref if remote_rev == "local-ref" else None,
+    )
+    if adapter is GRADE and local is None:
+        state = (replace(state[0], grade_columns=()), *state[1:])
+    return plan_sync(*state)
 
 
 def _apply(adapter: Adapter, plan: Plan, local, base, remote):
@@ -872,12 +1107,14 @@ def _apply(adapter: Adapter, plan: Plan, local, base, remote):
     return local, base, remote
 
 
-@pytest.mark.parametrize("name", ADAPTERS)
-@settings(max_examples=60, deadline=None)
-@given(local=MAYBE, base=MAYBE, remote=MAYBE)
-def test_applying_a_plan_without_conflicts_converges(name, local, base, remote):
-    adapter = ADAPTERS[name]
-    plan = _plan(adapter, local, base, remote)
+@pytest.mark.parametrize(
+    ("name", "local", "base", "remote", "base_rev", "remote_rev"), SPACE
+)
+def test_applying_a_plan_without_conflicts_converges(
+    name, local, base, remote, base_rev, remote_rev
+):
+    adapter = EVERY_ADAPTER[name]
+    plan = _exhaustive(adapter, local, base, remote, base_rev, remote_rev)
     if plan.conflicts or plan.other_cli:
         return
     state = _apply(adapter, plan, local, base, remote)
@@ -891,13 +1128,137 @@ def test_applying_a_plan_without_conflicts_converges(name, local, base, remote):
     assert again.base_updates == ()
 
 
-@pytest.mark.parametrize("name", ADAPTERS)
-@settings(max_examples=60, deadline=None)
-@given(local=MAYBE, base=MAYBE, remote=MAYBE, theirs=st.booleans())
+@pytest.mark.parametrize(
+    ("name", "local", "base", "remote", "base_rev", "remote_rev"),
+    SPACE_WITHOUT_GRADES,
+)
 def test_no_write_goes_over_a_server_entity_that_differs_from_the_base(
-    name, local, base, remote, theirs
+    name, local, base, remote, base_rev, remote_rev
 ):
     adapter = ADAPTERS[name]
-    plan = _plan(adapter, local, base, remote, remote_rev="theirs" if theirs else "r0")
+    plan = _exhaustive(adapter, local, base, remote, base_rev, remote_rev)
     if [w for w in plan.writes if isinstance(w, adapter.writes)]:
-        assert remote is None or remote == base
+        assert remote is None or remote == base or remote == local
+
+
+@pytest.mark.parametrize(
+    ("name", "local", "base", "remote", "base_rev", "remote_rev"), SPACE
+)
+def test_the_base_never_adopts_a_payload_the_server_does_not_hold(
+    name, local, base, remote, base_rev, remote_rev
+):
+    adapter = EVERY_ADAPTER[name]
+    plan = _exhaustive(adapter, local, base, remote, base_rev, remote_rev)
+    for update in plan.base_updates:
+        if update.kind == adapter.kind and update.entry is not None:
+            assert remote is not None
+            assert update.entry.payload == adapter.payload(remote)
+
+
+@pytest.mark.parametrize(
+    ("local", "base", "remote", "base_rev", "remote_rev"),
+    [point[1:] for point in SPACE if point[0] == "grade_column"],
+)
+def test_a_grade_column_is_overwritten_whenever_the_server_differs(
+    local, base, remote, base_rev, remote_rev
+):
+    plan = _exhaustive(GRADE, local, base, remote, base_rev, remote_rev)
+    deleted = [w for w in plan.writes if isinstance(w, DeleteGradeColumn)]
+    put = [w for w in plan.writes if isinstance(w, UpsertGradeColumn)]
+    if local is None:
+        assert bool(deleted) == (remote is not None)
+    elif remote != local:
+        assert put
+    else:
+        assert not put
+
+
+#
+# Calendar, slots and events together
+#
+SLOTS = ("t", "u")
+EVENT_KEYS = [(week, slot) for week in (1, 2) for slot in SLOTS]
+SLOT_SIDE = st.dictionaries(st.sampled_from(SLOTS), st.sampled_from("abc"))
+EVENT_SIDE = st.dictionaries(st.sampled_from(EVENT_KEYS), st.sampled_from("abc"))
+SERVER_EVENT = st.tuples(
+    st.sampled_from("abc"),
+    st.sampled_from(["REGULAR", "REGULAR", "CANCELLED"]),
+    st.sampled_from([None, None, 3]),
+    st.sampled_from(["r0", "other", None]),
+    st.booleans(),
+)
+
+
+@settings(max_examples=400, deadline=None)
+@given(
+    local_slots=SLOT_SIDE,
+    local_events=EVENT_SIDE,
+    base_slots=SLOT_SIDE,
+    base_events=EVENT_SIDE,
+    server_slots=SLOT_SIDE,
+    server_events=st.dictionaries(st.sampled_from(EVENT_KEYS), SERVER_EVENT),
+    drop_roll_calls=st.booleans(),
+)
+def test_no_slot_is_deleted_while_an_event_still_holds_it(
+    local_slots,
+    local_events,
+    base_slots,
+    base_events,
+    server_slots,
+    server_events,
+    drop_roll_calls,
+):
+    events = {}
+    for (week, slot), (
+        variant,
+        kind,
+        attendances,
+        rev,
+        readable,
+    ) in server_events.items():
+        entry = (
+            RemoteEntry(event_payload(_event(variant, week, slot)), rev, "u")
+            if readable
+            else None
+        )
+        events[(week, slot)] = ServerEvent(rev or "", kind, attendances, entry)
+    plan = plan_sync(
+        LocalState(
+            KEY,
+            DESCRIPTION,
+            START,
+            END,
+            slots=tuple(_slot(v, s) for s, v in local_slots.items()),
+            events=tuple(_event(v, w, s) for (w, s), v in local_events.items()),
+        ),
+        BaseState(
+            course={"course": BaseEntry(COURSE_PAYLOAD, COURSE_REF)},
+            time_slots={
+                s: BaseEntry(time_slot_payload(_slot(v, s)))
+                for s, v in base_slots.items()
+            },
+            calendar_events={
+                event_key(w, s): BaseEntry(event_payload(_event(v, w, s)), "r0")
+                for (w, s), v in base_events.items()
+            },
+        ),
+        ServerState(
+            course_exists=True,
+            course=RemoteEntry(COURSE_PAYLOAD, COURSE_REF),
+            time_slots={
+                s: RemoteEntry(time_slot_payload(_slot(v, s)))
+                for s, v in server_slots.items()
+            },
+            calendar_events=events,
+        ),
+        drop_roll_calls=drop_roll_calls,
+    )
+    after = set(events)
+    for write in plan.writes:
+        if isinstance(write, DeleteCalendarEvent):
+            after.discard((write.week, write.time_slot))
+        elif isinstance(write, UpsertCalendarEvent):
+            after.add((write.event.week, write.event.time_slot))
+    for write in plan.writes:
+        if isinstance(write, DeleteTimeSlot):
+            assert write.slug not in {slot for _, slot in after}

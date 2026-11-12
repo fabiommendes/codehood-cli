@@ -51,6 +51,7 @@ from .wire import (
 )
 
 __all__ = [
+    "COURSE_KEY",
     "STATUS_ORDER",
     "BaseUpdate",
     "Confirmation",
@@ -701,7 +702,6 @@ type ConflictReason = Literal[
     "both-changed",
     "local-edited-remote-deleted",
     "local-deleted-remote-edited",
-    "both-new",
     "no-base",
     "rename",
     "link",
@@ -737,6 +737,7 @@ class OtherCli:
     kind: EntityKind
     key: str
     fields: tuple[str, ...]
+    renamed_to: str | None = None
 
 
 Decision = Skip | Put | Prune | Keep | Pull | Conflict | OtherCli
@@ -1311,14 +1312,21 @@ def _sync_kind(
     ],
     *,
     key_fields: tuple[str, ...] = _SLUG,
+    extra: Iterable[str] = (),
 ) -> list[Decision]:
     """
     Run `decide` on every key of the three sides: local keys in local order,
     then the others in key order. A new local entity and a locally deleted
     one that are the same apart from their key, the deleted one changed on
-    the server, become one rename.
+    the server, become one rename. `extra` are keys with no payload that
+    `decide` still has to see.
     """
-    keys = [*local, *sorted((base.keys() | remote.keys()) - local.keys())]
+    extras = [k for k in extra if k not in local]
+    keys = [
+        *local,
+        *extras,
+        *sorted((base.keys() | remote.keys()) - local.keys() - set(extras)),
+    ]
     decisions = {
         key: decide(key, local.get(key), base.get(key), remote.get(key)) for key in keys
     }
@@ -1344,7 +1352,9 @@ def _sync_kind(
             continue
         new.remove(found)
         added = decisions.pop(found)
-        if isinstance(decision, Conflict) and isinstance(added, Put):
+        if isinstance(decision, OtherCli):
+            decisions[old] = replace(decision, renamed_to=found)
+        elif isinstance(added, Put):
             decisions[old] = Conflict(
                 kind,
                 old,
@@ -1394,7 +1404,8 @@ def _sync_resources(
                 return Conflict("resource", key, decision.fields, "referenced", ours)
             return decision
         assert decision.remote is not None
-        before = resource_event_of(entry.payload) if entry else None
+        stored = entry.payload if entry else payload
+        before = resource_event_of(stored) if stored is not None else None
         if resource_event_of(decision.remote.payload) != before:
             return Conflict("resource", key, decision.fields, "link", ours)
         return decision
@@ -1487,6 +1498,7 @@ def _sync_questions(
         base.questions,
         entries,
         decide,
+        extra=[q.slug for q in local.questions if isinstance(q, InvalidQuestion)],
     )
 
 
@@ -1547,6 +1559,16 @@ def _sync_calendar(
         key_fields=_EVENT_KEY,
     )
     pinned, pin_notices = _pin_slots(decided, {slot.slug for slot in local.slots})
+    deleted = {
+        (d.op.week, d.op.time_slot)
+        for d in _only(decided, Prune)
+        if isinstance(d.op, DeleteCalendarEvent)
+    }
+    held: dict[str, list[str]] = {}
+    for week, time_slot in sorted(
+        {*remote.calendar_events, *(parse_event_key(k) for k in events)} - deleted
+    ):
+        held.setdefault(time_slot, []).append(event_key(week, time_slot))
     slots = {slot.slug: slot for slot in local.slots}
 
     def decide_slot(
@@ -1557,7 +1579,7 @@ def _sync_calendar(
     ) -> Decision:
         if payload is None and key in pinned:
             return Skip()
-        return three_way(
+        decision = three_way(
             "time_slot",
             key,
             payload,
@@ -1566,6 +1588,9 @@ def _sync_calendar(
             put=lambda: Put(UpsertTimeSlot(slot=slots[key])),
             prune=lambda: Prune(DeleteTimeSlot(slug=key)),
         )
+        if isinstance(decision, Prune) and key in held:
+            return Conflict("time_slot", key, tuple(held[key]), "referenced")
+        return decision
 
     decided_slots = _sync_kind(
         "time_slot",
@@ -1615,18 +1640,13 @@ def _sync_grades(local: LocalState, base: BaseState, remote: ServerState) -> Pla
     for key in keys:
         entry, server = base.grade_columns.get(key), remote.grade_columns.get(key)
         column = columns.get(key)
-        drift: tuple[Notice, ...] = ()
-        if entry is not None and server is not None and server.payload != entry.payload:
-            drift = (
-                ServerDrifted(
-                    "grade_column", key, diff_fields(entry.payload, server.payload)
-                ),
-            )
         if column is None:
             if server is None:
                 if entry is not None:
                     decisions.append(Skip(BaseUpdate("grade_column", key, None)))
                 continue
+            fields = diff_fields(entry.payload if entry else None, server.payload)
+            drift = (ServerDrifted("grade_column", key, fields),) if fields else ()
             decisions.append(
                 Prune(
                     DeleteGradeColumn(slug=key),
@@ -1636,13 +1656,27 @@ def _sync_grades(local: LocalState, base: BaseState, remote: ServerState) -> Pla
             )
             continue
         payload = payloads[key]
-        if server is not None and server.rev == column.rev:
+        if server is not None and server.payload == payload:
             stale = entry is None or (entry.payload, entry.rev) != (payload, server.rev)
             update = BaseUpdate(
                 "grade_column", key, BaseEntry(payload, server.rev, server.updated_at)
             )
             decisions.append(Skip(update if stale else None))
             continue
+        drift = ()
+        if server is not None:
+            if entry is not None and server.payload != entry.payload:
+                drift = (
+                    ServerDrifted(
+                        "grade_column", key, diff_fields(entry.payload, server.payload)
+                    ),
+                )
+            elif entry is None and server.rev in (None, column.rev):
+                drift = (
+                    ServerDrifted(
+                        "grade_column", key, diff_fields(payload, server.payload)
+                    ),
+                )
         put = _put("grade_column", key, payload, UpsertGradeColumn(column=column))
         decisions.append(replace(put, notices=drift))
     return Plan.of(decisions)
