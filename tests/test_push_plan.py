@@ -54,6 +54,7 @@ from codehood.push.plan import (
     plan_push,
 )
 from codehood.push.project import RemoteEntry
+from server_entries import placeholder, realize
 from codehood.push.question import InvalidQuestion, QuestionFile, question_version
 from codehood.push.resource import MdData, ResourceFile, content_ref
 from codehood.push.wire import time_slot_payload
@@ -110,14 +111,13 @@ def _server(
 ) -> ServerState:
     return ServerState(
         course_exists=course_exists,
-        course=RemoteEntry({}, rev=course_rev) if course_rev is not None else None,
-        resources={
-            slug: RemoteEntry({"event": None}, rev=ref)
-            for slug, ref in (resources or {}).items()
-        },
+        course=placeholder(course_rev) if course_rev is not None else None,
+        resources={slug: placeholder(ref) for slug, ref in (resources or {}).items()},
         # A bare version is a published question, as an unmarked file is.
         questions={
-            slug: v if isinstance(v, ServerQuestion) else ServerQuestion(v, "PUBLISHED")
+            slug: v
+            if isinstance(v, ServerQuestion)
+            else ServerQuestion(v, placeholder(v), "PUBLISHED")
             for slug, v in (questions or {}).items()
         },
         time_slots={
@@ -141,9 +141,14 @@ def _writes(plan: Plan) -> list:
     return list(plan.writes)
 
 
+def _plan_push(local, server, **kwargs) -> Plan:
+    return plan_push(local, realize(local, server), **kwargs)
+
+
 def _push(*args, **kwargs) -> list:
     """The writes of `plan_push`."""
-    return _writes(plan_push(*args, **kwargs))
+    local, server, *rest = args
+    return _writes(plan_push(local, realize(local, server), *rest, **kwargs))
 
 
 def _calendar(*args, **kwargs) -> list:
@@ -159,14 +164,13 @@ def _full_plan(resources, server_course_exists, server_resources, **kwargs) -> P
     """
     questions = kwargs.pop("questions", ())
     server_questions = kwargs.pop("server_questions", None)
-    return plan_push(
-        _local(resources, questions=questions),
-        _server(
-            course_exists=server_course_exists,
-            resources=server_resources,
-            questions=server_questions,
-        ),
+    local = _local(resources, questions=questions)
+    server = _server(
+        course_exists=server_course_exists,
+        resources=server_resources,
+        questions=server_questions,
     )
+    return plan_push(local, realize(local, server))
 
 
 def _plan(*args, **kwargs) -> list:
@@ -396,7 +400,10 @@ def test_new_question_takes_the_status_of_its_file():
 def test_dropping_the_draft_mark_publishes_an_unchanged_question():
     question = _question("q")
     [op] = _question_writes(
-        _status_plan(question, ServerQuestion(question.version, "DRAFT"))
+        _status_plan(
+            question,
+            ServerQuestion(question.version, placeholder(question.version), "DRAFT"),
+        )
     )
     assert op.status == "PUBLISHED"
 
@@ -404,27 +411,41 @@ def test_dropping_the_draft_mark_publishes_an_unchanged_question():
 def test_hidden_question_stays_hidden_whatever_its_file_says():
     for draft in (True, False):
         question = _question("q", draft=draft)
-        plan = _status_plan(question, ServerQuestion(question.version, "HIDDEN"))
+        plan = _status_plan(
+            question,
+            ServerQuestion(question.version, placeholder(question.version), "HIDDEN"),
+        )
         assert plan.notices == ()
         assert _question_writes(plan) == []
 
         changed = _question("q", EXAMPLE_MDQ.replace("2 + 2", "3 + 3"), draft=draft)
         [op] = _question_writes(
-            _status_plan(changed, ServerQuestion(question.version, "HIDDEN"))
+            _status_plan(
+                changed,
+                ServerQuestion(
+                    question.version, placeholder(question.version), "HIDDEN"
+                ),
+            )
         )
         assert op.status == "HIDDEN"
 
 
 def test_draft_file_keeps_a_published_question_published_and_warns():
     question = _question("q", draft=True)
-    plan = _status_plan(question, ServerQuestion(question.version, "PUBLISHED"))
+    plan = _status_plan(
+        question,
+        ServerQuestion(question.version, placeholder(question.version), "PUBLISHED"),
+    )
     assert plan.notices == (
         KeptDraftPublished(slug="q", status="PUBLISHED", path=question.path),
     )
     assert _question_writes(plan) == []
 
     changed = _question("q", EXAMPLE_MDQ.replace("2 + 2", "3 + 3"), draft=True)
-    plan = _status_plan(changed, ServerQuestion(question.version, "PUBLISHED"))
+    plan = _status_plan(
+        changed,
+        ServerQuestion(question.version, placeholder(question.version), "PUBLISHED"),
+    )
     [upsert] = _question_writes(plan)
     assert upsert.status == "PUBLISHED"
     assert [type(n) for n in plan.notices] == [KeptDraftPublished]
@@ -432,7 +453,10 @@ def test_draft_file_keeps_a_published_question_published_and_warns():
 
 def test_draft_on_both_sides_is_left_alone():
     question = _question("q", draft=True)
-    plan = _status_plan(question, ServerQuestion(question.version, "DRAFT"))
+    plan = _status_plan(
+        question,
+        ServerQuestion(question.version, placeholder(question.version), "DRAFT"),
+    )
     assert _question_writes(plan) == []
     assert plan.notices == ()
 
@@ -577,7 +601,13 @@ def test_new_calendar_event_is_upserted():
 
 def test_unchanged_calendar_event_produces_no_op():
     server = _server(
-        calendar_events={(0, "mon"): ServerEvent(ref=REGULAR_EVENT.ref, kind="REGULAR")}
+        calendar_events={
+            (0, "mon"): ServerEvent(
+                ref=REGULAR_EVENT.ref,
+                kind="REGULAR",
+                entry=placeholder(REGULAR_EVENT.ref),
+            )
+        }
     )
     plan = list(_calendar(_local(slots=[MON], events=[REGULAR_EVENT]), server))
     assert not any(
@@ -593,7 +623,13 @@ def test_calendar_event_ref_match_but_different_kind_is_upserted():
     class that became a holiday, or the reverse.
     """
     server = _server(
-        calendar_events={(0, "mon"): ServerEvent(ref=REGULAR_EVENT.ref, kind="HOLIDAY")}
+        calendar_events={
+            (0, "mon"): ServerEvent(
+                ref=REGULAR_EVENT.ref,
+                kind="HOLIDAY",
+                entry=placeholder(REGULAR_EVENT.ref),
+            )
+        }
     )
     plan = list(_calendar(_local(slots=[MON], events=[REGULAR_EVENT]), server))
     [op] = [o for o in plan if isinstance(o, UpsertCalendarEvent)]
@@ -607,7 +643,11 @@ def test_cancelled_calendar_event_is_neither_upserted_nor_pruned():
     """
     server = _server(
         calendar_events={
-            (0, "mon"): ServerEvent(ref="whatever-the-instructor-set", kind="CANCELLED")
+            (0, "mon"): ServerEvent(
+                ref="whatever-the-instructor-set",
+                kind="CANCELLED",
+                entry=placeholder("whatever-the-instructor-set"),
+            )
         }
     )
     plan = list(_calendar(_local(slots=[MON], events=[REGULAR_EVENT]), server))
@@ -623,7 +663,11 @@ def test_struck_through_lesson_cancels_a_regular_server_event():
     server = _server(
         time_slots={"mon": MON},
         calendar_events={
-            (0, "mon"): ServerEvent(ref=REGULAR_EVENT.ref, kind="REGULAR")
+            (0, "mon"): ServerEvent(
+                ref=REGULAR_EVENT.ref,
+                kind="REGULAR",
+                entry=placeholder(REGULAR_EVENT.ref),
+            )
         },
     )
     plan = list(_calendar(_local(slots=[MON], events=[cancelled]), server))
@@ -634,7 +678,11 @@ def test_struck_through_lesson_cancels_a_regular_server_event():
     # Once cancelled, it stays so: restoring the title does not undo it.
     server = _server(
         time_slots={"mon": MON},
-        calendar_events={(0, "mon"): ServerEvent(ref=cancelled.ref, kind="CANCELLED")},
+        calendar_events={
+            (0, "mon"): ServerEvent(
+                ref=cancelled.ref, kind="CANCELLED", entry=placeholder(cancelled.ref)
+            )
+        },
     )
     plan = list(_calendar(_local(slots=[MON], events=[REGULAR_EVENT]), server))
     assert [o for o in plan if isinstance(o, UpsertCalendarEvent)] == []
@@ -642,7 +690,11 @@ def test_struck_through_lesson_cancels_a_regular_server_event():
 
 def test_calendar_event_missing_locally_is_deleted():
     server = _server(
-        calendar_events={(3, "mon"): ServerEvent(ref="some-ref", kind="REGULAR")}
+        calendar_events={
+            (3, "mon"): ServerEvent(
+                ref="some-ref", kind="REGULAR", entry=placeholder("some-ref")
+            )
+        }
     )
     plan = list(_calendar(_local(slots=[MON], events=[]), server))
     [op] = [o for o in plan if isinstance(o, DeleteCalendarEvent)]
@@ -656,7 +708,11 @@ def test_cancelled_calendar_event_missing_locally_is_not_pruned():
     says."
     """
     server = _server(
-        calendar_events={(3, "mon"): ServerEvent(ref="some-ref", kind="CANCELLED")}
+        calendar_events={
+            (3, "mon"): ServerEvent(
+                ref="some-ref", kind="CANCELLED", entry=placeholder("some-ref")
+            )
+        }
     )
     plan = list(_calendar(_local(slots=[MON], events=[]), server))
     assert not any(isinstance(o, DeleteCalendarEvent) for o in plan)
@@ -720,8 +776,12 @@ def test_plan_calendar_renaming_a_slot_deletes_its_events_and_the_old_slot_befor
     server = _server(
         time_slots={"mon-14_00": old_1400, "mon-18_00": old_1800},
         calendar_events={
-            (0, "mon-14_00"): ServerEvent(ref="ref-a", kind="REGULAR"),
-            (0, "mon-18_00"): ServerEvent(ref="ref-b", kind="REGULAR"),
+            (0, "mon-14_00"): ServerEvent(
+                ref="ref-a", kind="REGULAR", entry=placeholder("ref-a")
+            ),
+            (0, "mon-18_00"): ServerEvent(
+                ref="ref-b", kind="REGULAR", entry=placeholder("ref-b")
+            ),
         },
     )
     plan = list(_calendar(local, server))
@@ -758,7 +818,11 @@ def test_plan_push_places_the_calendar_half_after_questions():
 def test_cancelled_events_slot_is_not_deleted_even_when_local_no_longer_declares_it():
     server = _server(
         time_slots={"wed": "some-ref"},
-        calendar_events={(2, "wed"): ServerEvent(ref="whatever", kind="CANCELLED")},
+        calendar_events={
+            (2, "wed"): ServerEvent(
+                ref="whatever", kind="CANCELLED", entry=placeholder("whatever")
+            )
+        },
     )
     plan = plan_calendar(_local(slots=[], events=[]), server)
 
@@ -772,8 +836,8 @@ def test_a_slot_pinned_by_several_cancelled_events_is_noticed_once():
     server = _server(
         time_slots={"wed": "some-ref"},
         calendar_events={
-            (4, "wed"): ServerEvent(ref="b", kind="CANCELLED"),
-            (2, "wed"): ServerEvent(ref="a", kind="CANCELLED"),
+            (4, "wed"): ServerEvent(ref="b", kind="CANCELLED", entry=placeholder("b")),
+            (2, "wed"): ServerEvent(ref="a", kind="CANCELLED", entry=placeholder("a")),
         },
     )
     plan = plan_calendar(_local(slots=[], events=[]), server)
@@ -784,7 +848,11 @@ def test_a_regular_events_slot_is_still_deleted_when_local_no_longer_declares_it
     """Control case: the guard above is specific to `CANCELLED`."""
     server = _server(
         time_slots={"wed": "some-ref"},
-        calendar_events={(2, "wed"): ServerEvent(ref="whatever", kind="REGULAR")},
+        calendar_events={
+            (2, "wed"): ServerEvent(
+                ref="whatever", kind="REGULAR", entry=placeholder("whatever")
+            )
+        },
     )
     plan = plan_calendar(_local(slots=[], events=[]), server)
     [op] = [o for o in plan.writes if isinstance(o, DeleteTimeSlot)]
@@ -855,7 +923,9 @@ def test_plan_calendar_op_order_is_delete_events_delete_slots_upsert_slots_upser
     server = _server(
         time_slots={slot.slug: slot for slot in server_slots},
         calendar_events={
-            (event.week, event.time_slot): ServerEvent(ref=event.ref, kind=event.kind)
+            (event.week, event.time_slot): ServerEvent(
+                ref=event.ref, kind=event.kind, entry=placeholder(event.ref)
+            )
             for event in server_events
         },
     )
@@ -873,7 +943,9 @@ def _apply_calendar(plan, server_time_slots, server_calendar_events):
             server_time_slots.pop(op.slug, None)
         elif isinstance(op, UpsertCalendarEvent):
             server_calendar_events[(op.event.week, op.event.time_slot)] = ServerEvent(
-                ref=op.event.ref, kind=op.event.kind
+                ref=op.event.ref,
+                kind=op.event.kind,
+                entry=placeholder(op.event.ref),
             )
         elif isinstance(op, DeleteCalendarEvent):
             server_calendar_events.pop((op.week, op.time_slot), None)
@@ -933,12 +1005,16 @@ def test_plan_push_after_applying_its_own_plan_yields_nothing():
         elif isinstance(op, UpsertResource):
             server_resources[op.slug] = op.ref
         elif isinstance(op, UpsertQuestion):
-            server_questions[op.slug] = ServerQuestion(op.version, op.status)
+            server_questions[op.slug] = ServerQuestion(
+                op.version, placeholder(op.version), op.status
+            )
         elif isinstance(op, UpsertTimeSlot):
             server_time_slots[op.slot.slug] = op.slot
         elif isinstance(op, UpsertCalendarEvent):
             server_calendar_events[(op.event.week, op.event.time_slot)] = ServerEvent(
-                ref=op.event.ref, kind=op.event.kind
+                ref=op.event.ref,
+                kind=op.event.kind,
+                entry=placeholder(op.event.ref),
             )
 
     second_plan = list(
@@ -969,20 +1045,25 @@ def _server_with_roll_call(attendances: int | None) -> ServerState:
     return _server(
         time_slots={"mon": MON},
         calendar_events={
-            (5, "mon"): ServerEvent(ref="ref", kind="REGULAR", attendances=attendances)
+            (5, "mon"): ServerEvent(
+                ref="ref",
+                kind="REGULAR",
+                entry=placeholder("ref"),
+                attendances=attendances,
+            )
         },
     )
 
 
 def test_event_with_a_roll_call_removed_locally_is_kept_with_a_warning():
-    plan = plan_push(_local(slots=[MON]), _server_with_roll_call(32))
+    plan = _plan_push(_local(slots=[MON]), _server_with_roll_call(32))
 
     assert not any(isinstance(op, DeleteCalendarEvent) for op in plan.writes)
     assert KeptForRollCall(5, "mon", 32) in plan.notices
 
 
 def test_event_with_an_empty_roll_call_removed_locally_is_still_kept_with_a_warning():
-    plan = plan_push(_local(slots=[MON]), _server_with_roll_call(0))
+    plan = _plan_push(_local(slots=[MON]), _server_with_roll_call(0))
 
     assert not any(isinstance(op, DeleteCalendarEvent) for op in plan.writes)
     assert KeptForRollCall(5, "mon", 0) in plan.notices
@@ -995,7 +1076,7 @@ def test_slot_of_an_event_kept_for_its_roll_call_is_not_deleted():
 
 
 def test_event_without_a_roll_call_removed_locally_is_deleted_without_a_warning():
-    plan = plan_push(
+    plan = _plan_push(
         _local(slots=[MON]), _server_with_roll_call(None), drop_roll_calls=True
     )
 
@@ -1005,7 +1086,9 @@ def test_event_without_a_roll_call_removed_locally_is_deleted_without_a_warning(
 
 
 def test_dropping_roll_calls_deletes_roll_call_then_event_then_slot():
-    plan = plan_push(_local(slots=[]), _server_with_roll_call(32), drop_roll_calls=True)
+    plan = _plan_push(
+        _local(slots=[]), _server_with_roll_call(32), drop_roll_calls=True
+    )
     assert plan.notices == ()
 
     plan = list(plan.writes)
@@ -1019,10 +1102,12 @@ def test_event_with_a_roll_call_still_local_with_new_content_is_upserted_without
     server = _server(
         time_slots={"mon": MON},
         calendar_events={
-            (0, "mon"): ServerEvent(ref="stale", kind="REGULAR", attendances=32)
+            (0, "mon"): ServerEvent(
+                ref="stale", kind="REGULAR", entry=placeholder("stale"), attendances=32
+            )
         },
     )
-    plan = plan_push(_local(slots=[MON], events=[REGULAR_EVENT]), server)
+    plan = _plan_push(_local(slots=[MON], events=[REGULAR_EVENT]), server)
 
     assert UpsertCalendarEvent(event=REGULAR_EVENT) in plan.writes
     assert plan.notices == ()

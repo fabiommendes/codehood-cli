@@ -60,7 +60,6 @@ REASON_TEXTS: dict[ConflictReason, str] = {
     "both-changed": "changed both here and on the server",
     "local-edited-remote-deleted": "edited here, removed on the server",
     "local-deleted-remote-edited": "removed here, edited on the server",
-    "both-new": "created both here and on the server",
     "no-base": "differs from the server and has no recorded base",
     "rename": "renamed here, changed on the server",
     "link": "its lesson link changed",

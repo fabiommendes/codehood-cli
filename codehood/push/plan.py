@@ -174,8 +174,8 @@ class ServerEvent:
 
     ref: str
     kind: Literal["REGULAR", "HOLIDAY", "CANCELLED"]
+    entry: RemoteEntry
     attendances: int | None = None
-    entry: RemoteEntry | None = None
 
 
 @dataclass(frozen=True)
@@ -189,8 +189,8 @@ class ServerQuestion:
     """
 
     version: str
+    entry: RemoteEntry
     status: QuestionStatus = "DRAFT"
-    entry: RemoteEntry | None = None
 
 
 @dataclass(frozen=True)
@@ -927,42 +927,39 @@ def plan_push(
     """
     Diff a repository against the server's current state into a `Plan`.
 
-    The course row is `PUT` when it does not exist or its `rev` is not the
-    `course_ref` of the description and dates, so a push with nothing new
-    plans nothing.
-
-    Repositories come right after the course (see `plan_repositories`):
-    an event links them by slug, so they exist before the calendar. Calendar
-    slots and events follow (see `plan_calendar`): a slot an event needs has
-    to exist before the event is written, and a resource attached to an
-    event needs the event to exist first. Resources, questions and grade
-    columns follow.
+    `plan_sync` with a base taken from the server itself: whatever the server
+    holds counts as what this checkout last sent, so a difference is always a
+    local change and the repository wins.
     """
-    start_at, end_at = _timestamp(local.start), _timestamp(local.end)
-    ref = course_ref(local.description, start_at, end_at)
-    course = Plan()
-    course_rev = server.course.rev if server.course is not None else None
-    if not server.course_exists or course_rev != ref:
-        course = Plan(
-            writes=(
-                UpsertCourse(
-                    key=local.key,
-                    description=local.description,
-                    start_at=start_at,
-                    end_at=end_at,
-                    ref=ref,
-                ),
-            )
-        )
-    return (
-        course
-        + plan_repositories(
-            local, server, drop_repositories=drop_repositories, message=message
-        )
-        + plan_calendar(local, server, drop_roll_calls=drop_roll_calls)
-        + plan_resources(local, server)
-        + plan_questions(local, server)
-        + plan_grades(local, server)
+    return plan_sync(
+        local,
+        _base_of(server),
+        server,
+        drop_roll_calls=drop_roll_calls,
+        drop_repositories=drop_repositories,
+        message=message,
+    )
+
+
+def _base_of(server: ServerState) -> BaseState:
+    """
+    The base that records every entity the server holds exactly as it is.
+    """
+
+    def entry(remote: RemoteEntry) -> BaseEntry:
+        return BaseEntry(remote.payload, remote.rev, remote.updated_at)
+
+    return BaseState(
+        course={COURSE_KEY: entry(server.course)}
+        if server.course_exists and server.course is not None
+        else {},
+        resources={k: entry(v) for k, v in server.resources.items()},
+        questions={k: entry(v.entry) for k, v in server.questions.items()},
+        time_slots={k: entry(v) for k, v in server.time_slots.items()},
+        calendar_events={
+            event_key(*k): entry(v.entry) for k, v in server.calendar_events.items()
+        },
+        grade_columns={k: entry(v) for k, v in server.grade_columns.items()},
     )
 
 
@@ -1424,12 +1421,7 @@ def _sync_questions(
 ) -> list[Decision]:
     files = {q.slug: q for q in local.questions}
     excluded = _excluded(local, "question")
-    entries = {
-        slug: question.entry
-        for slug, question in remote.questions.items()
-        if question.entry is not None
-    }
-    unreadable = remote.questions.keys() - entries.keys()
+    entries = {slug: question.entry for slug, question in remote.questions.items()}
 
     def decide(
         key: str,
@@ -1437,7 +1429,7 @@ def _sync_questions(
         entry: BaseEntry | None,
         server: RemoteEntry | None,
     ) -> Decision:
-        if payload is None and key in excluded or key in unreadable:
+        if payload is None and key in excluded:
             return Skip()
         file = files.get(key)
         if isinstance(file, InvalidQuestion):
@@ -1514,11 +1506,7 @@ def _sync_calendar(
     """
     events = {event_key(e.week, e.time_slot): e for e in local.events}
     servers = {event_key(*key): ev for key, ev in remote.calendar_events.items()}
-    entries = {
-        key: ev.entry
-        for key, ev in servers.items()
-        if ev.entry is not None and ev.kind != "CANCELLED"
-    }
+    entries = {key: ev.entry for key, ev in servers.items() if ev.kind != "CANCELLED"}
 
     def decide_event(
         key: str,
@@ -1530,8 +1518,6 @@ def _sync_calendar(
         found = servers.get(key)
         if found is not None and found.kind == "CANCELLED":
             return Keep(KeptCancelled(week=week, time_slot=time_slot))
-        if found is not None and found.entry is None:
-            return Skip()
         event = events.get(key)
         return three_way(
             "calendar_event",

@@ -15,6 +15,7 @@ from pathlib import Path, PurePosixPath
 
 import httpx
 import pytest
+from server_entries import placeholder, realize
 from typer.testing import CliRunner
 
 from codehood.api import base as base_module
@@ -47,7 +48,7 @@ from codehood.push.resource import (
     content_ref,
     scan_resources,
 )
-from codehood.push.wire import Payload
+from codehood.push.wire import resource_payload
 
 COURSE_KEY = CourseKey("cs101", "ada", "2026-1")
 SHORT_KEY = CourseKey("d", "c", "e")
@@ -564,10 +565,12 @@ def test_plan_orders_every_calendar_op_before_any_resource_op():
         resources=(resource,),
     )
     server = ServerState(
-        resources={"stale": _remote("ref")},
-        calendar_events={(9, "mon"): ServerEvent(ref="r", kind="REGULAR")},
+        resources={"stale": placeholder("ref")},
+        calendar_events={
+            (9, "mon"): ServerEvent(ref="r", kind="REGULAR", entry=placeholder("r"))
+        },
     )
-    ops = list(plan_push(local, server).writes)
+    ops = list(plan_push(local, realize(local, server)).writes)
     kinds = _kinds(ops)
     for calendar_op in (UpsertCalendarEvent, DeleteCalendarEvent):
         assert calendar_op.__name__ in kinds
@@ -861,19 +864,17 @@ def _attached(rel: str = "resources/a.md") -> ResourceFile:
 KEY = EventKey(week=1, time_slot="mon")
 
 
-def _remote(rev: str, event: EventKey | None = None) -> RemoteEntry:
+def _remote(resource: ResourceFile, event: EventKey | None = None) -> RemoteEntry:
     """
-    A server resource with `rev`, attached to `event`.
+    The server's copy of `resource`, attached to `event`.
     """
-    if event is None:
-        return RemoteEntry({"event": None}, rev=rev)
-    key: Payload = {"week": event.week, "timeSlot": event.time_slot}
-    return RemoteEntry({"event": key}, rev=rev)
+    payload = resource_payload(replace(resource, event=event))
+    return RemoteEntry(payload, rev=resource.ref)
 
 
 def test_resource_with_matching_ref_and_event_is_skipped():
     resource = _attached()
-    server = ServerState(resources={resource.slug: _remote(resource.ref, KEY)})
+    server = ServerState(resources={resource.slug: _remote(resource, KEY)})
     assert _plan_resources(resource, server) == []
 
 
@@ -889,27 +890,27 @@ def test_resource_is_upserted_when_the_server_event_differs_despite_equal_ref(
     server_event,
 ):
     resource = _attached()
-    server = ServerState(resources={resource.slug: _remote(resource.ref, server_event)})
+    server = ServerState(resources={resource.slug: _remote(resource, server_event)})
     [op] = _plan_resources(resource, server)
     assert (op.slug, op.event) == (resource.slug, KEY)
 
 
 def test_resource_without_an_event_on_the_server_counts_as_having_none():
     resource = _attached()
-    server = ServerState(resources={resource.slug: _remote(resource.ref)})
+    server = ServerState(resources={resource.slug: _remote(resource)})
     [op] = _plan_resources(resource, server)
     assert op.event == KEY
 
 
 def test_unattached_resource_is_skipped_when_the_server_has_no_event_either():
     resource = _resource("resources/a.md")
-    server = ServerState(resources={resource.slug: _remote(resource.ref)})
+    server = ServerState(resources={resource.slug: _remote(resource)})
     assert _plan_resources(resource, server) == []
 
 
 def test_unattached_resource_is_upserted_when_the_server_still_has_an_event():
     resource = _resource("resources/a.md")
-    server = ServerState(resources={resource.slug: _remote(resource.ref, KEY)})
+    server = ServerState(resources={resource.slug: _remote(resource, KEY)})
     [op] = _plan_resources(resource, server)
     assert op.event is None
 

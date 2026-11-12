@@ -147,7 +147,7 @@ def _remote_resource(variant, payload, rev, ref):
 def _remote_question(variant, payload, rev, ref):
     version = ref or "other"
     entry = RemoteEntry(payload, rev, "u")
-    return {"questions": {"q": ServerQuestion(version, "PUBLISHED", entry)}}
+    return {"questions": {"q": ServerQuestion(version, entry, "PUBLISHED")}}
 
 
 def _remote_slot(variant, payload, rev, ref):
@@ -156,9 +156,7 @@ def _remote_slot(variant, payload, rev, ref):
 
 def _remote_event(variant, payload, rev, ref):
     entry = RemoteEntry(payload, rev, "u")
-    return {
-        "calendar_events": {(1, "t"): ServerEvent(rev or "", "REGULAR", None, entry)}
-    }
+    return {"calendar_events": {(1, "t"): ServerEvent(rev or "", "REGULAR", entry)}}
 
 
 ADAPTERS = {
@@ -493,7 +491,7 @@ def _q_plan(local, remote_status, *, entry_variant="a", base="a") -> Plan:
         course_exists=True,
         course=RemoteEntry(COURSE_PAYLOAD, COURSE_REF),
         questions={
-            "q": ServerQuestion("v", remote_status, RemoteEntry(payload, "r0", "u"))
+            "q": ServerQuestion("v", RemoteEntry(payload, "r0", "u"), remote_status)
         },
     )
     return plan_sync(state, stored, server)
@@ -651,7 +649,7 @@ def _cal(local_events=(), local_slots=(), base=None, events=None, slots=None):
 
 def _server_event(variant="a", kind="REGULAR", attendances=None, rev="r0"):
     entry = RemoteEntry(event_payload(_event(variant)), rev, "u")
-    return ServerEvent(rev, kind, attendances, entry)
+    return ServerEvent(rev, kind, entry, attendances)
 
 
 def _event_base(variant="a"):
@@ -728,7 +726,7 @@ def test_calendar_writes_keep_the_order_deletes_then_slots_then_events():
 
 def _server_event_for(week, slot):
     entry = RemoteEntry(event_payload(_event("a", week, slot)), "r0", "u")
-    return ServerEvent("r0", "REGULAR", None, entry)
+    return ServerEvent("r0", "REGULAR", entry)
 
 
 #
@@ -896,16 +894,9 @@ def test_a_slot_is_not_deleted_under_an_event_edited_on_the_server():
 
 def test_a_slot_is_not_deleted_under_an_event_created_on_the_server():
     entry = RemoteEntry(event_payload(_event("a", 2, "t")), None, "u")
-    plan = _slot_state(
-        server_events={(2, "t"): ServerEvent("", "REGULAR", None, entry)}
-    )
+    plan = _slot_state(server_events={(2, "t"): ServerEvent("", "REGULAR", entry)})
     _no_slot_delete(plan)
     assert [c.key for c in plan.conflicts if c.kind == "time_slot"] == ["t"]
-
-
-def test_a_slot_is_not_deleted_under_an_event_the_server_does_not_describe():
-    plan = _slot_state(server_events={(2, "t"): ServerEvent("r", "REGULAR")})
-    _no_slot_delete(plan)
 
 
 def test_a_slot_is_deleted_when_its_events_are_deleted_too():
@@ -1185,7 +1176,6 @@ SERVER_EVENT = st.tuples(
     st.sampled_from(["REGULAR", "REGULAR", "CANCELLED"]),
     st.sampled_from([None, None, 3]),
     st.sampled_from(["r0", "other", None]),
-    st.booleans(),
 )
 
 
@@ -1209,19 +1199,9 @@ def test_no_slot_is_deleted_while_an_event_still_holds_it(
     drop_roll_calls,
 ):
     events = {}
-    for (week, slot), (
-        variant,
-        kind,
-        attendances,
-        rev,
-        readable,
-    ) in server_events.items():
-        entry = (
-            RemoteEntry(event_payload(_event(variant, week, slot)), rev, "u")
-            if readable
-            else None
-        )
-        events[(week, slot)] = ServerEvent(rev or "", kind, attendances, entry)
+    for (week, slot), (variant, kind, attendances, rev) in server_events.items():
+        entry = RemoteEntry(event_payload(_event(variant, week, slot)), rev, "u")
+        events[(week, slot)] = ServerEvent(rev or "", kind, entry, attendances)
     plan = plan_sync(
         LocalState(
             KEY,

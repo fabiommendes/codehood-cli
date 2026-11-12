@@ -17,6 +17,7 @@ from pathlib import Path
 import mdq
 from hypothesis import given, settings
 from hypothesis import strategies as st
+from server_entries import placeholder, realize
 
 from codehood.models.repo import CourseKey
 from codehood.push.calendar import Duration, Event, EventKey, TimeOfDay, TimeSlot
@@ -63,7 +64,7 @@ from codehood.push.project import RemoteEntry
 from codehood.push.question import InvalidQuestion, QuestionFile
 from codehood.push.repository import RepositoryEntry, RepositoryTree
 from codehood.push.resource import MdData, ResourceFile, content_ref
-from codehood.push.wire import Payload, time_slot_payload
+from codehood.push.wire import time_slot_payload
 
 KEY = CourseKey("cs101", "ada", "2026-1")
 QUESTION = mdq.parse(
@@ -123,7 +124,7 @@ def test_join_status_is_the_higher_one():
 
 def test_a_hidden_question_still_receives_new_content_and_stays_hidden():
     decision = merge_question(
-        "q", _question("v2", "DRAFT"), ServerQuestion("v1", "HIDDEN")
+        "q", _question("v2", "DRAFT"), ServerQuestion("v1", placeholder("v1"), "HIDDEN")
     )
     assert isinstance(decision, Put)
     assert decision.op.status == "HIDDEN"
@@ -132,7 +133,9 @@ def test_a_hidden_question_still_receives_new_content_and_stays_hidden():
 
 def test_a_draft_file_over_a_published_question_writes_and_notices():
     decision = merge_question(
-        "q", _question("v2", "DRAFT"), ServerQuestion("v1", "PUBLISHED")
+        "q",
+        _question("v2", "DRAFT"),
+        ServerQuestion("v1", placeholder("v1"), "PUBLISHED"),
     )
     assert isinstance(decision, Put)
     assert decision.op.status == "PUBLISHED"
@@ -143,7 +146,9 @@ def test_a_draft_file_over_a_published_question_writes_and_notices():
 
 def test_an_unchanged_draft_over_a_published_question_only_notices():
     decision = merge_question(
-        "q", _question("v1", "DRAFT"), ServerQuestion("v1", "PUBLISHED")
+        "q",
+        _question("v1", "DRAFT"),
+        ServerQuestion("v1", placeholder("v1"), "PUBLISHED"),
     )
     assert isinstance(decision, Keep)
     assert isinstance(decision.notice, KeptDraftPublished)
@@ -151,14 +156,14 @@ def test_an_unchanged_draft_over_a_published_question_only_notices():
 
 def test_a_draft_file_over_a_hidden_question_does_not_notice():
     decision = merge_question(
-        "q", _question("v1", "DRAFT"), ServerQuestion("v1", "HIDDEN")
+        "q", _question("v1", "DRAFT"), ServerQuestion("v1", placeholder("v1"), "HIDDEN")
     )
     assert decision == Skip()
 
 
 def test_an_invalid_file_is_rejected_whatever_the_server_holds():
     invalid = InvalidQuestion(slug="q", path=Path("q.mdq"), reason="bad")
-    for server in (None, ServerQuestion("v1", "PUBLISHED")):
+    for server in (None, ServerQuestion("v1", placeholder("v1"), "PUBLISHED")):
         assert merge_question("q", invalid, server) == Keep(
             Rejected(slug="q", path=Path("q.mdq"), reason="bad")
         )
@@ -172,7 +177,7 @@ def test_an_invalid_file_is_rejected_whatever_the_server_holds():
 def test_a_question_is_never_written_below_the_server_status(
     local, remote, same_version
 ):
-    server = ServerQuestion("v1", remote)
+    server = ServerQuestion("v1", placeholder("v1"), remote)
     decision = merge_question(
         "q", _question("v1" if same_version else "v2", local), server
     )
@@ -193,13 +198,15 @@ def test_a_question_is_never_written_below_the_server_status(
     drop=st.booleans(),
 )
 def test_a_cancelled_server_event_is_absorbed(local, attendances, drop):
-    server = ServerEvent(ref="r", kind="CANCELLED", attendances=attendances)
+    server = ServerEvent(
+        ref="r", kind="CANCELLED", entry=placeholder("r"), attendances=attendances
+    )
     decision = merge_event((0, "mon"), local, server, drop_roll_calls=drop)
     assert decision == Keep(KeptCancelled(week=0, time_slot="mon"))
 
 
 def test_an_event_with_a_roll_call_is_kept_unless_the_roll_call_is_dropped():
-    server = ServerEvent(ref="r", kind="REGULAR", attendances=3)
+    server = ServerEvent(ref="r", kind="REGULAR", entry=placeholder("r"), attendances=3)
     assert merge_event((5, "mon"), None, server, drop_roll_calls=False) == Keep(
         KeptForRollCall(week=5, time_slot="mon", attendances=3)
     )
@@ -210,7 +217,7 @@ def test_an_event_with_a_roll_call_is_kept_unless_the_roll_call_is_dropped():
 
 def test_an_event_whose_marker_matches_is_skipped():
     event = Event(0, "mon", "t")
-    server = ServerEvent(ref=event.ref, kind="REGULAR")
+    server = ServerEvent(ref=event.ref, kind="REGULAR", entry=placeholder(event.ref))
     assert merge_event((0, "mon"), event, server, drop_roll_calls=False) == Skip()
 
 
@@ -336,16 +343,13 @@ def server_states(draw) -> ServerState:
     resource_slugs = draw(slugs)
     return ServerState(
         course_exists=draw(st.booleans()),
-        course=draw(st.sampled_from((None, RemoteEntry({}, rev="stale")))),
+        course=draw(st.sampled_from((None, placeholder("stale")))),
         resources={
-            slug: RemoteEntry(
-                {"event": _event_payload(draw(optional_event_key))},
-                rev=draw(st.sampled_from(("stale", "x"))),
-            )
+            slug: placeholder(draw(st.sampled_from(("stale", "x"))))
             for slug in resource_slugs
         },
         questions={
-            slug: ServerQuestion(
+            slug: _server_question(
                 draw(st.sampled_from(("v1", "v2"))), draw(st.sampled_from(STATUS_ORDER))
             )
             for slug in draw(slugs)
@@ -356,21 +360,26 @@ def server_states(draw) -> ServerState:
         },
         calendar_events={
             key: ServerEvent(
-                ref=draw(st.sampled_from(("stale", Event(*key, "x").ref))),
+                ref=(ref := draw(st.sampled_from(("stale", Event(*key, "x").ref)))),
                 kind=draw(st.sampled_from(("REGULAR", "HOLIDAY", "CANCELLED"))),
+                entry=placeholder(ref),
                 attendances=draw(st.sampled_from((None, 0, 4))),
             )
             for key in draw(st.lists(event_keys, unique=True, max_size=4))
         },
-        grade_columns={slug: RemoteEntry({}, rev="stale") for slug in draw(slugs)},
+        grade_columns={slug: placeholder("stale") for slug in draw(slugs)},
         repositories={
             slug: draw(st.sampled_from((None, "a" * 40))) for slug in draw(slugs)
         },
     )
 
 
-def _event_payload(key: EventKey | None) -> Payload | None:
-    return None if key is None else {"week": key.week, "timeSlot": key.time_slot}
+def _server_question(version: str, status) -> ServerQuestion:
+    return ServerQuestion(version, placeholder(version), status)
+
+
+def _push(local: LocalState, server: ServerState, **flags) -> Plan:
+    return plan_push(local, realize(local, server), **flags)
 
 
 def _slot_entry(slot: TimeSlot) -> RemoteEntry:
@@ -398,15 +407,13 @@ def apply(server: ServerState, plan: Plan) -> ServerState:
     for op in plan.writes:
         match op:
             case UpsertCourse():
-                course, exists = RemoteEntry({}, rev=op.ref), True
+                course, exists = placeholder(op.ref), True
             case UpsertResource():
-                resources[op.slug] = RemoteEntry(
-                    {"event": _event_payload(op.event)}, rev=op.ref
-                )
+                resources[op.slug] = placeholder(op.ref)
             case DeleteResource():
                 resources.pop(op.slug, None)
             case UpsertQuestion():
-                questions[op.slug] = ServerQuestion(op.version, op.status)
+                questions[op.slug] = _server_question(op.version, op.status)
             case DeleteQuestion():
                 questions.pop(op.slug, None)
             case UpsertTimeSlot():
@@ -419,6 +426,7 @@ def apply(server: ServerState, plan: Plan) -> ServerState:
                 events[key] = ServerEvent(
                     ref=op.event.ref,
                     kind=op.event.kind,
+                    entry=placeholder(op.event.ref),
                     attendances=previous.attendances if previous else None,
                 )
             case DeleteRollCall():
@@ -427,7 +435,7 @@ def apply(server: ServerState, plan: Plan) -> ServerState:
             case DeleteCalendarEvent():
                 events.pop((op.week, op.time_slot), None)
             case UpsertGradeColumn():
-                columns[op.column.slug] = RemoteEntry({}, rev=op.column.rev)
+                columns[op.column.slug] = placeholder(op.column.rev)
             case DeleteGradeColumn():
                 columns.pop(op.slug, None)
             case UpsertRepository():
@@ -455,9 +463,9 @@ def test_replanning_after_applying_a_plan_writes_nothing(
     local, server, drop_roll_calls, drop_repositories
 ):
     flags = {"drop_roll_calls": drop_roll_calls, "drop_repositories": drop_repositories}
-    plan = plan_push(local, server, **flags)
+    plan = _push(local, server, **flags)
 
-    again = plan_push(local, apply(server, plan), **flags)
+    again = _push(local, apply(server, plan), **flags)
 
     assert again.writes == ()
 
@@ -465,7 +473,7 @@ def test_replanning_after_applying_a_plan_writes_nothing(
 @given(local=local_states(), server=server_states())
 @settings(max_examples=300)
 def test_a_push_never_lowers_the_status_of_a_question(local, server):
-    after = apply(server, plan_push(local, server))
+    after = apply(server, _push(local, server))
 
     for slug, before in server.questions.items():
         if slug in after.questions:
@@ -479,7 +487,7 @@ def test_a_push_never_lowers_the_status_of_a_question(local, server):
 def test_a_cancelled_server_event_is_never_written_or_pruned(
     local, server, drop_roll_calls, drop_repositories
 ):
-    plan = plan_push(
+    plan = _push(
         local,
         server,
         drop_roll_calls=drop_roll_calls,
@@ -506,7 +514,7 @@ def test_a_cancelled_server_event_is_never_written_or_pruned(
 def test_a_pinned_slot_is_noticed_at_most_once(
     local, server, drop_roll_calls, drop_repositories
 ):
-    plan = plan_push(
+    plan = _push(
         local,
         server,
         drop_roll_calls=drop_roll_calls,
@@ -523,7 +531,7 @@ def test_a_pinned_slot_is_noticed_at_most_once(
 @given(local=local_states(), server=server_states())
 @settings(max_examples=200)
 def test_an_excluded_file_is_never_pruned(local, server):
-    plan = plan_push(local, server)
+    plan = _push(local, server)
 
     excluded = {(file.kind, file.slug) for file in local.excluded}
     local_resources = {r.slug for r in local.resources}

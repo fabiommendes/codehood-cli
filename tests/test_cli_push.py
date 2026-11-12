@@ -381,7 +381,7 @@ def test_no_prune_reports_deletion_without_executing_it(repo, monkeypatch):
             return httpx.Response(
                 200,
                 json=[
-                    _resource_json("week1-slides", _local_ref(repo)),
+                    _local_resource_json(repo),
                     _resource_json("stale-handout", "server-only-ref"),
                 ],
             )
@@ -410,16 +410,17 @@ def test_no_prune_reports_deletion_without_executing_it(repo, monkeypatch):
     assert "stale-handout" in result.output
 
 
-def _local_ref(repo, exclude=()) -> str:
+def _local_resource_json(repo, exclude=()) -> dict:
     """
-    The `ref` the local `week1/slides.md` fixture would produce, so the
-    no-prune scenario's unrelated resource genuinely matches and only
-    `stale-handout` is a deletion candidate.
+    The server's copy of the local `week1/slides.md` fixture: its real
+    payload, so only the other resources of the scenario are changes.
     """
     from codehood.push.resource import scan_resources
+    from codehood.push.wire import resource_payload
 
     [resource] = list(scan_resources(repo, exclude))
-    return resource.ref
+    payload = {k: v for k, v in resource_payload(resource).items() if k != "slug"}
+    return _resource_json(resource.slug, resource.ref, **payload)
 
 
 def test_a_failed_operation_exits_nonzero_but_still_runs_the_rest(repo, monkeypatch):
@@ -562,7 +563,7 @@ def test_no_prune_skips_question_deletions(repo_with_question, monkeypatch):
         if request.url.path == f"{BASE}/resource" and request.method == "GET":
             return httpx.Response(
                 200,
-                json=[_resource_json("week1-slides", _local_ref(repo_with_question))],
+                json=[_local_resource_json(repo_with_question)],
             )
         if request.url.path == f"{BASE}/question" and request.method == "GET":
             # `big-o` is local, `stale-warmup` is server-only -- the local
@@ -571,9 +572,7 @@ def test_no_prune_skips_question_deletions(repo_with_question, monkeypatch):
             return httpx.Response(
                 200,
                 json=[
-                    _question_json(
-                        "big-o", _local_question_version(repo_with_question)
-                    ),
+                    _local_question_json(repo_with_question),
                     _question_json("stale-warmup", "md5:server-only"),
                 ],
             )
@@ -601,12 +600,16 @@ def test_no_prune_skips_question_deletions(repo_with_question, monkeypatch):
     assert "stale-warmup" in result.output
 
 
-def _local_question_version(repo, exclude=()) -> str:
-    """The `version` the local `questions/big-o.md` fixture would produce."""
+def _local_question_json(repo, exclude=()) -> dict:
+    """
+    The server's copy of the local `questions/big-o.md` fixture.
+    """
     from codehood.push.question import scan_questions
+    from codehood.push.wire import question_payload
 
     [question] = list(scan_questions(repo, exclude))
-    return question.version
+    document = question_payload(question)["question"]
+    return _question_json(question.slug, question.version, question=document)
 
 
 def test_a_failed_question_operation_exits_nonzero_but_still_runs_the_rest(
@@ -679,9 +682,7 @@ def _roll_call_server_handler(repo, calls: list[tuple[str, str]]):
         if path == BASE and method == "GET":
             return httpx.Response(200, json=_course_json())
         if path == f"{BASE}/resource" and method == "GET":
-            return httpx.Response(
-                200, json=[_resource_json("week1-slides", _local_ref(repo))]
-            )
+            return httpx.Response(200, json=[_local_resource_json(repo)])
         if path == f"{BASE}/question" and method == "GET":
             return httpx.Response(200, json=[])
         if path == f"{BASE}/time-slot" and method == "GET":
@@ -934,12 +935,9 @@ def test_an_excluded_question_that_is_on_the_server_is_left_alone(
     calls: list[tuple[str, str]] = []
     server = _server_with(
         calls,
-        resources=[_resource_json("week1-slides", _local_ref(repo_with_question))],
+        resources=[_local_resource_json(repo_with_question)],
         questions=[
-            _question_json(
-                "big-o",
-                _local_question_version(repo_with_question, ["questions/order.mdq"]),
-            ),
+            _local_question_json(repo_with_question, ["questions/order.mdq"]),
             _question_json("order", "md5:old-version-from-the-server"),
         ],
     )
@@ -962,9 +960,7 @@ def test_an_excluded_resource_is_neither_pushed_nor_deleted(repo, monkeypatch):
     server = _server_with(
         calls,
         resources=[
-            _resource_json(
-                "week1-slides", _local_ref(repo, ["resources/week1/private.md"])
-            ),
+            _local_resource_json(repo, ["resources/week1/private.md"]),
             _resource_json("week1-private", "server-ref"),
         ],
     )

@@ -87,7 +87,6 @@ def test_every_reason_has_a_text():
         "both-changed",
         "local-edited-remote-deleted",
         "local-deleted-remote-edited",
-        "both-new",
         "no-base",
         "rename",
         "link",
