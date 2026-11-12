@@ -175,3 +175,33 @@ def test_crash_between_collections_gives_old_or_new_per_file(tmp_path, monkeypat
     assert loaded.warnings == ()
     for name in COLLECTIONS:
         assert getattr(loaded, name) in (getattr(old, name), getattr(new, name))
+
+
+def test_saving_the_base_keeps_it_out_of_git_in_a_repository_without_scaffold(
+    tmp_path: Path,
+):
+    import subprocess
+
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+
+    save_base(tmp_path, sample())
+
+    status = subprocess.run(
+        ["git", "status", "--porcelain", "--untracked-files=all"],
+        cwd=tmp_path,
+        capture_output=True,
+        text=True,
+        check=True,
+    ).stdout
+    assert ".local" not in status
+    assert (base_dir(tmp_path).parent / ".gitignore").read_text() == "*\n"
+
+
+def test_saving_the_base_keeps_an_existing_inner_gitignore(tmp_path: Path):
+    ignore = base_dir(tmp_path).parent / ".gitignore"
+    ignore.parent.mkdir(parents=True)
+    ignore.write_text("*\n# mine\n", encoding="utf-8")
+
+    save_base(tmp_path, sample())
+
+    assert ignore.read_text() == "*\n# mine\n"

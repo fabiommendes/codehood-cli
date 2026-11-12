@@ -30,6 +30,7 @@ from ._scaffold import (
     PathReport,
     PathStatus,
     RepoError,
+    ensure_machine_dir,
     read_config,
     write_repo,
 )
@@ -37,6 +38,7 @@ from ._scaffold import (
 __all__ = [
     "write_repo",
     "read_config",
+    "ensure_machine_dir",
     "PathReport",
     "PathStatus",
     #: Errors

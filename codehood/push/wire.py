@@ -151,7 +151,7 @@ def event_payload(event: Event) -> Payload:
     The body of a calendar event's `PUT`, with the repositories sorted by
     slug, the order the server lists them in.
     """
-    repositories: list[JsonValue] = list(sorted(event.repositories))
+    repositories: list[JsonValue] = sorted(event.repositories)
     return {
         "kind": event.kind,
         "title": event.title,

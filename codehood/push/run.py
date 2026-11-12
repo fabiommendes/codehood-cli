@@ -777,7 +777,11 @@ def _run_upsert_question(
     # `question` as the plain dict `generated.upsert_question`'s own
     # `model_dump(by_alias=True)` then serializes verbatim.
     body = generated.QuestionCreate.model_construct(
-        slug=op.slug, status=op.status, version=op.version, question=payload
+        slug=op.slug,
+        status=op.status,
+        version=op.version,
+        rev=op.version,
+        question=payload,
     )
     try:
         with warnings.catch_warnings():
@@ -975,15 +979,19 @@ def _list_questions(
 def _server_question(item: dict[str, JsonValue]) -> ServerQuestion:
     """
     One item of the question listing, as its version, status and payload.
+
+    A question written by a CLI that did not send `rev` has none: its `version`
+    stands in, which is the `rev` the current CLI sends.
     """
     status = cast(QuestionStatus, item["status"])
     rev, updated_at = item.get("rev"), item.get("updatedAt")
+    version = str(item["version"])
     return ServerQuestion(
-        version=str(item["version"]),
+        version=version,
         status=status,
         entry=RemoteEntry(
             project_question(item),
-            rev=rev if isinstance(rev, str) else None,
+            rev=rev if isinstance(rev, str) else version,
             updated_at=updated_at if isinstance(updated_at, str) else None,
         ),
     )

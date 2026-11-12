@@ -20,7 +20,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from ..repo import MACHINE_DIR
+from ..repo import MACHINE_DIR, ensure_machine_dir
 
 __all__ = [
     "COLLECTIONS",
@@ -166,7 +166,10 @@ def save_base(root: Path, state: BaseState) -> None:
     Write every collection of `state`, each file atomically.
 
     A crash leaves each file either as it was or fully written, never partial.
+    The `.gitignore` that keeps `.local/codehood/` out of git is created first
+    when missing.
     """
+    ensure_machine_dir(root)
     directory = base_dir(root)
     directory.mkdir(parents=True, exist_ok=True)
     for name in COLLECTIONS:

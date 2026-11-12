@@ -295,6 +295,28 @@ def test_fetch_server_state_reports_question_versions():
     assert entry.updated_at == "2026-01-01T00:00:00Z"
 
 
+def test_fetch_server_state_gives_a_question_without_rev_its_version_as_rev():
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == BASE:
+            return httpx.Response(200, json=_course_json())
+        if request.url.path == f"{BASE}/question":
+            return httpx.Response(
+                200,
+                json=[
+                    _question_json("old", "md5:aaa", rev=None),
+                    _question_json("new", "md5:bbb", rev="md5:other"),
+                ],
+            )
+        return httpx.Response(200, json=[])
+
+    state = fetch_server_state(DISCIPLINE, COURSE, _client(handler))
+
+    assert {slug: q.entry.rev for slug, q in state.questions.items()} == {
+        "old": "md5:aaa",
+        "new": "md5:other",
+    }
+
+
 def test_fetch_server_state_course_missing_skips_the_question_listing():
     """
     "A course that does not exist yet reports no resources and no
@@ -859,6 +881,7 @@ def test_run_plan_upsert_question_sends_the_whole_document():
     assert sent["question"]["stem"] == "What is 2 + 2?"
     assert sent["slug"] == "week1-big-o"
     assert sent["version"] == "md5:aaa"
+    assert sent["rev"] == "md5:aaa"
     assert sent["status"] == "DRAFT"
 
 

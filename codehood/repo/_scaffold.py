@@ -84,11 +84,7 @@ def write_repo(
         ensure_dir(path / _layout.EXAMS_DIR),
         ensure_dir(path / _layout.RESOURCES_DIR),
         ensure_dir(path / _layout.REPOSITORIES_DIR),
-        ensure_dir(path / _layout.MACHINE_DIR),
-        ensure_file(
-            path / _layout.MACHINE_DIR / _layout.GITIGNORE_FILE,
-            _layout.MACHINE_GITIGNORE,
-        ),
+        *ensure_machine_dir(path),
     ]
     if examples:
         reports.append(
@@ -108,6 +104,17 @@ def write_repo(
         reports.append(git_report)
     return [
         PathReport(report.path.relative_to(path), report.status) for report in reports
+    ]
+
+
+def ensure_machine_dir(root: Path) -> list[PathReport]:
+    """
+    Create `.local/codehood/` under `root` with the `.gitignore` that keeps it out of git.
+    """
+    directory = root / _layout.MACHINE_DIR
+    return [
+        ensure_dir(directory),
+        ensure_file(directory / _layout.GITIGNORE_FILE, _layout.MACHINE_GITIGNORE),
     ]
 
 
@@ -219,6 +226,7 @@ def is_inside_work_tree(path: Path) -> bool:
         ["git", "rev-parse", "--is-inside-work-tree"],
         cwd=path,
         capture_output=True,
+        check=False,
         text=True,
     )
     return result.returncode == 0 and result.stdout.strip() == "true"
