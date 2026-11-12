@@ -34737,6 +34737,16 @@
         "responses": {
           "200": {
             "description": "Success",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "description": "The row's `updatedAt`, in quotes. Send it back as If-Match."
+                },
+                "required": true,
+                "description": "The row's `updatedAt`, in quotes. Send it back as If-Match."
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
