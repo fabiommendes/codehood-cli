@@ -10,6 +10,7 @@ from pathlib import Path
 __all__ = [
     "CalendarError",
     "QuestionParseError",
+    "QuestionSourceError",
     "RepositoryError",
     "ResourceFileError",
     "ResourceLinkError",
@@ -58,6 +59,29 @@ class QuestionParseError(Exception):
         self.path = path
         self.cause = cause
         super().__init__(f"{path}: {cause}")
+
+
+class QuestionSourceError(Exception):
+    """
+    A test file linked by a `code` question cannot be read.
+
+    Raised by `question.resolve_test_sources` before any network call,
+    refusing the whole push: the question cannot be sent without the text of
+    its tests, and the server must not keep a version that lacks them.
+    """
+
+    def __init__(self, path: Path, origin: str, cause: Exception) -> None:
+        """
+        Args:
+            path: The test file the link resolves to.
+            origin: The link target, as written in the question.
+            cause: The `OSError` or `UnicodeDecodeError` reading it raised.
+        """
+        self.path = path
+        self.origin = origin
+        self.cause = cause
+        reason = "file not found" if isinstance(cause, FileNotFoundError) else cause
+        super().__init__(f"cannot read test source {origin!r} ({path}): {reason}")
 
 
 class CalendarError(Exception):

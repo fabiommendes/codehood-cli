@@ -76,17 +76,48 @@ def find_unconsumed(
     )
 
 
-def consumed_paths(files: Iterable[File]) -> frozenset[str]:
+def consumed_paths(
+    files: Iterable[File],
+    *,
+    sources: Iterable[Path] = (),
+    root: Path | None = None,
+) -> frozenset[str]:
     """
     The paths the push stages read: the fixed root files, plus the tracked
     questions and resources that are not excluded.
+
+    `sources` are the test files that `code` questions link. They count as
+    read when they lie under `root`.
     """
     tracked = {FileType.QUESTION, FileType.RESOURCE}
-    return frozenset(ROOT_CONSUMED) | {
-        file.path.as_posix()
-        for file in files
-        if file.type in tracked and not file.excluded
+    linked = {
+        relative.as_posix()
+        for source in sources
+        if (relative := _relative_to(source, root)) is not None
     }
+    return (
+        frozenset(ROOT_CONSUMED)
+        | linked
+        | {
+            file.path.as_posix()
+            for file in files
+            if file.type in tracked and not file.excluded
+        }
+    )
+
+
+def _relative_to(path: Path, root: Path | None) -> Path | None:
+    """
+    `path` made relative to `root` with `..` segments resolved, or `None`
+    when it lies outside it.
+    """
+    if root is None:
+        return None
+    resolved = Path(os.path.normpath(path))
+    try:
+        return resolved.relative_to(Path(os.path.normpath(root)))
+    except ValueError:
+        return None
 
 
 def excluded_paths(files: Iterable[File]) -> frozenset[str]:

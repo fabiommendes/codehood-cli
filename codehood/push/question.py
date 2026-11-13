@@ -18,10 +18,12 @@ from pathlib import Path
 from typing import Literal
 
 import mdq
+from mdq.models import CodeQuestion
+from pydantic import ValidationError
 
 from ..repo.diff import FileType
 from ..repo.file_tracker import scan_files
-from .errors import QuestionParseError, SlugCollisionError
+from .errors import QuestionParseError, QuestionSourceError, SlugCollisionError
 from .resource import front_matter_str, slugify, slugify_text, split_front_matter
 
 __all__ = [
@@ -35,7 +37,10 @@ __all__ = [
     "question_slug",
     "question_status",
     "question_version",
+    "resolve_exam_sources",
+    "resolve_test_sources",
     "scan_questions",
+    "test_source_paths",
 ]
 
 #: The discriminated union `mdq.parse` returns for a question.
@@ -64,6 +69,8 @@ class QuestionFile:
     question: AnyQuestion
     path: Path
     status: LocalQuestionStatus = "PUBLISHED"
+    #: The files its linked test sources were read from.
+    sources: tuple[Path, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -81,7 +88,8 @@ class InvalidQuestion:
 def question_version(raw: bytes) -> str:
     """
     Digest a question file's raw bytes into the `version` the server
-    stores.
+    stores. For a `code` question, the bytes of its linked test files
+    follow the file's.
 
     Unlike a resource's `ref`, which digests the parsed fields, a
     question's `version` digests the file itself -- see
@@ -176,19 +184,87 @@ def read_question(base: Path, slug: str, rel_path: Path) -> QuestionFile:
     """
     Read, parse, and hash one question file off disk.
 
+    A linked test source of a `code` question is read and resolved here.
+
     Raises:
-        QuestionParseError: `mdq.parse` refuses the file.
+        QuestionParseError: `mdq.parse` refuses the file, or a test file
+            breaks the rules of the annotations.
+        QuestionSourceError: a linked test file cannot be read.
     """
     path = base / rel_path
     raw = path.read_bytes()
     try:
         question = mdq.parse(raw.decode("utf-8"), kind="question", ids="fill")
-    except mdq.InvalidDocument as exc:
+        question = resolve_test_sources(question, path.parent)
+    except (mdq.InvalidDocument, ValidationError) as exc:
         raise QuestionParseError(path, exc) from exc
+    sources = test_source_paths(question, path.parent)
+    # A linked test file is part of the question: editing it alone must
+    # change the version, or the push would skip the question.
+    content = raw + b"".join(b"\0" + source.read_bytes() for source in sources)
     return QuestionFile(
         slug=slug,
-        version=question_version(raw),
+        version=question_version(content),
         question=question,
         path=path,
         status=question_status(rel_path),
+        sources=sources,
     )
+
+
+def test_source_paths(question: AnyQuestion, base: Path) -> tuple[Path, ...]:
+    """
+    The files a `code` question links as test sources, relative to `base`
+    and without repeats; empty for any other question.
+    """
+    if not isinstance(question, CodeQuestion):
+        return ()
+    origins = dict.fromkeys(
+        source.origin for source in question.tests or [] if source.origin
+    )
+    return tuple(base / origin for origin in origins)
+
+
+def resolve_test_sources(question: AnyQuestion, base: Path) -> AnyQuestion:
+    """
+    Read the linked test sources of a `code` question and resolve them with
+    `CodeQuestion.resolve`; any other question comes back unchanged.
+
+    Links are relative to `base`, the directory of the file that holds the
+    question. A source with a fenced `text` is not touched.
+
+    Raises:
+        QuestionSourceError: a linked file is missing or is not UTF-8 text.
+        pydantic.ValidationError: a file breaks the rules of the annotations.
+    """
+    if not isinstance(question, CodeQuestion):
+        return question
+    texts: dict[str, str] = {}
+    for source in question.tests or []:
+        if source.origin is None or source.text is not None:
+            continue
+        path = base / source.origin
+        try:
+            texts[source.origin] = path.read_text(encoding="utf-8")
+        except (OSError, UnicodeDecodeError) as exc:
+            raise QuestionSourceError(path, source.origin, exc) from exc
+    return question.resolve(texts)
+
+
+def resolve_exam_sources(exam: mdq.Exam, base: Path) -> mdq.Exam:
+    """
+    Resolve the test sources of every inline question of an exam, with links
+    relative to `base`, the directory of the exam file.
+
+    Included questions are left alone: they come from a bank, which resolves
+    them against their own files.
+
+    Raises:
+        QuestionSourceError: a linked file is missing or is not UTF-8 text.
+        pydantic.ValidationError: a file breaks the rules of the annotations.
+    """
+    entries = [
+        resolve_test_sources(entry, base) if isinstance(entry, CodeQuestion) else entry
+        for entry in exam.questions
+    ]
+    return exam.model_copy(update={"questions": entries})

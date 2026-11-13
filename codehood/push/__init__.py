@@ -28,6 +28,7 @@ from .calendar import (
 from .errors import (
     CalendarError,
     QuestionParseError,
+    QuestionSourceError,
     RepositoryError,
     ResourceLinkError,
     SlugCollisionError,
@@ -163,6 +164,7 @@ __all__ = [
     "Plan",
     "QuestionFile",
     "QuestionParseError",
+    "QuestionSourceError",
     "Rejected",
     "RepositoryApi",
     "RepositoryEntry",

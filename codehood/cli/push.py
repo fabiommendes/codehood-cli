@@ -20,6 +20,7 @@ from ..push.base import BaseState, load_base, save_base
 from ..push.calendar import allocate, parse_calendar
 from ..push.errors import (
     CalendarError,
+    QuestionSourceError,
     RepositoryError,
     ResourceFileError,
     ResourceLinkError,
@@ -63,7 +64,7 @@ from ..push.plan import (
     Write,
     plan_sync,
 )
-from ..push.question import scan_questions
+from ..push.question import QuestionFile, scan_questions
 from ..push.report import (
     describe_server_drifted,
     sync_exit_code,
@@ -170,6 +171,7 @@ def push(
         ValidationError,
         CalendarError,
         SlugCollisionError,
+        QuestionSourceError,
         ResourceLinkError,
         ResourceFileError,
         RepositoryError,
@@ -406,6 +408,8 @@ def read_local_state(path: Path, config: RepoConfig) -> LocalState:
             are the only source of the course's description and dates.
         CalendarError: `calendar.md` does not parse.
         SlugCollisionError: Two resources or two questions want one slug.
+        QuestionSourceError: A test file linked by a `code` question cannot
+            be read.
         RepositoryError: A folder under `repositories/` cannot be pushed.
         ResourceLinkError: A lesson links a missing resource or repository.
         ResourceFileError: An `info.yaml` or a `.url` file is malformed.
@@ -438,6 +442,14 @@ def read_local_state(path: Path, config: RepoConfig) -> LocalState:
     scanned = tuple(scan_resources(path, exclude, extras))
     resources = rewrite_body_links(attach_resources(linked, scanned, path), path, key)
 
+    questions = tuple(scan_questions(path, exclude))
+    sources = [
+        source
+        for question in questions
+        if isinstance(question, QuestionFile)
+        for source in question.sources
+    ]
+
     return LocalState(
         key=key,
         description=description,
@@ -449,11 +461,11 @@ def read_local_state(path: Path, config: RepoConfig) -> LocalState:
         ),
         resources=resources,
         repositories=trees,
-        questions=tuple(scan_questions(path, exclude)),
+        questions=questions,
         excluded=tuple(scan_excluded(path, exclude)),
         unconsumed=find_unconsumed(
             files,
-            consumed=consumed_paths(tracked),
+            consumed=consumed_paths(tracked, sources=sources, root=path),
             excluded=excluded_paths(tracked),
             gitignore=gitignore,
             codehoodignore=ignore,
