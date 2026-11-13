@@ -6191,6 +6191,14 @@
                     "PRETEST_FAILED"
                   ]
                 },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "AUTOSAVE",
+                    "SUBMIT",
+                    "FINAL"
+                  ]
+                },
                 "automaticallyTriggered": {
                   "type": "boolean"
                 },
@@ -6237,6 +6245,7 @@
                 "response",
                 "question",
                 "status",
+                "kind",
                 "automaticallyTriggered",
                 "payload",
                 "startedAt",
@@ -6322,6 +6331,14 @@
               "PRETEST_FAILED"
             ]
           },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "AUTOSAVE",
+              "SUBMIT",
+              "FINAL"
+            ]
+          },
           "automaticallyTriggered": {
             "type": "boolean"
           },
@@ -6368,6 +6385,7 @@
           "response",
           "question",
           "status",
+          "kind",
           "automaticallyTriggered",
           "payload",
           "startedAt",
@@ -30937,6 +30955,14 @@
                                 "PRETEST_FAILED"
                               ]
                             },
+                            "kind": {
+                              "type": "string",
+                              "enum": [
+                                "AUTOSAVE",
+                                "SUBMIT",
+                                "FINAL"
+                              ]
+                            },
                             "automaticallyTriggered": {
                               "type": "boolean"
                             },
@@ -30983,6 +31009,7 @@
                             "response",
                             "question",
                             "status",
+                            "kind",
                             "automaticallyTriggered",
                             "payload",
                             "startedAt",
@@ -31177,6 +31204,14 @@
                               "PRETEST_FAILED"
                             ]
                           },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "AUTOSAVE",
+                              "SUBMIT",
+                              "FINAL"
+                            ]
+                          },
                           "automaticallyTriggered": {
                             "type": "boolean"
                           },
@@ -31223,6 +31258,7 @@
                           "response",
                           "question",
                           "status",
+                          "kind",
                           "automaticallyTriggered",
                           "payload",
                           "startedAt",
@@ -31381,6 +31417,14 @@
                               "PRETEST_FAILED"
                             ]
                           },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "AUTOSAVE",
+                              "SUBMIT",
+                              "FINAL"
+                            ]
+                          },
                           "automaticallyTriggered": {
                             "type": "boolean"
                           },
@@ -31427,6 +31471,7 @@
                           "response",
                           "question",
                           "status",
+                          "kind",
                           "automaticallyTriggered",
                           "payload",
                           "startedAt",
@@ -31597,6 +31642,14 @@
                               "PRETEST_FAILED"
                             ]
                           },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "AUTOSAVE",
+                              "SUBMIT",
+                              "FINAL"
+                            ]
+                          },
                           "automaticallyTriggered": {
                             "type": "boolean"
                           },
@@ -31643,6 +31696,7 @@
                           "response",
                           "question",
                           "status",
+                          "kind",
                           "automaticallyTriggered",
                           "payload",
                           "startedAt",
@@ -31946,6 +32000,14 @@
                           "PRETEST_FAILED"
                         ]
                       },
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "AUTOSAVE",
+                          "SUBMIT",
+                          "FINAL"
+                        ]
+                      },
                       "automaticallyTriggered": {
                         "type": "boolean"
                       },
@@ -31992,6 +32054,7 @@
                       "response",
                       "question",
                       "status",
+                      "kind",
                       "automaticallyTriggered",
                       "payload",
                       "startedAt",
@@ -32074,6 +32137,14 @@
                         "PRETEST_FAILED"
                       ]
                     },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "AUTOSAVE",
+                        "SUBMIT",
+                        "FINAL"
+                      ]
+                    },
                     "automaticallyTriggered": {
                       "type": "boolean"
                     },
@@ -32120,6 +32191,7 @@
                     "response",
                     "question",
                     "status",
+                    "kind",
                     "automaticallyTriggered",
                     "payload",
                     "startedAt",
@@ -32220,6 +32292,14 @@
                         "PRETEST_FAILED"
                       ]
                     },
+                    "kind": {
+                      "type": "string",
+                      "enum": [
+                        "AUTOSAVE",
+                        "SUBMIT",
+                        "FINAL"
+                      ]
+                    },
                     "automaticallyTriggered": {
                       "type": "boolean"
                     },
@@ -32266,6 +32346,7 @@
                     "response",
                     "question",
                     "status",
+                    "kind",
                     "automaticallyTriggered",
                     "payload",
                     "startedAt",
@@ -33662,6 +33743,13 @@
                       }
                     ]
                   },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "AUTOSAVE",
+                      "SUBMIT"
+                    ]
+                  },
                   "startedAt": {
                     "type": "string",
                     "format": "date-time"
@@ -33750,6 +33838,14 @@
                               "PRETEST_FAILED"
                             ]
                           },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "AUTOSAVE",
+                              "SUBMIT",
+                              "FINAL"
+                            ]
+                          },
                           "automaticallyTriggered": {
                             "type": "boolean"
                           },
@@ -33796,6 +33892,7 @@
                           "response",
                           "question",
                           "status",
+                          "kind",
                           "automaticallyTriggered",
                           "payload",
                           "startedAt",
@@ -35932,6 +36029,1883 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/InvalidCredentials"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grading-jobs/claim": {
+      "post": {
+        "operationId": "claimGradingJobs",
+        "summary": "Claim grading jobs",
+        "description": "Takes up to `limit` queued jobs of the listed workers, in the courses the key's owner teaches, and holds them for the key for `lease` seconds. Only BOT keys.",
+        "tags": [
+          "Grading Jobs"
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "workers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "pattern": "^[a-z0-9-]{1,40}$"
+                    },
+                    "minItems": 1
+                  },
+                  "limit": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 20,
+                    "default": 4
+                  },
+                  "discipline": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                    "example": "intro-to-recursion"
+                  },
+                  "course": {
+                    "type": "string",
+                    "minLength": 1,
+                    "example": "cs101/ada_2026-1"
+                  },
+                  "exam": {
+                    "type": "string",
+                    "maxLength": 200,
+                    "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                    "example": "intro-to-recursion"
+                  },
+                  "questions": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                      "example": "intro-to-recursion"
+                    }
+                  },
+                  "lease": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 600,
+                    "default": 120,
+                    "description": "Lease length in seconds."
+                  }
+                },
+                "required": [
+                  "workers"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "jobs": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "submission": {
+                            "type": "string",
+                            "maxLength": 64,
+                            "pattern": "^[A-Za-z0-9_\\-]+$",
+                            "example": "k3Vx9QpL2a"
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "SUBMIT",
+                              "FINAL"
+                            ]
+                          },
+                          "worker": {
+                            "type": "string",
+                            "pattern": "^[a-z0-9-]{1,40}$"
+                          },
+                          "question": {
+                            "oneOf": [
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "uuid": {
+                                    "type": "string",
+                                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "author": {
+                                    "type": "string"
+                                  },
+                                  "stem": {
+                                    "type": "string"
+                                  },
+                                  "epilogue": {
+                                    "type": "string"
+                                  },
+                                  "comment": {
+                                    "type": "string"
+                                  },
+                                  "locale": {
+                                    "type": "string"
+                                  },
+                                  "tags": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "uniqueItems": true
+                                  },
+                                  "weight": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "meta": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "nullable": true
+                                    }
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "multiple-choice"
+                                    ]
+                                  },
+                                  "choices": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string",
+                                          "pattern": "^[a-zA-Z0-9]+(?:[-_][a-zA-Z0-9]+)*$",
+                                          "example": "berlin"
+                                        },
+                                        "text": {
+                                          "type": "string"
+                                        },
+                                        "score": {
+                                          "type": "number",
+                                          "minimum": -1,
+                                          "maximum": 1
+                                        },
+                                        "feedback": {
+                                          "type": "string"
+                                        },
+                                        "comment": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "text"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "minItems": 2
+                                  },
+                                  "grading": {
+                                    "type": "string",
+                                    "enum": [
+                                      "partial",
+                                      "symmetric",
+                                      "inherit"
+                                    ]
+                                  },
+                                  "shuffle": {
+                                    "anyOf": [
+                                      {
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "inherit"
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "stem",
+                                  "type",
+                                  "choices"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "uuid": {
+                                    "type": "string",
+                                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "author": {
+                                    "type": "string"
+                                  },
+                                  "stem": {
+                                    "type": "string"
+                                  },
+                                  "epilogue": {
+                                    "type": "string"
+                                  },
+                                  "comment": {
+                                    "type": "string"
+                                  },
+                                  "locale": {
+                                    "type": "string"
+                                  },
+                                  "tags": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "uniqueItems": true
+                                  },
+                                  "weight": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "meta": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "nullable": true
+                                    }
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "multiple-selection"
+                                    ]
+                                  },
+                                  "choices": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string",
+                                          "pattern": "^[a-zA-Z0-9]+(?:[-_][a-zA-Z0-9]+)*$",
+                                          "example": "berlin"
+                                        },
+                                        "text": {
+                                          "type": "string"
+                                        },
+                                        "correct": {
+                                          "type": "boolean"
+                                        },
+                                        "feedback": {
+                                          "type": "string"
+                                        },
+                                        "comment": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "text",
+                                        "correct"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "minItems": 2
+                                  },
+                                  "grading": {
+                                    "type": "string",
+                                    "enum": [
+                                      "partial",
+                                      "all-or-nothing",
+                                      "symmetric",
+                                      "inherit"
+                                    ]
+                                  },
+                                  "shuffle": {
+                                    "anyOf": [
+                                      {
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "inherit"
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "stem",
+                                  "type",
+                                  "choices"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "uuid": {
+                                    "type": "string",
+                                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "author": {
+                                    "type": "string"
+                                  },
+                                  "stem": {
+                                    "type": "string"
+                                  },
+                                  "epilogue": {
+                                    "type": "string"
+                                  },
+                                  "comment": {
+                                    "type": "string"
+                                  },
+                                  "locale": {
+                                    "type": "string"
+                                  },
+                                  "tags": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "uniqueItems": true
+                                  },
+                                  "weight": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "meta": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "nullable": true
+                                    }
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "true-false"
+                                    ]
+                                  },
+                                  "choices": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "id": {
+                                          "type": "string",
+                                          "pattern": "^[a-zA-Z0-9]+(?:[-_][a-zA-Z0-9]+)*$",
+                                          "example": "berlin"
+                                        },
+                                        "text": {
+                                          "type": "string"
+                                        },
+                                        "correct": {
+                                          "type": "boolean"
+                                        },
+                                        "marker": {
+                                          "type": "string",
+                                          "minLength": 1
+                                        },
+                                        "feedback": {
+                                          "type": "string"
+                                        },
+                                        "comment": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "text",
+                                        "correct"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "minItems": 2
+                                  },
+                                  "grading": {
+                                    "type": "string",
+                                    "enum": [
+                                      "partial",
+                                      "no-mistakes",
+                                      "all-or-nothing",
+                                      "symmetric",
+                                      "inherit"
+                                    ]
+                                  },
+                                  "shuffle": {
+                                    "anyOf": [
+                                      {
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "inherit"
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "stem",
+                                  "type",
+                                  "choices"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "uuid": {
+                                    "type": "string",
+                                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "author": {
+                                    "type": "string"
+                                  },
+                                  "stem": {
+                                    "type": "string"
+                                  },
+                                  "epilogue": {
+                                    "type": "string"
+                                  },
+                                  "comment": {
+                                    "type": "string"
+                                  },
+                                  "locale": {
+                                    "type": "string"
+                                  },
+                                  "tags": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "uniqueItems": true
+                                  },
+                                  "weight": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "meta": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "nullable": true
+                                    }
+                                  },
+                                  "answer": {
+                                    "anyOf": [
+                                      {
+                                        "type": "number"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "pattern": "^[+-]?(?:(?:0|[1-9][0-9]*)\\/[1-9][0-9]*|(?:(?:0|[1-9][0-9]*)\\.[0-9]+|0|[1-9][0-9]*)(?:[eE][+-]?[0-9]{1,3})?)$",
+                                        "example": "1/3"
+                                      }
+                                    ]
+                                  },
+                                  "unit": {
+                                    "type": "string",
+                                    "pattern": "^[^()\\[\\]\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]+$",
+                                    "example": "m/s"
+                                  },
+                                  "domain": {
+                                    "type": "string",
+                                    "enum": [
+                                      "integer",
+                                      "decimal",
+                                      "fraction"
+                                    ]
+                                  },
+                                  "decimalPlaces": {
+                                    "type": "integer",
+                                    "minimum": 0
+                                  },
+                                  "tolerance": {
+                                    "type": "object",
+                                    "properties": {
+                                      "absolute": {
+                                        "type": "number",
+                                        "minimum": 0
+                                      },
+                                      "relative": {
+                                        "type": "number",
+                                        "minimum": 0
+                                      }
+                                    },
+                                    "additionalProperties": false
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "numeric"
+                                    ]
+                                  },
+                                  "incorrectFeedback": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "stem",
+                                  "answer",
+                                  "type"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "uuid": {
+                                    "type": "string",
+                                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "author": {
+                                    "type": "string"
+                                  },
+                                  "stem": {
+                                    "type": "string"
+                                  },
+                                  "epilogue": {
+                                    "type": "string"
+                                  },
+                                  "comment": {
+                                    "type": "string"
+                                  },
+                                  "locale": {
+                                    "type": "string"
+                                  },
+                                  "tags": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "uniqueItems": true
+                                  },
+                                  "weight": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "meta": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "nullable": true
+                                    }
+                                  },
+                                  "accept": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                          "example": "Brasília"
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "pattern": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                              "example": "Brasília"
+                                            },
+                                            "feedback": {
+                                              "type": "string"
+                                            },
+                                            "comment": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "pattern"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "reject": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                          "example": "Brasília"
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "pattern": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                              "example": "Brasília"
+                                            },
+                                            "feedback": {
+                                              "type": "string"
+                                            },
+                                            "comment": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "pattern"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "preAccept": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                          "example": "Brasília"
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "pattern": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                              "example": "Brasília"
+                                            },
+                                            "feedback": {
+                                              "type": "string"
+                                            },
+                                            "comment": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "pattern"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "preReject": {
+                                    "type": "array",
+                                    "items": {
+                                      "anyOf": [
+                                        {
+                                          "type": "string",
+                                          "minLength": 1,
+                                          "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                          "example": "Brasília"
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "pattern": {
+                                              "type": "string",
+                                              "minLength": 1,
+                                              "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                              "example": "Brasília"
+                                            },
+                                            "feedback": {
+                                              "type": "string"
+                                            },
+                                            "comment": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "pattern"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "short-answer"
+                                    ]
+                                  },
+                                  "diacritics": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fold",
+                                      "keep"
+                                    ]
+                                  },
+                                  "unmatched": {
+                                    "type": "string",
+                                    "enum": [
+                                      "manual",
+                                      "incorrect"
+                                    ]
+                                  },
+                                  "incorrectFeedback": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "stem",
+                                  "type"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "uuid": {
+                                    "type": "string",
+                                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "author": {
+                                    "type": "string"
+                                  },
+                                  "stem": {
+                                    "type": "string"
+                                  },
+                                  "epilogue": {
+                                    "type": "string"
+                                  },
+                                  "comment": {
+                                    "type": "string"
+                                  },
+                                  "locale": {
+                                    "type": "string"
+                                  },
+                                  "tags": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "uniqueItems": true
+                                  },
+                                  "weight": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "meta": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "nullable": true
+                                    }
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "essay"
+                                    ]
+                                  },
+                                  "content": {
+                                    "type": "string",
+                                    "enum": [
+                                      "code",
+                                      "text",
+                                      "plain"
+                                    ]
+                                  },
+                                  "highlight": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "answerKey": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "stem",
+                                  "type"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "uuid": {
+                                    "type": "string",
+                                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "author": {
+                                    "type": "string"
+                                  },
+                                  "stem": {
+                                    "type": "string"
+                                  },
+                                  "epilogue": {
+                                    "type": "string"
+                                  },
+                                  "comment": {
+                                    "type": "string"
+                                  },
+                                  "locale": {
+                                    "type": "string"
+                                  },
+                                  "tags": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "uniqueItems": true
+                                  },
+                                  "weight": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "meta": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "nullable": true
+                                    }
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fill-in"
+                                    ]
+                                  },
+                                  "blanks": {
+                                    "type": "array",
+                                    "items": {
+                                      "oneOf": [
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "id": {
+                                              "type": "string",
+                                              "pattern": "^[a-zA-Z0-9]+(?:[-_][a-zA-Z0-9]+)*$",
+                                              "example": "berlin"
+                                            },
+                                            "type": {
+                                              "type": "string",
+                                              "enum": [
+                                                "multiple-choice"
+                                              ]
+                                            },
+                                            "choices": {
+                                              "type": "array",
+                                              "items": {
+                                                "type": "object",
+                                                "properties": {
+                                                  "id": {
+                                                    "type": "string",
+                                                    "pattern": "^[a-zA-Z0-9]+(?:[-_][a-zA-Z0-9]+)*$",
+                                                    "example": "berlin"
+                                                  },
+                                                  "text": {
+                                                    "type": "string"
+                                                  },
+                                                  "score": {
+                                                    "type": "number",
+                                                    "minimum": -1,
+                                                    "maximum": 1
+                                                  },
+                                                  "feedback": {
+                                                    "type": "string"
+                                                  },
+                                                  "comment": {
+                                                    "type": "string"
+                                                  }
+                                                },
+                                                "required": [
+                                                  "text"
+                                                ],
+                                                "additionalProperties": false
+                                              },
+                                              "minItems": 2
+                                            }
+                                          },
+                                          "required": [
+                                            "id",
+                                            "type",
+                                            "choices"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "accept": {
+                                              "type": "array",
+                                              "items": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                                    "example": "Brasília"
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "pattern": {
+                                                        "type": "string",
+                                                        "minLength": 1,
+                                                        "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                                        "example": "Brasília"
+                                                      },
+                                                      "feedback": {
+                                                        "type": "string"
+                                                      },
+                                                      "comment": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "pattern"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  }
+                                                ]
+                                              },
+                                              "minItems": 1
+                                            },
+                                            "reject": {
+                                              "type": "array",
+                                              "items": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                                    "example": "Brasília"
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "pattern": {
+                                                        "type": "string",
+                                                        "minLength": 1,
+                                                        "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                                        "example": "Brasília"
+                                                      },
+                                                      "feedback": {
+                                                        "type": "string"
+                                                      },
+                                                      "comment": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "pattern"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  }
+                                                ]
+                                              },
+                                              "minItems": 1
+                                            },
+                                            "preAccept": {
+                                              "type": "array",
+                                              "items": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                                    "example": "Brasília"
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "pattern": {
+                                                        "type": "string",
+                                                        "minLength": 1,
+                                                        "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                                        "example": "Brasília"
+                                                      },
+                                                      "feedback": {
+                                                        "type": "string"
+                                                      },
+                                                      "comment": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "pattern"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  }
+                                                ]
+                                              },
+                                              "minItems": 1
+                                            },
+                                            "preReject": {
+                                              "type": "array",
+                                              "items": {
+                                                "anyOf": [
+                                                  {
+                                                    "type": "string",
+                                                    "minLength": 1,
+                                                    "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                                    "example": "Brasília"
+                                                  },
+                                                  {
+                                                    "type": "object",
+                                                    "properties": {
+                                                      "pattern": {
+                                                        "type": "string",
+                                                        "minLength": 1,
+                                                        "pattern": "^[ \\t]*(?:`[^\\r\\n]+`[ \\t]*|[^` \\t\\r\\n][^\\r\\n]*)?$",
+                                                        "example": "Brasília"
+                                                      },
+                                                      "feedback": {
+                                                        "type": "string"
+                                                      },
+                                                      "comment": {
+                                                        "type": "string"
+                                                      }
+                                                    },
+                                                    "required": [
+                                                      "pattern"
+                                                    ],
+                                                    "additionalProperties": false
+                                                  }
+                                                ]
+                                              },
+                                              "minItems": 1
+                                            },
+                                            "id": {
+                                              "type": "string",
+                                              "pattern": "^[a-zA-Z0-9]+(?:[-_][a-zA-Z0-9]+)*$",
+                                              "example": "berlin"
+                                            },
+                                            "type": {
+                                              "type": "string",
+                                              "enum": [
+                                                "short-answer"
+                                              ]
+                                            },
+                                            "incorrectFeedback": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "id",
+                                            "type"
+                                          ],
+                                          "additionalProperties": false
+                                        },
+                                        {
+                                          "type": "object",
+                                          "properties": {
+                                            "answer": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "number"
+                                                },
+                                                {
+                                                  "type": "string",
+                                                  "pattern": "^[+-]?(?:(?:0|[1-9][0-9]*)\\/[1-9][0-9]*|(?:(?:0|[1-9][0-9]*)\\.[0-9]+|0|[1-9][0-9]*)(?:[eE][+-]?[0-9]{1,3})?)$",
+                                                  "example": "1/3"
+                                                }
+                                              ]
+                                            },
+                                            "unit": {
+                                              "type": "string",
+                                              "pattern": "^[^()\\[\\]\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]+$",
+                                              "example": "m/s"
+                                            },
+                                            "domain": {
+                                              "type": "string",
+                                              "enum": [
+                                                "integer",
+                                                "decimal",
+                                                "fraction"
+                                              ]
+                                            },
+                                            "decimalPlaces": {
+                                              "type": "integer",
+                                              "minimum": 0
+                                            },
+                                            "tolerance": {
+                                              "type": "object",
+                                              "properties": {
+                                                "absolute": {
+                                                  "type": "number",
+                                                  "minimum": 0
+                                                },
+                                                "relative": {
+                                                  "type": "number",
+                                                  "minimum": 0
+                                                }
+                                              },
+                                              "additionalProperties": false
+                                            },
+                                            "id": {
+                                              "type": "string",
+                                              "pattern": "^[a-zA-Z0-9]+(?:[-_][a-zA-Z0-9]+)*$",
+                                              "example": "berlin"
+                                            },
+                                            "type": {
+                                              "type": "string",
+                                              "enum": [
+                                                "numeric"
+                                              ]
+                                            },
+                                            "incorrectFeedback": {
+                                              "type": "string"
+                                            }
+                                          },
+                                          "required": [
+                                            "answer",
+                                            "id",
+                                            "type"
+                                          ],
+                                          "additionalProperties": false
+                                        }
+                                      ]
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "grading": {
+                                    "type": "string",
+                                    "enum": [
+                                      "partial",
+                                      "no-mistakes",
+                                      "all-or-nothing",
+                                      "symmetric",
+                                      "inherit"
+                                    ]
+                                  },
+                                  "shuffle": {
+                                    "anyOf": [
+                                      {
+                                        "type": "boolean"
+                                      },
+                                      {
+                                        "type": "string",
+                                        "enum": [
+                                          "inherit"
+                                        ]
+                                      }
+                                    ]
+                                  },
+                                  "diacritics": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fold",
+                                      "keep"
+                                    ]
+                                  },
+                                  "unmatched": {
+                                    "type": "string",
+                                    "enum": [
+                                      "manual",
+                                      "incorrect"
+                                    ]
+                                  }
+                                },
+                                "required": [
+                                  "stem",
+                                  "type",
+                                  "blanks"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "uuid": {
+                                    "type": "string",
+                                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "author": {
+                                    "type": "string"
+                                  },
+                                  "stem": {
+                                    "type": "string"
+                                  },
+                                  "epilogue": {
+                                    "type": "string"
+                                  },
+                                  "comment": {
+                                    "type": "string"
+                                  },
+                                  "locale": {
+                                    "type": "string"
+                                  },
+                                  "tags": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "uniqueItems": true
+                                  },
+                                  "weight": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "meta": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "nullable": true
+                                    }
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "ordering"
+                                    ]
+                                  },
+                                  "lines": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          },
+                                          {
+                                            "type": "string",
+                                            "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                            "example": "Descobrimento do Brasil"
+                                          }
+                                        ]
+                                      },
+                                      "minItems": 2,
+                                      "maxItems": 2
+                                    },
+                                    "minItems": 2
+                                  },
+                                  "extra": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "array",
+                                      "items": {
+                                        "anyOf": [
+                                          {
+                                            "type": "integer",
+                                            "minimum": 0
+                                          },
+                                          {
+                                            "type": "string",
+                                            "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                            "example": "Descobrimento do Brasil"
+                                          }
+                                        ]
+                                      },
+                                      "minItems": 2,
+                                      "maxItems": 2
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "accept": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "lines": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "integer",
+                                                  "minimum": 0
+                                                },
+                                                {
+                                                  "type": "string",
+                                                  "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                                  "example": "Descobrimento do Brasil"
+                                                }
+                                              ]
+                                            },
+                                            "minItems": 2,
+                                            "maxItems": 2
+                                          },
+                                          "minItems": 1
+                                        },
+                                        "feedback": {
+                                          "type": "string"
+                                        },
+                                        "comment": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "lines"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "reject": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "lines": {
+                                          "type": "array",
+                                          "items": {
+                                            "type": "array",
+                                            "items": {
+                                              "anyOf": [
+                                                {
+                                                  "type": "integer",
+                                                  "minimum": 0
+                                                },
+                                                {
+                                                  "type": "string",
+                                                  "pattern": "^(?:[^ \\t\\r\\n](?:[^\\r\\n]*[^ \\t\\r\\n])?)?$",
+                                                  "example": "Descobrimento do Brasil"
+                                                }
+                                              ]
+                                            },
+                                            "minItems": 2,
+                                            "maxItems": 2
+                                          },
+                                          "minItems": 1
+                                        },
+                                        "feedback": {
+                                          "type": "string"
+                                        },
+                                        "comment": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "lines"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "content": {
+                                    "type": "string",
+                                    "enum": [
+                                      "code",
+                                      "text"
+                                    ]
+                                  },
+                                  "highlight": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "indentation": {
+                                    "type": "string",
+                                    "enum": [
+                                      "fixed",
+                                      "lenient",
+                                      "strict"
+                                    ]
+                                  },
+                                  "unmatched": {
+                                    "type": "string",
+                                    "enum": [
+                                      "manual",
+                                      "incorrect"
+                                    ]
+                                  },
+                                  "incorrectFeedback": {
+                                    "type": "string"
+                                  },
+                                  "normalizations": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string",
+                                      "enum": [
+                                        "dedent",
+                                        "skip-blanks"
+                                      ]
+                                    },
+                                    "uniqueItems": true
+                                  }
+                                },
+                                "required": [
+                                  "stem",
+                                  "type",
+                                  "lines",
+                                  "content"
+                                ],
+                                "additionalProperties": false
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "$schema": {
+                                    "type": "string"
+                                  },
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "uuid": {
+                                    "type": "string",
+                                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "author": {
+                                    "type": "string"
+                                  },
+                                  "stem": {
+                                    "type": "string"
+                                  },
+                                  "epilogue": {
+                                    "type": "string"
+                                  },
+                                  "comment": {
+                                    "type": "string"
+                                  },
+                                  "locale": {
+                                    "type": "string"
+                                  },
+                                  "tags": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "uniqueItems": true
+                                  },
+                                  "weight": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "meta": {
+                                    "type": "object",
+                                    "additionalProperties": {
+                                      "nullable": true
+                                    }
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "code"
+                                    ]
+                                  },
+                                  "language": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "pattern": "[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]",
+                                    "example": "python"
+                                  },
+                                  "file": {
+                                    "type": "string",
+                                    "minLength": 1,
+                                    "pattern": "^(?!\\.\\.?$)(?![\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000]+$)[^/\\\\]+$",
+                                    "example": "conta.py"
+                                  },
+                                  "tests": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "format": {
+                                          "type": "string",
+                                          "pattern": "^[^\\t\\n\\v\\f\\r \\x85\\xa0\\u1680\\u2000-\\u200a\\u2028\\u2029\\u202f\\u205f\\u3000`]+$",
+                                          "example": "pytest"
+                                        },
+                                        "text": {
+                                          "type": "string"
+                                        },
+                                        "origin": {
+                                          "type": "string",
+                                          "pattern": "^(?![A-Za-z][A-Za-z0-9+.-]*:)(?!\\/)[^?#\\r\\n]*[.][^.\\\\/?#\\r\\n]+$",
+                                          "example": "test_conta.py"
+                                        }
+                                      },
+                                      "required": [
+                                        "format"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "rubric": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "value": {
+                                          "type": "number"
+                                        },
+                                        "binding": {
+                                          "type": "string",
+                                          "enum": [
+                                            "manual"
+                                          ]
+                                        },
+                                        "text": {
+                                          "type": "string"
+                                        },
+                                        "feedback": {
+                                          "type": "string"
+                                        },
+                                        "comment": {
+                                          "type": "string"
+                                        }
+                                      },
+                                      "required": [
+                                        "binding",
+                                        "text"
+                                      ],
+                                      "additionalProperties": false
+                                    },
+                                    "minItems": 1
+                                  },
+                                  "template": {
+                                    "type": "string"
+                                  },
+                                  "answerKey": {
+                                    "type": "string"
+                                  }
+                                },
+                                "required": [
+                                  "stem",
+                                  "type"
+                                ],
+                                "additionalProperties": false
+                              }
+                            ]
+                          },
+                          "exam": {
+                            "type": "string",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                            "example": "intro-to-recursion"
+                          },
+                          "course": {
+                            "type": "string",
+                            "example": "cs101/ada_2026-1"
+                          },
+                          "student": {
+                            "type": "string"
+                          },
+                          "answer": {
+                            "type": "string"
+                          },
+                          "leaseUntil": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "submission",
+                          "kind",
+                          "worker",
+                          "question",
+                          "exam",
+                          "course",
+                          "student",
+                          "answer",
+                          "leaseUntil"
+                        ]
+                      }
+                    }
+                  },
+                  "required": [
+                    "jobs"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grading-jobs/{submission}/renew": {
+      "post": {
+        "operationId": "renewGradingJob",
+        "summary": "Renew the lease of a grading job",
+        "description": "Extends a lease the key holds. 409 when the key does not hold the job. Only BOT keys.",
+        "tags": [
+          "Grading Jobs"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "submission",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lease": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 600,
+                    "default": 120,
+                    "description": "Lease length in seconds."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "leaseUntil": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "leaseUntil"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grading-jobs/{submission}/fail": {
+      "post": {
+        "operationId": "failGradingJob",
+        "summary": "Give up a grading job",
+        "description": "Reports that the worker could not grade the job. With `retry` the attempt counts; without it the job returns to the queue untouched. 409 when the key does not hold the job. Only BOT keys.",
+        "tags": [
+          "Grading Jobs"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "submission",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "error": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 4000
+                  },
+                  "retry": {
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "error",
+                  "retry"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "QUEUED",
+                        "CLAIMED",
+                        "DONE",
+                        "FAILED",
+                        "CANCELLED"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "state"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/grading-jobs/{submission}/result": {
+      "post": {
+        "operationId": "reportGradingJob",
+        "summary": "Report the result of a grading job",
+        "description": "Sends the runner report. The server validates it against the question: 400 when invalid, 409 when the key does not hold the job or the job is closed. Only BOT keys.",
+        "tags": [
+          "Grading Jobs"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "submission",
+            "in": "path"
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "description": "A runner report, as mdq's runner-report schema defines it."
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "state": {
+                      "type": "string",
+                      "enum": [
+                        "QUEUED",
+                        "CLAIMED",
+                        "DONE",
+                        "FAILED",
+                        "CANCELLED"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "PENDING_GRADE",
+                        "WILL_NOT_GRADE",
+                        "GRADED_AUTOMATICALLY",
+                        "GRADED_MANUALLY",
+                        "PRETEST_FAILED"
+                      ]
+                    },
+                    "score": {
+                      "type": "number"
+                    }
+                  },
+                  "required": [
+                    "state",
+                    "status"
+                  ]
                 }
               }
             }
