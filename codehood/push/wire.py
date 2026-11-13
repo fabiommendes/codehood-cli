@@ -16,6 +16,7 @@ compared on its own.
 from __future__ import annotations
 
 from datetime import date
+from typing import TYPE_CHECKING
 
 import mdq
 from pydantic import JsonValue
@@ -24,6 +25,9 @@ from ..models.repo import CourseKey
 from .calendar import Event, TimeSlot
 from .grades import GradeColumn
 from .question import QuestionFile
+
+if TYPE_CHECKING:
+    from .exam import ExamFile
 from .resource import CodeData, FileData, LinkData, MdData, ResourceFile
 
 __all__ = [
@@ -31,6 +35,7 @@ __all__ = [
     "canonical_question",
     "course_payload",
     "event_payload",
+    "exam_payload",
     "grade_column_payload",
     "instant",
     "question_payload",
@@ -129,6 +134,37 @@ def question_payload(file: QuestionFile) -> Payload:
     and the version digests the file's bytes rather than its content.
     """
     return {"slug": file.slug, "question": canonical_question(file.question)}
+
+
+def exam_payload(file: ExamFile) -> Payload:
+    """
+    The body of an exam's `PUT`, without its `status` and `rev`.
+
+    The questions are sent as `{slug, version: null}`, which the server
+    reads as the latest version of each. `duration` and `scheduledAt` are
+    left out when the file declares none, since an instructor action may set
+    them on the server and a push must not blank them.
+    """
+    questions: list[JsonValue] = [
+        {"slug": slug, "version": None} for slug in file.questions
+    ]
+    tags: list[JsonValue] = [*file.tags]
+    payload: Payload = {
+        "slug": file.slug,
+        "type": file.type,
+        "title": file.title,
+        "description": file.description,
+        "preamble": file.preamble,
+        "format": "MARKDOWN",
+        "tags": tags,
+        "allowCodeRun": file.allow_code_run,
+        "questions": questions,
+    }
+    if file.duration is not None:
+        payload["duration"] = file.duration
+    if file.scheduled_at is not None:
+        payload["scheduledAt"] = file.scheduled_at
+    return payload
 
 
 def time_slot_payload(slot: TimeSlot) -> Payload:
