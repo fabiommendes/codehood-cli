@@ -11,23 +11,23 @@ Um dicionário liga **chaves** a **valores**:
 
 ```python
 player = {"x": 80, "y": 100, "vidas": 3, "nome": "Ada"}
-print(player["vidas"])  # 3
+print(player["vidas"])      # 3
 player["vidas"] -= 1
-player["escudo"] = True  # cria uma chave nova
+player["escudo"] = True     # cria uma chave nova
 ```
 
 Acessar uma chave que não existe com `[]` causa `KeyError`. Para um valor
 padrão, use `get`:
 
 ```python
-player.get("bomba")  # None
-player.get("bomba", 0)  # 0
+player.get("bomba")         # None
+player.get("bomba", 0)      # 0
 ```
 
 Operações comuns:
 
 ```python
-"x" in player  # True
+"x" in player               # True
 for chave, valor in player.items():
     print(chave, valor)
 del player["escudo"]
@@ -42,8 +42,8 @@ Uma tupla é uma sequência **imutável**:
 
 ```python
 posicao = (80, 100)
-x, y = posicao  # desempacotamento
-posicao[0] = 5  # TypeError
+x, y = posicao              # desempacotamento
+posicao[0] = 5              # TypeError
 ```
 
 Para mudar uma posição, crie outra tupla. Use tuplas para valores que

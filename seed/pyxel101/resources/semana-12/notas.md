@@ -50,10 +50,10 @@ aceita oitavas de 0 a 4.
 ## Tocando
 
 ```python
-pyxel.play(0, 0)  # canal 0, som 0
-pyxel.play(1, 1)  # canal 1, som 1
+pyxel.play(0, 0)           # canal 0, som 0
+pyxel.play(1, 1)           # canal 1, som 1
 pyxel.play(0, 0, loop=True)
-pyxel.stop()  # para todos os canais
+pyxel.stop()               # para todos os canais
 ```
 
 Escolha canais diferentes para sons que podem tocar ao mesmo tempo (um efeito
@@ -65,7 +65,7 @@ com a barra de espaço e uma batida com X.
 ```python
 pyxel.sounds[0].set("e3e3g3a3 g3e3d3c3", "s", "6", "nnnf", 20)
 pyxel.sounds[1].set("c2r g1r c2r g1r", "t", "5", "n", 20)
-pyxel.musics[0].set([0], [1])  # canal 0 toca o som 0, canal 1 toca o 1
+pyxel.musics[0].set([0], [1])       # canal 0 toca o som 0, canal 1 toca o 1
 pyxel.playm(0, loop=True)
 ```
 

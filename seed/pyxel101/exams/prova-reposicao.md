@@ -106,7 +106,6 @@ def clamp(value, low, high):
         return high
     return value
 
-
 player_x = clamp(player_x, 0, pyxel.width - 8)
 ```
 

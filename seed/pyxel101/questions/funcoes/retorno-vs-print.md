@@ -11,7 +11,6 @@ O que o programa abaixo mostra no terminal?
 def dobra(x):
     print(x * 2)
 
-
 resultado = dobra(4)
 print(resultado)
 ```

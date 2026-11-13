@@ -12,9 +12,9 @@ usamos uma **lista**.
 
 ```python
 inimigos = ["slime", "morcego", "fantasma"]
-print(inimigos[0])  # slime
-print(inimigos[-1])  # fantasma, o último
-print(len(inimigos))  # 3
+print(inimigos[0])      # slime
+print(inimigos[-1])     # fantasma, o último
+print(len(inimigos))    # 3
 ```
 
 Os índices começam em 0. Índices negativos contam do fim: `-1` é o último, `-2`
@@ -28,10 +28,10 @@ Ao contrário de strings, listas são mutáveis:
 
 ```python
 inimigos[0] = "alien"
-inimigos.append("slime")  # acrescenta ao fim
-inimigos.insert(0, "morcego")  # insere no começo
-ultimo = inimigos.pop()  # remove e devolve o último
-inimigos.remove("alien")  # remove o primeiro "alien"
+inimigos.append("slime")        # acrescenta ao fim
+inimigos.insert(0, "morcego")   # insere no começo
+ultimo = inimigos.pop()         # remove e devolve o último
+inimigos.remove("alien")        # remove o primeiro "alien"
 ```
 
 | Método            | O que faz                                  | Resultado em `[1, 2]` |
@@ -47,17 +47,17 @@ inimigos.remove("alien")  # remove o primeiro "alien"
 
 ```python
 n = [10, 20, 30, 40, 50]
-n[1:4]  # [20, 30, 40]
-n[:2]  # [10, 20]
-n[3:]  # [40, 50]
-n[::-1]  # [50, 40, 30, 20, 10]
+n[1:4]     # [20, 30, 40]
+n[:2]      # [10, 20]
+n[3:]      # [40, 50]
+n[::-1]    # [50, 40, 30, 20, 10]
 ```
 
 ## Laços sobre listas
 
 ```python
 for gota in gotas:
-    gota[1] += 3  # cada gota é [x, y]
+    gota[1] += 3          # cada gota é [x, y]
 ```
 
 Para ter o índice junto: `for i, gota in enumerate(gotas)`. Para desempacotar
@@ -71,7 +71,7 @@ linha só. A forma geral é `[expressão for item in lista if condição]`, e o
 
 ```python
 n = [1, 2, 3, 4, 5, 6]
-dobros = [v * 2 for v in n]  # [2, 4, 6, 8, 10, 12]
+dobros = [v * 2 for v in n]          # [2, 4, 6, 8, 10, 12]
 pares = [v for v in n if v % 2 == 0]  # [2, 4, 6]
 ```
 
@@ -93,15 +93,15 @@ próxima seção.
 ```python
 for g in gotas:
     if g[1] > 120:
-        gotas.remove(g)  # ERRADO: pula o próximo elemento
+        gotas.remove(g)      # ERRADO: pula o próximo elemento
 ```
 
 Ao remover, os elementos seguintes mudam de índice, e o `for` segue em frente
 sem perceber. Há duas saídas seguras, a primeira usando uma compreensão:
 
 ```python
-gotas = [g for g in gotas if g[1] <= 120]  # reconstrói a lista
-for g in list(gotas):  # percorre uma cópia
+gotas = [g for g in gotas if g[1] <= 120]     # reconstrói a lista
+for g in list(gotas):                          # percorre uma cópia
     ...
 ```
 

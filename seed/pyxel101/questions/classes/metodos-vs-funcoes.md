@@ -11,7 +11,6 @@ class Enemy:
     def move(self):
         self.x += 1
 
-
 enemy = Enemy()
 ```
 

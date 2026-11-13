@@ -45,74 +45,47 @@ Parsing and allocation, no clock, no network, no warnings module.
 type Weekday = Literal["SUNDAY", "MONDAY", ..., "SATURDAY"]
 type EventKind = Literal["REGULAR", "HOLIDAY"]
 
-
 @dataclass(frozen=True)
-class TimeOfDay:
-    hour: int
-    minute: int
-
-
+class TimeOfDay:  hour: int; minute: int
 @dataclass(frozen=True)
-class Duration:
-    hours: int
-    minutes: int
-
+class Duration:   hours: int; minutes: int
 
 @dataclass(frozen=True)
 class TimeSlot:
-    slug: str
-    day: Weekday
-    start: TimeOfDay
-    duration: Duration
-    title: str | None
-
+    slug: str; day: Weekday; start: TimeOfDay
+    duration: Duration; title: str | None
     @property
-    def ref(self) -> str: ...  # md5 over its own pushable fields
-
-
-@dataclass(frozen=True)
-class Holiday:
-    month: int
-    day: int
-    title: str
-
+    def ref(self) -> str: ...        # md5 over its own pushable fields
 
 @dataclass(frozen=True)
-class Section:  # one h2, before any date is assigned
-    title: str
-    description: str
-    fixed_date: date | None
-
+class Holiday:  month: int; day: int; title: str
 
 @dataclass(frozen=True)
-class Calendar:  # `calendar.md`, parsed and nothing more
-    start: date
-    end: date
+class Section:                       # one h2, before any date is assigned
+    title: str; description: str; fixed_date: date | None
+
+@dataclass(frozen=True)
+class Calendar:                      # `calendar.md`, parsed and nothing more
+    start: date; end: date
     slots: tuple[TimeSlot, ...]
     holidays: tuple[Holiday, ...]
     sections: tuple[Section, ...]
 
-
 @dataclass(frozen=True)
-class Event:  # allocated, ready to push
-    week: int
-    time_slot: str  # `time_slot` is a TimeSlot.slug
-    title: str
-    description: str
+class Event:                         # allocated, ready to push
+    week: int; time_slot: str        # `time_slot` is a TimeSlot.slug
+    title: str; description: str
     kind: EventKind
-
     @property
-    def ref(self) -> str: ...  # md5(f"{title}#{description}")
-
+    def ref(self) -> str: ...        # md5(f"{title}#{description}")
 
 @dataclass(frozen=True)
 class Allocation:
     events: tuple[Event, ...]
     warnings: tuple[str, ...]
 
-
-def parse_calendar(text: str) -> Calendar: ...  # raises CalendarError
-def allocate(calendar: Calendar) -> Allocation: ...  # raises CalendarError
+def parse_calendar(text: str) -> Calendar: ...          # raises CalendarError
+def allocate(calendar: Calendar) -> Allocation: ...     # raises CalendarError
 ```
 
 `Event.time_slot` is a slug, not a `TimeSlot`: `(week, timeSlot-slug)` is the
@@ -165,31 +138,24 @@ asks for: a caller cannot silently swap `server_resources` for
 ```python
 @dataclass(frozen=True)
 class LocalState:
-    discipline: str
-    course: str
-    description: str  # README body, H1 dropped
-    start: date
-    end: date  # from calendar.md, NOT the edition
+    discipline: str; course: str
+    description: str                 # README body, H1 dropped
+    start: date; end: date           # from calendar.md, NOT the edition
     slots: tuple[TimeSlot, ...]
     events: tuple[Event, ...]
     resources: tuple[ResourceFile, ...] = ()
     questions: tuple[QuestionFile, ...] = ()
 
+@dataclass(frozen=True)
+class ServerEvent: ref: str; kind: Literal["REGULAR","HOLIDAY","CANCELLED"]
 
 @dataclass(frozen=True)
-class ServerEvent:
-    ref: str
-    kind: Literal["REGULAR", "HOLIDAY", "CANCELLED"]
-
-
-@dataclass(frozen=True)
-class ServerState:  # moves here from run.py: it is pure data
+class ServerState:                   # moves here from run.py: it is pure data
     course_exists: bool
-    resources: Mapping[str, str]  # slug -> ref
-    questions: Mapping[str, str]  # slug -> version
-    time_slots: Mapping[str, str]  # slug -> ref
+    resources: Mapping[str, str]                    # slug -> ref
+    questions: Mapping[str, str]                    # slug -> version
+    time_slots: Mapping[str, str]                   # slug -> ref
     calendar_events: Mapping[tuple[int, str], ServerEvent]
-
 
 def plan_push(local: LocalState, server: ServerState) -> Iterator[PushOp]: ...
 ```
@@ -198,24 +164,13 @@ New ops, each carrying the whole value rather than re-flattening its fields:
 
 ```python
 @dataclass(frozen=True)
-class UpsertTimeSlot:
-    slot: TimeSlot
-
-
+class UpsertTimeSlot:      slot: TimeSlot
 @dataclass(frozen=True)
-class DeleteTimeSlot:
-    slug: str
-
-
+class DeleteTimeSlot:      slug: str
 @dataclass(frozen=True)
-class UpsertCalendarEvent:
-    event: Event
-
-
+class UpsertCalendarEvent: event: Event
 @dataclass(frozen=True)
-class DeleteCalendarEvent:
-    week: int
-    time_slot: str
+class DeleteCalendarEvent: week: int; time_slot: str
 ```
 
 Diff rules:

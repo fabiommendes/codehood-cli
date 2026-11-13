@@ -67,4 +67,5 @@ mdq = { path = "../../mdq/mdq-py", editable = true }
 
 [tool.ruff]
 # Written by `codehood.api.generate`; tests/test_generated_in_sync.py checks it byte for byte.
-extend-exclude = ["codehood/api/generated.py"]
+# Markdown is content (questions, docs), never reformatted.
+extend-exclude = ["codehood/api/generated.py", "*.md"]
