@@ -9,11 +9,6 @@ from ..globs import is_excluded
 from .diff import AddFile, Diff, FileType
 
 MDQ_SUFFIXES = (".md", ".mdq")
-EXAM_TYPES = {
-    "draft": FileType.EXAM_DRAFT,
-    "practice": FileType.EXAM_PRACTICE,
-    "published": FileType.EXAM_PUBLISHED,
-}
 
 
 #
@@ -75,18 +70,17 @@ def scan_files(root: Path, exclude: Sequence[str] = ()) -> Iterable[File]:
                 excluded=excluded,
             )
 
-    # Exams
-    for kind, typ in EXAM_TYPES.items():
-        for exam in (root / "exams" / kind).glob("*"):
-            name = str(exam.relative_to(root / "exams"))
-            if exam.suffix in MDQ_SUFFIXES:
-                yield File(name, typ)
-            else:
-                yield File(
-                    name,
-                    FileType.WARNING,
-                    f"not an exam file: {kind}/{exam.name}",
-                )
+    # Exams -- recurses, and only files become exams. The directories are
+    # the author's: type and status come from the path (see `push.exam`).
+    base = root / "exams"
+    for exam in sorted(base.rglob("*")):
+        if exam.is_dir():
+            continue
+        name = str(exam.relative_to(base))
+        if exam.suffix in MDQ_SUFFIXES:
+            yield File(name, FileType.EXAM)
+        else:
+            yield File(name, FileType.WARNING, f"not an exam file: {name}")
 
 
 #

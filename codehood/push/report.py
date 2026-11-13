@@ -52,6 +52,7 @@ KIND_LABELS: dict[EntityKind, str] = {
     "course": "course",
     "resource": "resource",
     "question": "question",
+    "exam": "exam",
     "time_slot": "time slot",
     "calendar_event": "calendar event",
     "grade_column": "grade column",

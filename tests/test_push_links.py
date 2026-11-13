@@ -942,7 +942,7 @@ def test_fetch_server_state_reads_each_resource_s_event_key():
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path.endswith("/resource"):
             return httpx.Response(200, json=listing)
-        if request.url.path.endswith(("/question", "/time-slot")):
+        if request.url.path.endswith(("/question", "/exam", "/time-slot")):
             return httpx.Response(200, json=[])
         if request.url.path.endswith(("/calendar-event", "/grade-column")):
             return httpx.Response(200, json=[])
@@ -976,7 +976,7 @@ def test_dry_run_reports_the_resource_whose_server_event_was_lost(
             return httpx.Response(
                 200, json=[_server_resource_json(local.slug, local.ref, None)]
             )
-        if path.endswith(("/question", "/grade-column")):
+        if path.endswith(("/question", "/exam", "/grade-column")):
             return httpx.Response(200, json=[])
         if (response := _calendar_defaults(request)) is not None:
             return response

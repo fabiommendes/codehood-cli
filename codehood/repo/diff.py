@@ -16,9 +16,7 @@ class FileType(enum.IntEnum):
     CALENDAR = 4
     QUESTION = 8
     RESOURCE = 16
-    EXAM_DRAFT = 32
-    EXAM_PRACTICE = 33
-    EXAM_PUBLISHED = 34
+    EXAM = 32
 
     def path(self, rel_path: Path | str, /) -> Path:
         """
@@ -36,9 +34,7 @@ class FileType(enum.IntEnum):
 BASE_PATHS = {
     FileType.QUESTION: Path("questions"),
     FileType.RESOURCE: Path("resources"),
-    FileType.EXAM_DRAFT: Path("exams") / "draft",
-    FileType.EXAM_PRACTICE: Path("exams") / "practice",
-    FileType.EXAM_PUBLISHED: Path("exams") / "published",
+    FileType.EXAM: Path("exams"),
 }
 
 

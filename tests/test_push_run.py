@@ -27,12 +27,14 @@ from codehood.push.calendar import Duration, Event, EventKey, TimeOfDay, TimeSlo
 from codehood.push.grades import GradeColumn
 from codehood.push.plan import (
     DeleteCalendarEvent,
+    DeleteExam,
     DeleteGradeColumn,
     DeleteQuestion,
     DeleteResource,
     DeleteTimeSlot,
     UpsertCalendarEvent,
     UpsertCourse,
+    UpsertExam,
     UpsertGradeColumn,
     UpsertQuestion,
     UpsertResource,
@@ -235,6 +237,8 @@ def test_fetch_server_state_reports_course_and_resource_refs():
                     _resource_json("week1-notes", "ref-b"),
                 ],
             )
+        if request.url.path == f"{BASE}/exam":
+            return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/question":
             return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/time-slot":
@@ -262,6 +266,8 @@ def test_fetch_server_state_reports_question_versions():
         if request.url.path == BASE:
             return httpx.Response(200, json=_course_json())
         if request.url.path == f"{BASE}/resource":
+            return httpx.Response(200, json=[])
+        if request.url.path == f"{BASE}/exam":
             return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/question":
             return httpx.Response(
@@ -299,6 +305,8 @@ def test_fetch_server_state_keeps_a_null_question_rev_null():
     def handler(request: httpx.Request) -> httpx.Response:
         if request.url.path == BASE:
             return httpx.Response(200, json=_course_json())
+        if request.url.path == f"{BASE}/exam":
+            return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/question":
             return httpx.Response(
                 200,
@@ -367,6 +375,8 @@ def test_fetch_server_state_recomputes_time_slot_refs_locally():
             return httpx.Response(200, json=_course_json())
         if request.url.path == f"{BASE}/resource":
             return httpx.Response(200, json=[])
+        if request.url.path == f"{BASE}/exam":
+            return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/question":
             return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/time-slot":
@@ -406,6 +416,7 @@ def test_fetch_server_state_reads_every_entity_from_its_listing():
         listings = {
             f"{BASE}/resource": [_resource_json("a", "ra"), _resource_json("b", "rb")],
             f"{BASE}/question": [_question_json("q", "v")],
+            f"{BASE}/exam": [],
             f"{BASE}/time-slot": [_timeslot_json("mon", "MONDAY", 14, 0, 2, 0)],
             f"{BASE}/calendar-event": [
                 _calendar_event_json(0, "mon", "MONDAY", 14, 0, 2, 0, "Intro", None)
@@ -423,6 +434,7 @@ def test_fetch_server_state_reads_every_entity_from_its_listing():
             BASE,
             f"{BASE}/resource",
             f"{BASE}/question",
+            f"{BASE}/exam",
             f"{BASE}/time-slot",
             f"{BASE}/calendar-event",
             f"{BASE}/grade-column",
@@ -436,6 +448,8 @@ def test_fetch_server_state_reports_calendar_events_as_markers():
         if request.url.path == BASE:
             return httpx.Response(200, json=_course_json())
         if request.url.path == f"{BASE}/resource":
+            return httpx.Response(200, json=[])
+        if request.url.path == f"{BASE}/exam":
             return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/question":
             return httpx.Response(200, json=[])
@@ -1282,3 +1296,145 @@ def test_run_plan_delete_grade_column_addresses_it_by_slug():
     )
     assert result.ok is True
     assert calls == [("DELETE", f"{BASE}/grade-column/final")]
+
+
+#
+# Exams
+#
+def _exam_json(slug: str, status: str = "SCHEDULED", **overrides) -> dict:
+    body = {
+        "slug": slug,
+        "type": "EXAM",
+        "status": status,
+        "title": "Midterm",
+        "description": None,
+        "preamble": None,
+        "format": "MARKDOWN",
+        "scheduledAt": None,
+        "duration": None,
+        "extraTime": None,
+        "allowCodeRun": None,
+        "answerHistory": None,
+        "gradesReleasedAt": None,
+        "author": "ada",
+        "rev": "v1:abc",
+        "tags": ["b", "a"],
+        "questions": [{"slug": "q1", "version": "md5:x"}],
+        "createdAt": "2026-01-01T00:00:00Z",
+        "updatedAt": "2026-01-02T00:00:00Z",
+    }
+    body.update(overrides)
+    return body
+
+
+def test_fetch_server_state_lists_the_live_exams_with_their_status():
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path == BASE:
+            return httpx.Response(200, json=_course_json())
+        if request.url.path == f"{BASE}/exam":
+            seen["statuses"] = request.url.params.get_list("statuses")
+            return httpx.Response(
+                200,
+                json=[
+                    _exam_json("mid"),
+                    _exam_json("fin", "ONGOING", duration={"hours": 2, "minutes": 0}),
+                ],
+            )
+        return httpx.Response(200, json=[])
+
+    state = fetch_server_state(DISCIPLINE, COURSE, _client(handler))
+
+    assert sorted(
+        seen["statuses"][0].split(",")
+        if len(seen["statuses"]) == 1
+        else seen["statuses"]
+    ) == [
+        "COMPLETED",
+        "DRAFT",
+        "ONGOING",
+        "SCHEDULED",
+    ]
+    assert {slug: e.status for slug, e in state.exams.items()} == {
+        "mid": "SCHEDULED",
+        "fin": "ONGOING",
+    }
+    entry = state.exams["mid"].entry
+    assert entry.rev == "v1:abc"
+    assert entry.updated_at == "2026-01-02T00:00:00Z"
+    assert entry.payload["tags"] == ["a", "b"]
+    assert entry.payload["questions"] == [{"slug": "q1", "version": None}]
+    assert state.exams["fin"].entry.payload["duration"] == {"hours": 2, "minutes": 0}
+
+
+def test_run_plan_upsert_exam_leaves_out_what_the_file_does_not_declare():
+    sent: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        assert request.method == "PUT"
+        assert request.url.path == f"{BASE}/exam"
+        sent.update(json.loads(request.content))
+        return httpx.Response(200, json=_exam_json("mid", "DRAFT", rev="v1:new"))
+
+    payload = {
+        "slug": "mid",
+        "type": "EXAM",
+        "title": "Midterm",
+        "description": None,
+        "preamble": None,
+        "format": "MARKDOWN",
+        "tags": ["a"],
+        "allowCodeRun": None,
+        "questions": [{"slug": "q1", "version": None}],
+    }
+    op = UpsertExam("mid", payload, "DRAFT", "v1:new", Path("exams/mid.md"))
+    [result] = list(
+        run_plan([op], discipline=DISCIPLINE, course=COURSE, client=_client(handler))
+    )
+
+    assert result.ok is True
+    assert result.rev == "v1:new"
+    assert result.updated_at == "2026-01-02T00:00:00Z"
+    assert "duration" not in sent and "scheduledAt" not in sent
+    assert sent["description"] is None
+    assert sent["preamble"] is None
+    assert sent["allowCodeRun"] is None
+    assert sent["status"] == "DRAFT"
+    assert sent["rev"] == "v1:new"
+    assert sent["questions"] == [{"slug": "q1", "version": None}]
+
+
+def test_run_plan_upsert_exam_reports_the_servers_refusal():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(400, json={"message": "bad duration"})
+
+    op = UpsertExam("mid", {"slug": "mid"}, "DRAFT", "v1:x", Path("exams/mid.md"))
+    [result] = list(
+        run_plan([op], discipline=DISCIPLINE, course=COURSE, client=_client(handler))
+    )
+
+    assert result.ok is False
+    assert "bad duration" in result.message
+
+
+def test_run_plan_delete_exam_deletes_by_slug():
+    seen: list[tuple[str, str]] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append((request.method, request.url.path))
+        return httpx.Response(
+            200, json={"success": True, "message": "ok", "deleted": True}
+        )
+
+    [result] = list(
+        run_plan(
+            [DeleteExam("old")],
+            discipline=DISCIPLINE,
+            course=COURSE,
+            client=_client(handler),
+        )
+    )
+
+    assert result.ok is True
+    assert seen == [("DELETE", f"{BASE}/exam/old")]

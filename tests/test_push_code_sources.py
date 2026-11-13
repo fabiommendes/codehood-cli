@@ -248,7 +248,7 @@ def test_push_does_not_report_a_linked_test_file_as_not_pushed(tmp_path, monkeyp
     def get_client(base_url=None):
         def handler(request: httpx.Request) -> httpx.Response:
             if request.method == "GET" and request.url.path.endswith(
-                ("/resource", "/grade-column", "/question")
+                ("/resource", "/grade-column", "/question", "/exam")
             ):
                 return httpx.Response(200, json=[])
             return httpx.Response(404, json={"message": "not found"})

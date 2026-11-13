@@ -26,6 +26,7 @@ from ..push.errors import (
     ResourceLinkError,
     SlugCollisionError,
 )
+from ..push.exam import inline_questions, scan_exams
 from ..push.exclude import scan_excluded
 from ..push.grades import GradesError
 from ..push.links import (
@@ -164,8 +165,8 @@ def push(
     ] = None,
 ) -> None:
     """
-    Sync the repository's course row, repositories, calendar, resources,
-    questions and grade columns.
+    Sync the repository's course row, repositories, calendar, resources, questions,
+    exams and grade columns.
     """
     try:
         config = RepoConfig.open(path)
@@ -447,9 +448,11 @@ def read_local_state(path: Path, config: RepoConfig) -> LocalState:
     resources = rewrite_body_links(attach_resources(linked, scanned, path), path, key)
 
     questions = tuple(scan_questions(path, exclude))
+    excluded = tuple(scan_excluded(path, exclude))
+    exams = tuple(scan_exams(path, questions, excluded))
     sources = [
         source
-        for question in questions
+        for question in (*questions, *inline_questions(exams))
         if isinstance(question, QuestionFile)
         for source in question.sources
     ]
@@ -466,7 +469,8 @@ def read_local_state(path: Path, config: RepoConfig) -> LocalState:
         resources=resources,
         repositories=trees,
         questions=questions,
-        excluded=tuple(scan_excluded(path, exclude)),
+        exams=exams,
+        excluded=excluded,
         unconsumed=find_unconsumed(
             files,
             consumed=consumed_paths(tracked, sources=sources, root=path),
@@ -541,7 +545,7 @@ def describe_notice(notice: Notice) -> str:
     """
     match notice:
         case Rejected():
-            return f"question {notice.slug} ({notice.path.name}): {notice.reason}"
+            return f"{notice.kind} {notice.slug} ({notice.path.name}): {notice.reason}"
         case KeptDraftPublished():
             return (
                 f"question {notice.slug} (its file marks a draft): kept "

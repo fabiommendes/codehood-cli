@@ -108,3 +108,23 @@ def test_a_stamp_the_server_did_not_send_stays_empty():
     state = apply(BaseState(), put_plan(), [OpResult(PUT, True, "ok", updated_at="t1")])
 
     assert state.time_slots["mon"] == BaseEntry({"v": 1}, rev=None, updated_at="t1")
+
+
+def test_exams_are_kept_in_the_base_through_a_push():
+    from pathlib import Path
+
+    from codehood.push.plan import UpsertExam
+
+    op = UpsertExam("mid", {"slug": "mid"}, "DRAFT", "v1:x", Path("exams/mid.md"))
+    plan = Plan(
+        writes=(op,),
+        confirmations=(Confirmation(op, BaseUpdate("exam", "mid", LOCAL)),),
+    )
+    before = BaseState(exams={"other": OLD})
+
+    state = apply(before, plan, [OpResult(op, True, "ok", rev="r1", updated_at="t1")])
+
+    assert state.exams == {
+        "other": OLD,
+        "mid": BaseEntry({"v": 1}, rev="r1", updated_at="t1"),
+    }

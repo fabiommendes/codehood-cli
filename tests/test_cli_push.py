@@ -348,6 +348,8 @@ def test_dry_run_prints_a_warning_for_a_cancelled_events_pinned_slot(repo, monke
             return httpx.Response(200, json=_course_json())
         if request.url.path == f"{BASE}/resource":
             return httpx.Response(200, json=[])
+        if request.url.path == f"{BASE}/exam":
+            return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/question":
             return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/repository":
@@ -421,6 +423,8 @@ def test_no_prune_reports_deletion_without_executing_it(repo, monkeypatch):
                     _resource_json("stale-handout", "server-only-ref"),
                 ],
             )
+        if request.url.path == f"{BASE}/exam":
+            return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/question" and request.method == "GET":
             # `fetch_server_state` now also reads questions; this repo
             # fixture has none, so nothing is planned for them either way.
@@ -468,6 +472,8 @@ def test_a_failed_operation_exits_nonzero_but_still_runs_the_rest(repo, monkeypa
             return httpx.Response(200, json=[])
         if request.url.path == COURSE_COLLECTION and request.method == "PUT":
             return httpx.Response(200, json=_course_json())
+        if request.url.path == f"{BASE}/exam":
+            return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/question" and request.method == "GET":
             return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/time-slot" and request.method == "PUT":
@@ -602,6 +608,8 @@ def test_no_prune_skips_question_deletions(repo_with_question, monkeypatch):
                 200,
                 json=[_local_resource_json(repo_with_question)],
             )
+        if request.url.path == f"{BASE}/exam":
+            return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/question" and request.method == "GET":
             # `big-o` is local, `stale-warmup` is server-only -- the local
             # question is unchanged, so only `stale-warmup` is a deletion
@@ -666,6 +674,8 @@ def test_a_failed_question_operation_exits_nonzero_but_still_runs_the_rest(
         if request.url.path == f"{BASE}/resource" and request.method == "PUT":
             slug = json.loads(request.content)["slug"]
             return httpx.Response(200, json=_resource_json(slug, "whatever"))
+        if request.url.path == f"{BASE}/exam":
+            return httpx.Response(200, json=[])
         if request.url.path == f"{BASE}/question" and request.method == "PUT":
             return httpx.Response(500, json={"message": "server error"})
         if (response := _calendar_defaults(request)) is not None:
@@ -724,6 +734,8 @@ def _roll_call_server_handler(repo, calls: list[tuple[str, str]]):
             return httpx.Response(200, json=_course_json())
         if path == f"{BASE}/resource" and method == "GET":
             return httpx.Response(200, json=[_local_resource_json(repo)])
+        if path == f"{BASE}/exam":
+            return httpx.Response(200, json=[])
         if path == f"{BASE}/question" and method == "GET":
             return httpx.Response(200, json=[])
         if path == f"{BASE}/time-slot" and method == "GET":
@@ -840,6 +852,8 @@ def _server_with(
             return httpx.Response(200, json=_course_json())
         if path == f"{BASE}/resource" and method == "GET":
             return httpx.Response(200, json=resources or [])
+        if path == f"{BASE}/exam":
+            return httpx.Response(200, json=[])
         if path == f"{BASE}/question" and method == "GET":
             return httpx.Response(200, json=questions or [])
         if path == COURSE_COLLECTION and method == "PUT":
@@ -847,6 +861,8 @@ def _server_with(
         if path == f"{BASE}/resource" and method == "PUT":
             slug = json.loads(request.content)["slug"]
             return httpx.Response(200, json=_resource_json(slug, "whatever"))
+        if path == f"{BASE}/exam":
+            return httpx.Response(200, json=[])
         if path == f"{BASE}/question" and method == "PUT":
             slug = json.loads(request.content)["slug"]
             return httpx.Response(200, json=_question_json(slug, "whatever"))
@@ -1054,7 +1070,7 @@ def _write(root, relative: str, text: str = "x\n") -> None:
 
 
 def _course(repo, monkeypatch, *, repositories: bool = True):
-    _write(repo, "exams/exam/x.md", "# exam\n")
+    _write(repo, "exams/notes.txt")
     _write(repo, "notes.txt")
     _write(repo, "solutions/s1.py")
     if repositories:
@@ -1069,7 +1085,7 @@ def _course(repo, monkeypatch, *, repositories: bool = True):
 
 
 def _check(output: str) -> None:
-    assert "not pushed (no handler): exams/exam/x.md" in output
+    assert "not pushed (no handler): exams/notes.txt" in output
     assert "not pushed (no handler): notes.txt" in output
     assert "not pushed (no handler): solutions/s1.py" in output
     assert "not pushed (no handler): questions/notes.txt" in output
@@ -1348,3 +1364,29 @@ def test_a_failed_ours_write_keeps_the_base_and_fails_the_push(repo, monkeypatch
 
     assert result.exit_code == 1, result.output
     assert _stored_base(repo, "resources")["week1-slides"] == before
+
+
+def test_an_exam_with_a_broken_include_is_invalid_and_fails_the_push(repo, monkeypatch):
+    _write(repo, "exams/broken.md", "# [broken] Broken\n\n---\ninclude: nope\n---\n")
+    _install_transport(monkeypatch, _server_with([]))
+
+    result = runner.invoke(app, ["push", str(repo), "--dry-run"])
+
+    assert result.exit_code != 0
+    assert "invalid  exam broken (broken.md): include 'nope' matches no question" in (
+        result.output
+    )
+
+
+def test_a_dry_run_plans_an_exam_with_its_type_and_status(repo, monkeypatch):
+    _write(
+        repo,
+        "exams/quiz/week1.md",
+        "---\nstart: 2026-03-15T14:00:00\n---\n\n# [week1] Week 1\n",
+    )
+    _install_transport(monkeypatch, _server_with([]))
+
+    result = runner.invoke(app, ["push", str(repo), "--dry-run"])
+
+    assert result.exit_code == 0, result.output
+    assert "planned  exam week1 (QUIZ, SCHEDULED)" in result.output

@@ -466,6 +466,8 @@ class Rejected:
     slug: str
     path: Path
     reason: str
+    #: What the refused file holds.
+    kind: Literal["question", "exam"] = "question"
 
 
 @dataclass(frozen=True)
@@ -1401,7 +1403,11 @@ def _sync_exams(local: LocalState, base: BaseState, remote: ServerState) -> Plan
     ) -> Decision:
         file = files.get(key)
         if isinstance(file, InvalidExam):
-            return Keep(Rejected(slug=file.slug, path=file.path, reason=file.reason))
+            return Keep(
+                Rejected(
+                    slug=file.slug, path=file.path, reason=file.reason, kind="exam"
+                )
+            )
         exam = remote.exams.get(key)
         # `duration` and `scheduledAt` may be set on the server by an
         # instructor: what the local side does not declare is not compared.

@@ -25,6 +25,7 @@ from ..api import generated
 from ..api.base import CodehoodAPIError, auth_headers, query_params
 from ..grades import ExamResult, ExamState
 from .base import BaseEntry, BaseState
+from .exam import ExamStatus
 from .grades import ServerStudent
 from .plan import (
     BaseUpdate,
@@ -39,6 +40,7 @@ from .plan import (
     EntityKind,
     Plan,
     ServerEvent,
+    ServerExam,
     ServerQuestion,
     ServerState,
     UpsertCalendarEvent,
@@ -55,6 +57,7 @@ from .project import (
     RemoteEntry,
     project_calendar_event,
     project_course,
+    project_exam,
     project_grade_column,
     project_question,
     project_resource,
@@ -307,6 +310,12 @@ def fetch_server_state(
         discipline=discipline, course=course, client=client
     )
     questions = _list_questions(discipline, course, client)
+    exams = generated.list_exam(
+        discipline=discipline,
+        course=course,
+        statuses=["DRAFT", "SCHEDULED", "ONGOING", "COMPLETED"],
+        client=client,
+    )
     time_slots = generated.list_timeslot(
         discipline=discipline, course=course, client=client
     )
@@ -346,6 +355,15 @@ def fetch_server_state(
             str(question["slug"]): _server_question(question)
             for question in questions
             if question["status"] != "ARCHIVED"
+        },
+        exams={
+            exam.slug: ServerExam(
+                entry=RemoteEntry(
+                    project_exam(exam), rev=exam.rev, updated_at=exam.updated_at
+                ),
+                status=cast(ExamStatus, exam.status),
+            )
+            for exam in exams
         },
         time_slots={
             slot.slug: RemoteEntry(
@@ -465,6 +483,7 @@ def apply(base: BaseState, plan: Plan, results: Sequence[OpResult]) -> BaseState
         course=collections["course"],
         resources=collections["resource"],
         questions=collections["question"],
+        exams=collections["exam"],
         time_slots=collections["time_slot"],
         calendar_events=collections["calendar_event"],
         grade_columns=collections["grade_column"],
@@ -479,6 +498,7 @@ COLLECTION_OF: dict[EntityKind, str] = {
     "course": "course",
     "resource": "resources",
     "question": "questions",
+    "exam": "exams",
     "time_slot": "time_slots",
     "calendar_event": "calendar_events",
     "grade_column": "grade_columns",
@@ -573,8 +593,14 @@ def _run_op(
             return _run_delete_question(
                 op, discipline=discipline, course=course, client=client
             )
-        case UpsertExam() | DeleteExam():
-            raise NotImplementedError("exams are not executed yet")
+        case UpsertExam():
+            return _run_upsert_exam(
+                op, discipline=discipline, course=course, client=client
+            )
+        case DeleteExam():
+            return _run_delete_exam(
+                op, discipline=discipline, course=course, client=client
+            )
         case UpsertTimeSlot():
             return _run_upsert_time_slot(
                 op, discipline=discipline, course=course, client=client
@@ -807,6 +833,44 @@ def _run_delete_question(
 ) -> OpResult:
     try:
         generated.delete_question(
+            discipline=discipline, course=course, slug=op.slug, client=client
+        )
+    except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
+    return OpResult(op=op, ok=True, message=f"deleted {op.slug}")
+
+
+def _run_upsert_exam(
+    op: UpsertExam, *, discipline: str, course: str, client: httpx.Client
+) -> OpResult:
+    # Sent as plain JSON: the generated body would put an explicit `null` on
+    # the wire for `duration` and `scheduledAt`, which the server may hold
+    # from an instructor action and a push must never blank.
+    body = {**op.payload, "status": op.status, "rev": op.rev}
+    try:
+        response = client.put(
+            f"/api/course/{discipline}/{course}/exam",
+            json=body,
+            headers=auth_headers(client),
+        )
+        response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
+    stored = _Stored.of(response)
+    return OpResult(
+        op=op,
+        ok=True,
+        message=f"upserted {op.slug}",
+        rev=stored.rev,
+        updated_at=stored.updated_at,
+    )
+
+
+def _run_delete_exam(
+    op: DeleteExam, *, discipline: str, course: str, client: httpx.Client
+) -> OpResult:
+    try:
+        generated.delete_exam(
             discipline=discipline, course=course, slug=op.slug, client=client
         )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:

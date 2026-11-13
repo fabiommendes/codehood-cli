@@ -366,7 +366,9 @@ def test_an_unresolved_include_keeps_the_server_copy():
 
     assert exam_writes(result) == []
     assert result.rejected == (
-        Rejected("mid", Path("exams/mid.md"), "include 'x' matches no question"),
+        Rejected(
+            "mid", Path("exams/mid.md"), "include 'x' matches no question", "exam"
+        ),
     )
 
 

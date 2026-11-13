@@ -89,7 +89,7 @@ def consumed_paths(
     `sources` are the test files that `code` questions link. They count as
     read when they lie under `root`.
     """
-    tracked = {FileType.QUESTION, FileType.RESOURCE}
+    tracked = {FileType.QUESTION, FileType.RESOURCE, FileType.EXAM}
     linked = {
         relative.as_posix()
         for source in sources

@@ -86,6 +86,7 @@ class FakeCourseServer:
             return httpx.Response(200, json=self.course)
         if method == "GET" and path in (
             f"{BASE}/question",
+            f"{BASE}/exam",
             f"{BASE}/grade-column",
             f"{BASE}/roll-call",
             f"{BASE}/repository",
