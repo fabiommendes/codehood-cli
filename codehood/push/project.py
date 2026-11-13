@@ -32,6 +32,7 @@ __all__ = [
     "RemoteEntry",
     "project_calendar_event",
     "project_course",
+    "project_exam",
     "project_grade_column",
     "project_question",
     "project_resource",
@@ -128,6 +129,37 @@ def project_question(item: Mapping[str, JsonValue]) -> Payload:
     except ValidationError:
         return {"slug": item["slug"], "question": document}
     return {"slug": item["slug"], "question": canonical_question(question)}
+
+
+def project_exam(exam: generated.Exam) -> Payload:
+    """
+    The payload of an exam `PUT`, without `status` and `rev`.
+
+    `duration` and `scheduledAt` are left out when the server holds none, the
+    way a file that declares none leaves them out of its payload. The
+    questions come back unpinned: a push never sends a version.
+    """
+    questions: list[JsonValue] = [
+        {"slug": item.slug, "version": None} for item in exam.questions
+    ]
+    tags: list[JsonValue] = [*exam.tags]
+    payload: Payload = {
+        "slug": exam.slug,
+        "type": exam.type,
+        "title": exam.title,
+        "description": exam.description,
+        "preamble": exam.preamble,
+        "format": exam.format,
+        "tags": tags,
+        "allowCodeRun": exam.allow_code_run,
+        "questions": questions,
+    }
+    if exam.duration is not None:
+        minutes = (exam.duration.hours or 0) * 60 + (exam.duration.minutes or 0)
+        payload["duration"] = {"hours": minutes // 60, "minutes": minutes % 60}
+    if exam.scheduled_at is not None:
+        payload["scheduledAt"] = _instant(exam.scheduled_at)
+    return payload
 
 
 def project_time_slot(slot: generated.TimeSlot) -> Payload:

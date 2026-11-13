@@ -31,6 +31,15 @@ from typing import Literal
 from ..models.repo import CourseKey
 from .base import BaseEntry, BaseState
 from .calendar import Event, EventKey, TimeSlot
+from .exam import (
+    LIVE_STATUSES,
+    ExamFile,
+    ExamStatus,
+    IgnoredExamPolicy,
+    InvalidExam,
+    LocalExamStatus,
+    inline_questions,
+)
 from .exclude import ExcludedFile
 from .grades import GradeColumn
 from .project import RemoteEntry, resource_event_of
@@ -41,6 +50,7 @@ from .wire import (
     Payload,
     course_payload,
     event_payload,
+    exam_payload,
     grade_column_payload,
     instant,
     question_payload,
@@ -57,6 +67,7 @@ __all__ = [
     "ConflictReason",
     "Decision",
     "DeleteCalendarEvent",
+    "DeleteExam",
     "DeleteGradeColumn",
     "DeleteQuestion",
     "DeleteRepository",
@@ -64,9 +75,11 @@ __all__ = [
     "DeleteRollCall",
     "DeleteTimeSlot",
     "EntityKind",
+    "IgnoredExamPolicy",
     "Keep",
     "KeptCancelled",
     "KeptDraftPublished",
+    "KeptExamLive",
     "KeptForRollCall",
     "KeptPinnedSlot",
     "KeptRepository",
@@ -80,11 +93,13 @@ __all__ = [
     "Rejected",
     "ServerDrifted",
     "ServerEvent",
+    "ServerExam",
     "ServerQuestion",
     "ServerState",
     "Skip",
     "UpsertCalendarEvent",
     "UpsertCourse",
+    "UpsertExam",
     "UpsertGradeColumn",
     "UpsertQuestion",
     "UpsertRepository",
@@ -137,6 +152,8 @@ class LocalState:
     events: tuple[Event, ...] = ()
     resources: tuple[ResourceFile, ...] = ()
     questions: tuple[QuestionFile | InvalidQuestion, ...] = ()
+    #: The exam files. Their inline questions join `questions` in the plan.
+    exams: tuple[ExamFile | InvalidExam, ...] = ()
     grade_columns: tuple[GradeColumn, ...] | None = ()
     repositories: tuple[RepositoryTree, ...] = ()
     #: Files left out by `[push] exclude`: never written, never pruned.
@@ -187,6 +204,19 @@ class ServerQuestion:
 
 
 @dataclass(frozen=True)
+class ServerExam:
+    """
+    What the sync preflight reports about one exam.
+
+    `entry` is the exam as the server holds it, projected to the payload;
+    `status` stays out of it, as for questions.
+    """
+
+    entry: RemoteEntry
+    status: ExamStatus = "DRAFT"
+
+
+@dataclass(frozen=True)
 class ServerState:
     """
     What the server currently holds for a course.
@@ -200,6 +230,7 @@ class ServerState:
     course: RemoteEntry | None = None
     resources: Mapping[str, RemoteEntry] = field(default_factory=dict)
     questions: Mapping[str, ServerQuestion] = field(default_factory=dict)
+    exams: Mapping[str, ServerExam] = field(default_factory=dict)
     time_slots: Mapping[str, RemoteEntry] = field(default_factory=dict)
     calendar_events: Mapping[tuple[int, str], ServerEvent] = field(default_factory=dict)
     grade_columns: Mapping[str, RemoteEntry] = field(default_factory=dict)
@@ -283,6 +314,29 @@ class UpsertQuestion:
 class DeleteQuestion:
     """
     A question to delete by slug: its local file is gone.
+    """
+
+    slug: str
+
+
+@dataclass(frozen=True)
+class UpsertExam:
+    """
+    One exam to `PUT`: its payload, plus the `status` and `rev` that stay
+    out of it.
+    """
+
+    slug: str
+    payload: Payload
+    status: ExamStatus
+    rev: str
+    path: Path
+
+
+@dataclass(frozen=True)
+class DeleteExam:
+    """
+    An exam to delete by slug: its local file is gone. The server archives it.
     """
 
     slug: str
@@ -386,6 +440,8 @@ Write = (
     | DeleteResource
     | UpsertQuestion
     | DeleteQuestion
+    | UpsertExam
+    | DeleteExam
     | UpsertTimeSlot
     | DeleteTimeSlot
     | UpsertCalendarEvent
@@ -421,6 +477,21 @@ class KeptDraftPublished:
     slug: str
     status: QuestionStatus
     path: Path
+
+
+@dataclass(frozen=True)
+class KeptExamLive:
+    """
+    An exam the server has moved to `ONGOING` or `COMPLETED`, kept at that
+    status whatever the file says: a push never takes a running exam back.
+
+    `wanted` is the status the file asks for, `None` when its file is gone.
+    """
+
+    slug: str
+    status: ExamStatus
+    wanted: LocalExamStatus | None
+    path: Path | None = None
 
 
 @dataclass(frozen=True)
@@ -492,6 +563,8 @@ Notice = (
     Rejected
     | ServerDrifted
     | KeptDraftPublished
+    | KeptExamLive
+    | IgnoredExamPolicy
     | KeptPinnedSlot
     | KeptForRollCall
     | KeptRepository
@@ -594,7 +667,13 @@ class Plan:
 #: The kinds of entity a plan compares against the base, one per `BaseState`
 #: collection.
 type EntityKind = Literal[
-    "course", "resource", "question", "time_slot", "calendar_event", "grade_column"
+    "course",
+    "resource",
+    "question",
+    "exam",
+    "time_slot",
+    "calendar_event",
+    "grade_column",
 ]
 
 
@@ -1025,13 +1104,14 @@ def plan_sync(
     Each entity goes through `three_way` on payloads in the wire format:
     local through the `wire` constructors, base and server as stored. The
     plan keeps the order: course, repositories, calendar, resources,
-    questions, grade columns. Repositories and grade columns stay one-way:
+    questions, exams, grade columns. Repositories and grade columns stay one-way:
     the repository overwrites, and a grade column the server holds in a form
     other than the base's gets a `ServerDrifted` notice.
 
     The course row is never pulled for removal: a course missing on the
     server is written back.
     """
+    local = _with_inline_questions(local)
     resources = _sync_resources(local, base, remote)
     return (
         _sync_course(local, base, remote)
@@ -1048,6 +1128,7 @@ def plan_sync(
         )
         + Plan.of(resources)
         + Plan.of(_sync_questions(local, base, remote))
+        + _sync_exams(local, base, remote)
         + _sync_grades(local, base, remote)
     )
 
@@ -1287,6 +1368,119 @@ def _sync_questions(
         decide,
         extra=[q.slug for q in local.questions if isinstance(q, InvalidQuestion)],
     )
+
+
+def _with_inline_questions(local: LocalState) -> LocalState:
+    """
+    `local` with the questions its exams write inline joined to `questions`,
+    so they are pushed like any other.
+    """
+    known = {question.slug for question in local.questions}
+    inline = tuple(q for q in inline_questions(local.exams) if q.slug not in known)
+    return replace(local, questions=local.questions + inline) if inline else local
+
+
+def _sync_exams(local: LocalState, base: BaseState, remote: ServerState) -> Plan:
+    files = {exam.slug: exam for exam in local.exams}
+
+    def decide(
+        key: str,
+        payload: Payload | None,
+        entry: BaseEntry | None,
+        server: RemoteEntry | None,
+    ) -> Decision:
+        file = files.get(key)
+        if isinstance(file, InvalidExam):
+            return Keep(Rejected(slug=file.slug, path=file.path, reason=file.reason))
+        exam = remote.exams.get(key)
+        # `duration` and `scheduledAt` may be set on the server by an
+        # instructor: what the local side does not declare is not compared.
+        declared = payload if payload is not None else entry.payload if entry else None
+        if declared is not None:
+            if server is not None:
+                server = replace(
+                    server, payload=_declared_only(server.payload, declared)
+                )
+            if entry is not None:
+                entry = replace(entry, payload=_declared_only(entry.payload, declared))
+        live = exam is not None and exam.status in LIVE_STATUSES
+        status: ExamStatus
+        notices: tuple[Notice, ...] = ()
+        if isinstance(file, ExamFile):
+            status = exam.status if exam is not None and live else file.status
+            if exam is not None and live:
+                notices = (
+                    KeptExamLive(
+                        slug=key, status=exam.status, wanted=file.status, path=file.path
+                    ),
+                )
+
+            def put() -> Put:
+                return Put(_upsert_exam(file, status), notices)
+
+        else:
+            status = "DRAFT"
+
+            def put() -> Put:
+                raise AssertionError("a missing exam is never written")
+
+        def prune() -> Decision:
+            if exam is not None and live:
+                return Keep(KeptExamLive(slug=key, status=exam.status, wanted=None))
+            return Prune(DeleteExam(slug=key))
+
+        decision = three_way(
+            "exam",
+            key,
+            payload,
+            entry,
+            server,
+            local_ref=file.rev if isinstance(file, ExamFile) else None,
+            server_ref=server.rev if server else None,
+            put=put,
+            prune=prune,
+        )
+        if not isinstance(decision, Skip) or not isinstance(file, ExamFile):
+            return decision
+        if exam is None:
+            return decision
+        if status != exam.status:
+            assert payload is not None
+            return _put("exam", key, payload, _upsert_exam(file, status), notices)
+        if notices:
+            return Keep(notices[0], decision.base)
+        return decision
+
+    decisions = _sync_kind(
+        "exam",
+        {
+            slug: exam_payload(file)
+            for slug, file in files.items()
+            if isinstance(file, ExamFile)
+        },
+        base.exams,
+        {slug: exam.entry for slug, exam in remote.exams.items()},
+        decide,
+        extra=[exam.slug for exam in local.exams if isinstance(exam, InvalidExam)],
+    )
+    ignored = tuple(
+        IgnoredExamPolicy(file.slug, file.path, file.ignored)
+        for file in files.values()
+        if isinstance(file, ExamFile) and file.ignored
+    )
+    return Plan.of(decisions) + Plan(notices=ignored)
+
+
+def _declared_only(server: Payload, declared: Payload) -> Payload:
+    """
+    `server` without the `duration` and `scheduledAt` that `declared` leaves
+    out.
+    """
+    return _without(server, tuple(k for k in _SERVER_SET if k not in declared))
+
+
+#: Payload fields of an exam that the server may set on its own.
+_SERVER_SET = ("duration", "scheduledAt")
 
 
 def _sync_calendar(
@@ -1588,7 +1782,7 @@ def _without_prunes(ours: tuple[Put | Prune, ...]) -> tuple[Put | Prune, ...]:
 
 #: Where each write sits in a plan: the course, the repositories, the
 #: calendar (removals of events, removals of time slots, time slots, events),
-#: then resources, questions and grade columns. A write only depends on
+#: then resources, questions, exams (removals, then writes) and grade columns. A write only depends on
 #: those before it.
 _WRITE_ORDER: tuple[tuple[type, ...], ...] = (
     (UpsertCourse,),
@@ -1599,6 +1793,8 @@ _WRITE_ORDER: tuple[tuple[type, ...], ...] = (
     (UpsertCalendarEvent,),
     (UpsertResource, DeleteResource),
     (UpsertQuestion, DeleteQuestion),
+    (DeleteExam,),
+    (UpsertExam,),
     (UpsertGradeColumn, DeleteGradeColumn),
 )
 
@@ -1677,6 +1873,17 @@ def _upsert_question(question: QuestionFile, status: QuestionStatus) -> UpsertQu
         question=question.question,
         path=question.path,
         status=status,
+    )
+
+
+def _upsert_exam(exam: ExamFile, status: ExamStatus) -> UpsertExam:
+    payload = exam_payload(exam)
+    return UpsertExam(
+        slug=exam.slug,
+        payload=payload,
+        status=status,
+        rev=exam.rev,
+        path=exam.path,
     )
 
 

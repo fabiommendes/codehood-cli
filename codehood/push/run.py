@@ -29,6 +29,7 @@ from .grades import ServerStudent
 from .plan import (
     BaseUpdate,
     DeleteCalendarEvent,
+    DeleteExam,
     DeleteGradeColumn,
     DeleteQuestion,
     DeleteRepository,
@@ -42,6 +43,7 @@ from .plan import (
     ServerState,
     UpsertCalendarEvent,
     UpsertCourse,
+    UpsertExam,
     UpsertGradeColumn,
     UpsertQuestion,
     UpsertRepository,
@@ -571,6 +573,8 @@ def _run_op(
             return _run_delete_question(
                 op, discipline=discipline, course=course, client=client
             )
+        case UpsertExam() | DeleteExam():
+            raise NotImplementedError("exams are not executed yet")
         case UpsertTimeSlot():
             return _run_upsert_time_slot(
                 op, discipline=discipline, course=course, client=client

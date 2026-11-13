@@ -16,9 +16,11 @@ from .plan import (
     ConflictReason,
     Decision,
     EntityKind,
+    IgnoredExamPolicy,
     Keep,
     KeptCancelled,
     KeptDraftPublished,
+    KeptExamLive,
     KeptForRollCall,
     KeptPinnedSlot,
     KeptRepository,
@@ -160,6 +162,8 @@ def describe_notice_drift(notice: Notice) -> str | None:
         case (
             Rejected()
             | KeptDraftPublished()
+            | KeptExamLive()
+            | IgnoredExamPolicy()
             | KeptPinnedSlot()
             | KeptForRollCall()
             | KeptRepository()

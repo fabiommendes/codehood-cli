@@ -47,6 +47,7 @@ COLLECTIONS = (
     "course",
     "resources",
     "questions",
+    "exams",
     "time_slots",
     "calendar_events",
     "grade_columns",
@@ -82,6 +83,7 @@ class BaseState:
     course: dict[str, BaseEntry] = field(default_factory=dict)
     resources: dict[str, BaseEntry] = field(default_factory=dict)
     questions: dict[str, BaseEntry] = field(default_factory=dict)
+    exams: dict[str, BaseEntry] = field(default_factory=dict)
     time_slots: dict[str, BaseEntry] = field(default_factory=dict)
     calendar_events: dict[str, BaseEntry] = field(default_factory=dict)
     grade_columns: dict[str, BaseEntry] = field(default_factory=dict)

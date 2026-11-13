@@ -38,14 +38,17 @@ from ..push.links import (
 from ..push.ours import ours_warnings, resolve_ours
 from ..push.plan import (
     DeleteCalendarEvent,
+    DeleteExam,
     DeleteGradeColumn,
     DeleteQuestion,
     DeleteRepository,
     DeleteResource,
     DeleteRollCall,
     DeleteTimeSlot,
+    IgnoredExamPolicy,
     KeptCancelled,
     KeptDraftPublished,
+    KeptExamLive,
     KeptForRollCall,
     KeptPinnedSlot,
     KeptRepository,
@@ -56,6 +59,7 @@ from ..push.plan import (
     ServerDrifted,
     UpsertCalendarEvent,
     UpsertCourse,
+    UpsertExam,
     UpsertGradeColumn,
     UpsertQuestion,
     UpsertRepository,
@@ -489,6 +493,10 @@ def describe(op: Write) -> str:
             return f"question {op.slug}"
         case DeleteQuestion():
             return f"delete question {op.slug}"
+        case UpsertExam():
+            return f"exam {op.slug} ({op.payload['type']}, {op.status})"
+        case DeleteExam():
+            return f"delete exam {op.slug}"
         case UpsertTimeSlot():
             return f"time slot {op.slot.slug}"
         case DeleteTimeSlot():
@@ -538,6 +546,14 @@ def describe_notice(notice: Notice) -> str:
             return (
                 f"question {notice.slug} (its file marks a draft): kept "
                 f"{notice.status}; hide it on the web or drop the `_`"
+            )
+        case KeptExamLive():
+            wanted = f" (file says {notice.wanted})" if notice.wanted else ""
+            return f"exam {notice.slug} kept at {notice.status}{wanted}"
+        case IgnoredExamPolicy():
+            return (
+                f"exam {notice.slug}: {', '.join(notice.fields)} "
+                "not sent, the server has no field for it"
             )
         case KeptPinnedSlot():
             events = ", ".join(f"{week}/{notice.slug}" for week in notice.weeks)
