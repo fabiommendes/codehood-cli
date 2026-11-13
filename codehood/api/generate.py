@@ -75,6 +75,10 @@ ENDPOINTS = {
     "readRoll-call",
     "updateRoll-call",
     "deleteRoll-call",
+    "claimGradingJobs",
+    "renewGradingJob",
+    "failGradingJob",
+    "reportGradingJob",
     # `file` is absent: `/api/file` is not in the document while the
     # multipart upload is being written (see `ROADBLOCKS.md` item 1).
 }

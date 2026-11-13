@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 import httpx
 from pydantic import ConfigDict, Field, TypeAdapter
@@ -35,6 +35,16 @@ class CalendarEventCreate(Model):
     rev: str | None = None
     repositories: list[str] | None = None
     time_slot: str = Field(alias="timeSlot")
+
+
+class ClaimGradingJobsRequest(Model):
+    workers: list[str]
+    limit: int | None = None
+    discipline: str | None = None
+    course: str | None = None
+    exam: str | None = None
+    questions: list[str] | None = None
+    lease: int | None = None
 
 
 class CourseAttendanceResponseStudentsItem(Model):
@@ -175,6 +185,15 @@ class ExamsItem(Model):
     slug: str
     title: str
     scheduled_at: str | None = Field(alias="scheduledAt")
+
+
+class FailGradingJobRequest(Model):
+    error: str
+    retry: bool
+
+
+class FailGradingJobResponse(Model):
+    state: Literal["QUEUED", "CLAIMED", "DONE", "FAILED", "CANCELLED"]
 
 
 class HealthResponse(Model):
@@ -345,6 +364,28 @@ class Question3QuestionOrdering(Model):
 class Question3QuestionShortAnswerPreAcceptItem(Model):
     pattern: str
     feedback: str | None = None
+
+
+class RenewGradingJobRequest(Model):
+    lease: int | None = None
+
+
+class RenewGradingJobResponse(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    lease_until: str = Field(alias="leaseUntil")
+
+
+class ReportGradingJobResponse(Model):
+    state: Literal["QUEUED", "CLAIMED", "DONE", "FAILED", "CANCELLED"]
+    status: Literal[
+        "PENDING_GRADE",
+        "WILL_NOT_GRADE",
+        "GRADED_AUTOMATICALLY",
+        "GRADED_MANUALLY",
+        "PRETEST_FAILED",
+    ]
+    score: float | None = None
 
 
 class RepositoriesItem(Model):
@@ -1193,6 +1234,30 @@ class Question3QuestionFillIn(Model):
     ]
 
 
+class JobsItem(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    submission: str
+    kind: Literal["SUBMIT", "FINAL"]
+    worker: str
+    question: (
+        Question2QuestionMultipleChoice
+        | Question2QuestionMultipleSelection
+        | Question2QuestionTrueFalse
+        | Question2QuestionNumeric
+        | Question2QuestionShortAnswer
+        | Question2QuestionEssay
+        | Question2QuestionFillIn
+        | Question2QuestionOrdering
+        | Question2QuestionCode
+    )
+    exam: str
+    course: str
+    student: str
+    answer: str
+    lease_until: str = Field(alias="leaseUntil")
+
+
 class Question2(Model):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -1271,6 +1336,10 @@ class UpdateQuestionRequest(Model):
         | Question2QuestionCode
         | None
     ) = None
+
+
+class ClaimGradingJobsResponse(Model):
+    jobs: list[JobsItem]
 
 
 class HealthError(CodehoodAPIError):
@@ -1365,6 +1434,24 @@ def blob_missing(
     )
     if response.status_code == 200:
         return BlobMissingResult.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def claim_grading_jobs(
+    *, body: ClaimGradingJobsRequest, client: httpx.Client | None = None
+) -> ClaimGradingJobsResponse:
+    """
+    Claim grading jobs
+    """
+    client = client if client is not None else get_client()
+    response = client.post(
+        "/api/grading-jobs/claim",
+        json=body.model_dump(mode="json", by_alias=True),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return ClaimGradingJobsResponse.model_validate(response.json())
     response.raise_for_status()
     raise CodehoodAPIError(response.status_code, Model())
 
@@ -1898,6 +1985,24 @@ def delete_user(*, username: str, client: httpx.Client | None = None) -> Deleted
     )
     if response.status_code == 200:
         return Deleted.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def fail_grading_job(
+    *, submission: str, body: FailGradingJobRequest, client: httpx.Client | None = None
+) -> FailGradingJobResponse:
+    """
+    Give up a grading job
+    """
+    client = client if client is not None else get_client()
+    response = client.post(
+        "/api/grading-jobs/{submission}/fail".format(submission=submission),
+        json=body.model_dump(mode="json", by_alias=True),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return FailGradingJobResponse.model_validate(response.json())
     response.raise_for_status()
     raise CodehoodAPIError(response.status_code, Model())
 
@@ -2437,6 +2542,42 @@ def read_user(*, username: str, client: httpx.Client | None = None) -> User:
     )
     if response.status_code == 200:
         return User.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def renew_grading_job(
+    *, submission: str, body: RenewGradingJobRequest, client: httpx.Client | None = None
+) -> RenewGradingJobResponse:
+    """
+    Renew the lease of a grading job
+    """
+    client = client if client is not None else get_client()
+    response = client.post(
+        "/api/grading-jobs/{submission}/renew".format(submission=submission),
+        json=body.model_dump(mode="json", by_alias=True),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return RenewGradingJobResponse.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def report_grading_job(
+    *, submission: str, body: dict[str, Any], client: httpx.Client | None = None
+) -> ReportGradingJobResponse:
+    """
+    Report the result of a grading job
+    """
+    client = client if client is not None else get_client()
+    response = client.post(
+        "/api/grading-jobs/{submission}/result".format(submission=submission),
+        json=body.model_dump(mode="json", by_alias=True),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 200:
+        return ReportGradingJobResponse.model_validate(response.json())
     response.raise_for_status()
     raise CodehoodAPIError(response.status_code, Model())
 
