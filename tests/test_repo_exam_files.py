@@ -70,3 +70,16 @@ def test_every_exam_of_the_example_courses_resolves():
     assert found["ada-full/final"].status == "DRAFT"
     assert found["ada-full/warmup"].type == "PRACTICE"
     assert found["ada-full/warmup"].status == "SCHEDULED"
+
+
+def test_an_exam_under_exclude_is_flagged_by_the_walk(tmp_path):
+    _write(tmp_path, "exams/wip/a.md")
+    _write(tmp_path, "exams/b.md")
+
+    files = {f.name: f for f in scan_files(tmp_path, ["exams/wip/**"])}
+
+    assert files["wip/a.md"].excluded is True
+    assert files["b.md"].excluded is False
+    assert "exams/wip/a.md" not in consumed_paths(
+        scan_files(tmp_path, ["exams/wip/**"])
+    )

@@ -18,7 +18,7 @@ from collections.abc import Collection, Iterator, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 import mdq
 from mdq.errors import IncludeNotFound
@@ -27,7 +27,6 @@ from mdq.models._query import QuerySyntaxError, parse_query
 from pydantic import JsonValue, ValidationError
 
 from .errors import SlugCollisionError
-from .exclude import ExcludedFile
 from .question import (
     DRAFT_MARK,
     InvalidQuestion,
@@ -46,6 +45,9 @@ from .resource import (
 )
 from .wire import canonical_question, exam_payload
 
+if TYPE_CHECKING:
+    from .exclude import ExcludedFile
+
 __all__ = [
     "EXAM_SUFFIXES",
     "LIVE_STATUSES",
@@ -63,6 +65,7 @@ __all__ = [
     "exam_status",
     "exam_type",
     "inline_questions",
+    "peek_exam_slug",
     "scan_exams",
 ]
 
@@ -289,7 +292,12 @@ def scan_exams(
     """
     base = root / "exams"
     index = _QuestionIndex.build(root, questions, excluded)
-    found = [_read_exam(base, path, index) for path in _exam_paths(base)]
+    left_out = {file.path for file in excluded if file.kind == "exam"}
+    found = [
+        _read_exam(base, path, index)
+        for path in _exam_paths(base)
+        if path.relative_to(root).as_posix() not in left_out
+    ]
 
     exams: dict[str, list[Path]] = defaultdict(list)
     inline: dict[str, list[Path]] = defaultdict(list)
@@ -427,6 +435,18 @@ def _exam_paths(base: Path) -> list[Path]:
         for path in base.rglob("*")
         if path.is_file() and path.name.endswith(EXAM_SUFFIXES)
     )
+
+
+def peek_exam_slug(path: Path, rel_path: Path) -> str:
+    """
+    The slug of an exam file read without `mdq`: its `id` in the front matter
+    or the H1, else its path under `exams/`.
+    """
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return exam_slug(None, rel_path)
+    return _peek_slug(text, rel_path)
 
 
 def _peek_slug(text: str, rel_path: Path) -> str:

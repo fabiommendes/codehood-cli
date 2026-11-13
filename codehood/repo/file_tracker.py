@@ -77,10 +77,13 @@ def scan_files(root: Path, exclude: Sequence[str] = ()) -> Iterable[File]:
         if exam.is_dir():
             continue
         name = str(exam.relative_to(base))
+        excluded = skipped(exam)
         if exam.suffix in MDQ_SUFFIXES:
-            yield File(name, FileType.EXAM)
+            yield File(name, FileType.EXAM, excluded=excluded)
         else:
-            yield File(name, FileType.WARNING, f"not an exam file: {name}")
+            yield File(
+                name, FileType.WARNING, f"not an exam file: {name}", excluded=excluded
+            )
 
 
 #

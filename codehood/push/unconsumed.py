@@ -35,7 +35,7 @@ IGNORE_FILE = ".codehoodignore"
 
 #: Trees whose files are pushed one by one: a match there is excluded, not
 #: forgotten, so the server copy survives the prune.
-PUSHED_TREES = ("questions", "resources")
+PUSHED_TREES = ("questions", "resources", "exams")
 
 #: Files at the root that the push stages read.
 ROOT_CONSUMED = ("codehood.toml", "README.md", "calendar.md", "grades.py", "grades.csv")

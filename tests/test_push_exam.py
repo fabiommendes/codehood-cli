@@ -544,3 +544,22 @@ def test_the_tags_of_the_payload_are_sorted(tmp_path):
     write(tmp_path, "exams/e.md", "---\ntags: [b, a]\n---\n\n# [e] E\n")
 
     assert exam_payload(only_exam(tmp_path))["tags"] == ["a", "b"]
+
+
+def test_an_excluded_exam_is_not_scanned_and_its_slug_is_reported(tmp_path):
+    write(tmp_path, "exams/keep.md", "# [keep] Keep\n")
+    write(
+        tmp_path,
+        "exams/wip/secret.md",
+        EXAM.format(entries=ESSAY.format(id="a")),
+    )
+    write(tmp_path, "exams/wip/plain.md", "# Plain\n")
+
+    exclude = ("exams/wip/**",)
+    excluded = list(scan_excluded(tmp_path, exclude))
+
+    assert sorted((e.kind, e.slug) for e in excluded) == [
+        ("exam", "midterm"),
+        ("exam", "wip-plain"),
+    ]
+    assert [e.slug for e in scan(tmp_path, exclude)] == ["keep"]

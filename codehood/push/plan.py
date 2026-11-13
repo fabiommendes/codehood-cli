@@ -1394,6 +1394,7 @@ def _with_inline_questions(local: LocalState) -> LocalState:
 
 def _sync_exams(local: LocalState, base: BaseState, remote: ServerState) -> Plan:
     files = {exam.slug: exam for exam in local.exams}
+    excluded = _excluded(local, "exam")
 
     def decide(
         key: str,
@@ -1401,6 +1402,8 @@ def _sync_exams(local: LocalState, base: BaseState, remote: ServerState) -> Plan
         entry: BaseEntry | None,
         server: RemoteEntry | None,
     ) -> Decision:
+        if payload is None and key in excluded:
+            return Skip()
         file = files.get(key)
         if isinstance(file, InvalidExam):
             return Keep(
@@ -1512,6 +1515,7 @@ def _kept_exam_questions(
     """
     files = {exam.slug: exam for exam in local.exams}
     kept = {slug for slug, exam in files.items() if isinstance(exam, InvalidExam)}
+    kept |= _excluded(local, "exam")
     kept |= {
         slug
         for slug, exam in remote.exams.items()

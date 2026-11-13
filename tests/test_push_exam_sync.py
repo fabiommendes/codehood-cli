@@ -700,3 +700,21 @@ def test_a_value_the_server_set_and_the_cli_never_wrote_is_never_a_change():
     (write,) = exam_writes(result)
     assert isinstance(write, UpsertExam)
     assert "scheduledAt" not in write.payload and "duration" not in write.payload
+
+
+def test_an_excluded_exam_is_skipped_never_pruned_with_its_inline_questions():
+    from codehood.push.exclude import ExcludedFile
+
+    inline = question_file("mid-a")
+    file = exam_file(questions=("mid-a",), inline=(inline,))
+    server, base = with_question(file, inline)
+    local = replace(
+        local_state(),
+        excluded=(ExcludedFile("exam", "mid", "exams/mid.md"),),
+    )
+
+    result = plan(local, server, base)
+
+    assert result.writes == ()
+    assert result.notices == ()
+    assert result.base_updates == ()

@@ -264,8 +264,10 @@ URLS = {
         ),
         (
             "[A](resources/w03/recursion.md) and [B](resources/w03/recursion.md)",
-            "[A](/cs101/ada_2026-1/resources/w03-recursion) and "
-            "[B](/cs101/ada_2026-1/resources/w03-recursion)",
+            (
+                "[A](/cs101/ada_2026-1/resources/w03-recursion) and "
+                "[B](/cs101/ada_2026-1/resources/w03-recursion)"
+            ),
         ),
     ],
 )
