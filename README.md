@@ -198,8 +198,9 @@ computes:
 ```python
 from codehood.grades import Student
 
+
 def grade(student: Student) -> dict[str, float | str | None]:
-    midterm = student.exams["midterm"].score or 0.0   # 0 to 100, or None
+    midterm = student.exams["midterm"].score or 0.0  # 0 to 100, or None
     total = 0.6 * midterm + 0.4 * (student.scores["assignments"] or 0.0)
     return {"final": "pass" if total >= 50 else "fail"}
 ```

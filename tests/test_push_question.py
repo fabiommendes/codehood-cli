@@ -11,7 +11,6 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
-import mdq
 import pytest
 
 from codehood.push.errors import SlugCollisionError

@@ -1,5 +1,4 @@
 import pyxel
-
 from game.state import OVER, PLAYING, TITLE, Game
 
 game = Game()

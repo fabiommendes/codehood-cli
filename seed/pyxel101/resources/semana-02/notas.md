@@ -27,8 +27,8 @@ Uma variável pode ser reatribuída, usando o valor antigo:
 
 ```python
 x = 10
-x = x + 5      # agora x vale 15
-x += 5         # forma curta, x vale 20
+x = x + 5  # agora x vale 15
+x += 5  # forma curta, x vale 20
 ```
 
 ## Tipos
@@ -76,8 +76,8 @@ Para centralizar um retângulo, calcule o canto superior esquerdo:
 ```python
 w = 40
 h = 20
-x = (pyxel.width - w) // 2     # 60, em uma tela de 160
-y = (pyxel.height - h) // 2    # 50, em uma tela de 120
+x = (pyxel.width - w) // 2  # 60, em uma tela de 160
+y = (pyxel.height - h) // 2  # 50, em uma tela de 120
 pyxel.rect(x, y, w, h, 5)
 ```
 

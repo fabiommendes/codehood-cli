@@ -1,5 +1,4 @@
 import pyxel
-
 from window import window_fps, window_height, window_title, window_width
 
 

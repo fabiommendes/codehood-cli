@@ -85,7 +85,7 @@ Os argumentos são: posição na tela, número do tilemap, canto do trecho do ma
 Para ler uma célula, use `pget` com coordenadas em **tiles**:
 
 ```python
-tile = pyxel.tilemaps[0].pget(5, 14)    # devolve (1, 0), por exemplo
+tile = pyxel.tilemaps[0].pget(5, 14)  # devolve (1, 0), por exemplo
 ```
 
 O resultado é uma tupla `(coluna, linha)` do tile na folha. Assim identificamos

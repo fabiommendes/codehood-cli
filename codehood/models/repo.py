@@ -27,13 +27,13 @@ from .validators import (
 )
 
 __all__ = [
-    "CourseKey",
     "CourseIdentity",
-    "ServerConfig",
+    "CourseKey",
     "GradeColumnConfig",
     "GradesConfig",
     "PushConfig",
     "RepoConfig",
+    "ServerConfig",
 ]
 
 

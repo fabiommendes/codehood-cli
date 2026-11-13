@@ -13,15 +13,15 @@ import re
 from dataclasses import dataclass
 
 __all__ = [
-    "Response",
     "BlankResponse",
-    "MultipleChoiceResponse",
-    "MultipleSelectionResponse",
-    "TrueFalseResponse",
-    "NumericResponse",
-    "ShortAnswerResponse",
     "EssayResponse",
     "FillInResponse",
+    "MultipleChoiceResponse",
+    "MultipleSelectionResponse",
+    "NumericResponse",
+    "Response",
+    "ShortAnswerResponse",
+    "TrueFalseResponse",
     "parse_numeric_text",
 ]
 

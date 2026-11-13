@@ -162,5 +162,5 @@ def test_answer_history_is_read_only_state():
     assert generated.Exam.model_fields["answer_history"].alias == "answerHistory"
     for model in (generated.ExamCreate, generated.UpdateExamRequest):
         assert "answer_history" not in model.model_fields
-        body = model(**{"slug": "e", "title": "E"})
+        body = model(slug="e", title="E")
         assert "answerHistory" not in body.model_dump(by_alias=True)

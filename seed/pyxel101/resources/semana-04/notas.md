@@ -12,7 +12,7 @@ objetos sem escrever dezenas de linhas.
 
 ```python
 for i in range(5):
-    print(i)       # 0, 1, 2, 3, 4
+    print(i)  # 0, 1, 2, 3, 4
 ```
 
 `range` tem três formas:
@@ -56,10 +56,10 @@ próprio Pyxel já é o laço principal. O exemplo [espiral.py](espiral.py) usa
 ```python
 for i in range(10):
     if i % 2 == 0:
-        continue       # pula os pares
+        continue  # pula os pares
     if i > 7:
-        break          # para depois do 7
-    print(i)           # 1, 3, 5, 7
+        break  # para depois do 7
+    print(i)  # 1, 3, 5, 7
 ```
 
 ## Laços aninhados

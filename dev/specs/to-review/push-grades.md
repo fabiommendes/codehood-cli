@@ -100,8 +100,8 @@ has scores to keep in it.
 ```python
 from codehood.grades import Student
 
-def grade(student: Student) -> dict[str, float | str | None]:
-    ...
+
+def grade(student: Student) -> dict[str, float | str | None]: ...
 ```
 
 Push imports `grades.py` from the repository root and calls `grade` once per
@@ -120,6 +120,7 @@ class Student:
     status: Literal["active", "dropped"]
     exams: Mapping[str, ExamResult]
     scores: Mapping[str, float | str | None]
+
 
 @dataclass(frozen=True)
 class ExamResult:
@@ -242,7 +243,7 @@ with its values. `--no-prune` reports the deletion and does not execute it.
 Two new operations join `PushOp`:
 
 ```python
-UpsertGradeColumn(column)   # slug, title, kind, position, values, rev
+UpsertGradeColumn(column)  # slug, title, kind, position, values, rev
 DeleteGradeColumn(slug)
 ```
 

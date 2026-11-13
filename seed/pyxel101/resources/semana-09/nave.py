@@ -31,7 +31,9 @@ class Player:
         self.shots.append([self.x, self.y - 6])
 
     def draw(self):
-        pyxel.tri(self.x, self.y - 5, self.x - 4, self.y + 4, self.x + 4, self.y + 4, 11)
+        pyxel.tri(
+            self.x, self.y - 5, self.x - 4, self.y + 4, self.x + 4, self.y + 4, 11
+        )
         for x, y in self.shots:
             pyxel.rect(x, y, 1, 4, 10)
 

@@ -22,11 +22,56 @@ PALETTE = [
     0xD4186C, 0xD38441, 0xE9C35B, 0x70C6A9, 0x7696DE, 0xA3A3A3, 0xFF9798, 0xEDC7B0,
 ]  # fmt: skip
 
-GROUND = ["bbbbbbbb", "bbbbbbbb", "49494949", "94949494", "44444444", "49494949", "94949494", "44444444"]
-PLAYER = ["..6666..", "..6776..", "..6666..", ".555555.", "5.5555.5", "..5555..", "..5..5..", ".55..55."]
-COIN = ["..aaaa..", ".aa99aa.", "aa9aa9aa", "aa9aa9aa", "aa9aa9aa", "aa9aa9aa", ".aa99aa.", "..aaaa.."]
-ENEMY = ["..8888..", ".888888.", "88788788", "88888888", "88888888", "8.8888.8", "8......8", ".8....8."]
-DRAFT = ["33333333", "3......3", "3.3333.3", "3.3..3.3", "3.3..3.3", "3.3333.3", "3......3", "33333333"]
+GROUND = [
+    "bbbbbbbb",
+    "bbbbbbbb",
+    "49494949",
+    "94949494",
+    "44444444",
+    "49494949",
+    "94949494",
+    "44444444",
+]
+PLAYER = [
+    "..6666..",
+    "..6776..",
+    "..6666..",
+    ".555555.",
+    "5.5555.5",
+    "..5555..",
+    "..5..5..",
+    ".55..55.",
+]
+COIN = [
+    "..aaaa..",
+    ".aa99aa.",
+    "aa9aa9aa",
+    "aa9aa9aa",
+    "aa9aa9aa",
+    "aa9aa9aa",
+    ".aa99aa.",
+    "..aaaa..",
+]
+ENEMY = [
+    "..8888..",
+    ".888888.",
+    "88788788",
+    "88888888",
+    "88888888",
+    "8.8888.8",
+    "8......8",
+    ".8....8.",
+]
+DRAFT = [
+    "33333333",
+    "3......3",
+    "3.3333.3",
+    "3.3..3.3",
+    "3.3..3.3",
+    "3.3333.3",
+    "3......3",
+    "33333333",
+]
 
 
 def png(width: int, height: int, rows: list[list[int]]) -> bytes:
@@ -50,7 +95,9 @@ def png(width: int, height: int, rows: list[list[int]]) -> bytes:
     )
 
 
-def sheet(tiles: dict[tuple[int, int], list[str]], cols: int = 4, rows: int = 2) -> bytes:
+def sheet(
+    tiles: dict[tuple[int, int], list[str]], cols: int = 4, rows: int = 2
+) -> bytes:
     """Monta uma folha de sprites 8x8 com os tiles nas posicoes dadas."""
     grid = [[0] * (cols * 8) for _ in range(rows * 8)]
     for (tx, ty), art in tiles.items():

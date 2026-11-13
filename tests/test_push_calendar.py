@@ -436,7 +436,7 @@ def test_allocate_fixed_date_section_pins_that_date_and_others_keep_order():
 def test_event_ref_is_md5_of_title_hash_description():
     """The mapping's "Calendar events": `ref = md5(f"{title}#{description}")`."""
     event = Event(week=0, time_slot="mon", title="Intro", description="Welcome.")
-    expected = hashlib.md5("Intro#Welcome.".encode()).hexdigest()
+    expected = hashlib.md5(b"Intro#Welcome.").hexdigest()
     assert event.ref == expected
 
 

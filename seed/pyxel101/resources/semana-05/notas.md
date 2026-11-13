@@ -16,7 +16,7 @@ def dobra(n):
     return n * 2
 
 
-resultado = dobra(21)    # 42
+resultado = dobra(21)  # 42
 ```
 
 - `def` abre a definição; o nome vem em seguida.
@@ -36,11 +36,13 @@ valor para quem chamou, que pode guardá-lo ou usá-lo em outra conta.
 def soma_print(a, b):
     print(a + b)
 
+
 def soma_return(a, b):
     return a + b
 
-x = soma_print(1, 2)    # imprime 3, mas x vale None
-y = soma_return(1, 2)   # y vale 3
+
+x = soma_print(1, 2)  # imprime 3, mas x vale None
+y = soma_return(1, 2)  # y vale 3
 ```
 
 Uma função sem `return` devolve `None`. Funções que **calculam** devem devolver;
@@ -52,8 +54,9 @@ funções que **desenham** costumam não devolver nada.
 def desenha_bola(x, y, cor=10):
     pyxel.circ(x, y, 6, cor)
 
-desenha_bola(40, 30)         # cor 10
-desenha_bola(40, 30, 8)      # cor 8
+
+desenha_bola(40, 30)  # cor 10
+desenha_bola(40, 30, 8)  # cor 8
 desenha_bola(40, 30, cor=8)  # nomeado, mais claro
 ```
 
@@ -66,8 +69,9 @@ chamada.
 def f():
     temp = 5
 
+
 f()
-print(temp)     # NameError: temp não existe aqui
+print(temp)  # NameError: temp não existe aqui
 ```
 
 Variáveis globais podem ser lidas dentro da função. Para **atribuir** a uma

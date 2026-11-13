@@ -14,8 +14,8 @@ import typer
 from rich import markup
 from rich.console import Group, RenderableType
 from rich.padding import Padding
-from rich.syntax import Syntax
 from rich.style import Style
+from rich.syntax import Syntax
 from rich.text import Text
 from textual import work
 from textual.app import ComposeResult

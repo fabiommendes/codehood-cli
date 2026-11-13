@@ -1,5 +1,4 @@
 import pyxel
-
 from states import advance, new_state
 
 pyxel.init(160, 120, title="Estados")

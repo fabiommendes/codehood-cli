@@ -173,8 +173,7 @@ def test_a_broken_generator_never_writes_output(
 #
 def test_generator_runs_in_dev_environment(script, tmp_path, fake_repo, fake_pnpm):
     fake_pnpm(
-        '#!/bin/sh\n[ "$ENVIRONMENT" = dev ] || exit 1\n'
-        f'cp "{REAL_SPEC_PATH}" "$4"\n'
+        f'#!/bin/sh\n[ "$ENVIRONMENT" = dev ] || exit 1\ncp "{REAL_SPEC_PATH}" "$4"\n'
     )
     script.SIBLING_REPOS = (fake_repo,)
     result, output = _invoke(script, tmp_path)

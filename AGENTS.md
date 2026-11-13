@@ -127,7 +127,7 @@ correctness through type annotations and checks.
     ```python
     #
     # Utilities
-    # 
+    #
     ```
 * Type discipline:
   * Favor using dataclasses for new types.

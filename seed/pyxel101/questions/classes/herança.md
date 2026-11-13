@@ -29,6 +29,7 @@ class Enemy:
     def take_damage(self, amount):
         self.hp -= amount
 
+
 class Bat(Enemy):
     def __init__(self, x, y):
         super().__init__(x, y, hp=3)
@@ -36,6 +37,7 @@ class Bat(Enemy):
     def update(self):
         self.x -= 1
         self.y += 2 if pyxel.frame_count % 20 < 10 else -2
+
 
 class Slime(Enemy):
     def update(self):

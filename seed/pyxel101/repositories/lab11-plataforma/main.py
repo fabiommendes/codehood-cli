@@ -1,5 +1,4 @@
 import pyxel
-
 from movement import jump, step
 
 pyxel.init(128, 128, title="Plataforma")

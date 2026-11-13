@@ -25,4 +25,6 @@ def test_point_in_zero_size_rect():
 
 
 def test_first_hit_returns_the_first_not_the_last():
-    assert first_hit((0, 0, 10, 10), [(100, 100, 1, 1), (1, 1, 2, 2), (3, 3, 2, 2)]) == 1
+    assert (
+        first_hit((0, 0, 10, 10), [(100, 100, 1, 1), (1, 1, 2, 2), (3, 3, 2, 2)]) == 1
+    )

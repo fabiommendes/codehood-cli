@@ -9,8 +9,8 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Awaitable, Callable
 
-import pytest
 import mdq
+import pytest
 from textual.app import App, ComposeResult
 from textual.pilot import Pilot
 from textual.widgets import Input, RadioButton, RadioSet, SelectionList, TextArea

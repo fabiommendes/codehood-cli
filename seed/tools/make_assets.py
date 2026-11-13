@@ -32,7 +32,9 @@ def save_png(img: Image.Image, rel: str) -> None:
     img.save(RES / rel, optimize=True)
 
 
-def centered(d: ImageDraw.ImageDraw, cx: float, cy: float, text: str, fill, size: int = 8) -> None:
+def centered(
+    d: ImageDraw.ImageDraw, cx: float, cy: float, text: str, fill, size: int = 8
+) -> None:
     d.text((cx, cy), text, fill=fill, font=font(size), anchor="mm")
 
 
@@ -94,14 +96,21 @@ def sprite_pixels(name: str) -> list[list[int]]:
     return [[int(c, 16) if c != "." else 0 for c in row] for row in SPRITES[name]]
 
 
-def draw_sprite(img: Image.Image, name: str, ox: int, oy: int, scale: int = 1, bg: int | None = None) -> None:
+def draw_sprite(
+    img: Image.Image, name: str, ox: int, oy: int, scale: int = 1, bg: int | None = None
+) -> None:
     d = ImageDraw.Draw(img)
     for y, row in enumerate(sprite_pixels(name)):
         for x, c in enumerate(row):
             if c == 0 and bg is None:
                 continue
             d.rectangle(
-                [ox + x * scale, oy + y * scale, ox + (x + 1) * scale - 1, oy + (y + 1) * scale - 1],
+                [
+                    ox + x * scale,
+                    oy + y * scale,
+                    ox + (x + 1) * scale - 1,
+                    oy + (y + 1) * scale - 1,
+                ],
                 fill=rgb(bg if c == 0 and bg is not None else c),
             )
 
@@ -265,7 +274,12 @@ def png_classes() -> None:
     ink = rgb(1)
     for x, title, attrs, meths in [
         (4, "Player", ["x, y", "speed", "shots"], ["update()", "shoot()", "draw()"]),
-        (84, "Enemy", ["x, y", "speed", "direction"], ["update()", "is_off_screen()", "draw()"]),
+        (
+            84,
+            "Enemy",
+            ["x, y", "speed", "direction"],
+            ["update()", "is_off_screen()", "draw()"],
+        ),
     ]:
         d.rectangle([x, 8, x + 72, 108], outline=ink, fill=rgb(15))
         d.rectangle([x, 8, x + 72, 22], outline=ink, fill=rgb(12))
@@ -348,7 +362,9 @@ def wrap(text: str, size: float, width: float, mono: bool = False) -> list[str]:
     return lines
 
 
-def write_pdf(path: Path, pages: list[tuple[str, list[str]]], size=(480, 270), base=15) -> None:
+def write_pdf(
+    path: Path, pages: list[tuple[str, list[str]]], size=(480, 270), base=15
+) -> None:
     """Escreve um PDF mínimo. Item de lista que começa com '> ' vira código monoespaçado."""
     w, h = size
     objs: list[bytes] = []
@@ -369,7 +385,11 @@ def write_pdf(path: Path, pages: list[tuple[str, list[str]]], size=(480, 270), b
     for n, (title, items) in enumerate(pages, 1):
         c = bytearray()
         c += f"0.17 0.2 0.37 rg 0 {h - 46} {w} 46 re f\n".encode()
-        c += f"BT /F2 {base + 7} Tf 1 1 1 rg 20 {h - 31} Td (".encode() + pdf_escape(title) + b") Tj ET\n"
+        c += (
+            f"BT /F2 {base + 7} Tf 1 1 1 rg 20 {h - 31} Td (".encode()
+            + pdf_escape(title)
+            + b") Tj ET\n"
+        )
         c += b"0.1 0.1 0.1 rg\n"
         y = h - 72
         for item in items:
@@ -380,18 +400,31 @@ def write_pdf(path: Path, pages: list[tuple[str, list[str]]], size=(480, 270), b
             first = True
             for line in wrap(text, size_pt, w - 70, mono):
                 prefix = b"" if mono else (b"\x95  " if first else b"    ")
-                c += f"BT /{font_name} {size_pt} Tf 28 {y} Td (".encode() + prefix + pdf_escape(line) + b") Tj ET\n"
+                c += (
+                    f"BT /{font_name} {size_pt} Tf 28 {y} Td (".encode()
+                    + prefix
+                    + pdf_escape(line)
+                    + b") Tj ET\n"
+                )
                 y -= size_pt + 5
                 first = False
             y -= 4
-        c += f"BT /F1 8 Tf 0.5 0.5 0.5 rg {w - 60} 10 Td (".encode() + f"{n} / {len(pages)}".encode() + b") Tj ET\n"
-        content = add(b"<< /Length %d >>\nstream\n" % len(c) + bytes(c) + b"\nendstream")
+        c += (
+            f"BT /F1 8 Tf 0.5 0.5 0.5 rg {w - 60} 10 Td (".encode()
+            + f"{n} / {len(pages)}".encode()
+            + b") Tj ET\n"
+        )
+        content = add(
+            b"<< /Length %d >>\nstream\n" % len(c) + bytes(c) + b"\nendstream"
+        )
         page = add(
             f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {w} {h}] /Contents {content} 0 R "
             f"/Resources << /Font << /F1 {fids['F1']} 0 R /F2 {fids['F2']} 0 R /F3 {fids['F3']} 0 R >> >> >>".encode()
         )
         kids.append(page)
-    objs[1] = f"<< /Type /Pages /Kids [{' '.join(f'{k} 0 R' for k in kids)}] /Count {len(kids)} >>".encode()
+    objs[1] = (
+        f"<< /Type /Pages /Kids [{' '.join(f'{k} 0 R' for k in kids)}] /Count {len(kids)} >>".encode()
+    )
     out = bytearray(b"%PDF-1.4\n")
     offsets = []
     for i, body in enumerate(objs, 1):
@@ -407,236 +440,353 @@ def write_pdf(path: Path, pages: list[tuple[str, list[str]]], size=(480, 270), b
 
 SLIDES: dict[str, list[tuple[str, list[str]]]] = {
     "semana-01/slides-ambiente.pdf": [
-        ("Aula 1: Ambiente, REPL e primeiro programa", [
-            "Introdução à Programação com Python e Jogos",
-            "Profa. Ada Lovelace",
-            "Hoje: instalar, explorar o REPL e abrir uma janela",
-        ]),
-        ("Instalação", [
-            "Python 3.11 ou mais novo: python3 --version",
-            "Pyxel: pip install pyxel (de preferência dentro de um venv)",
-            "Teste: digite pyxel; ele imprime a versão",
-            "Problemas? Traga a mensagem de erro inteira para o atendimento",
-        ]),
-        ("REPL e primeiro programa", [
-            "REPL: digite uma expressão, veja o resultado na hora",
-            "> >>> 2 ** 10",
-            "Um programa é um arquivo .py rodado de ponta a ponta",
-            "> pyxel.init(160, 120)",
-            "> pyxel.run(update, draw)",
-        ]),
-        ("Funções: a receita mínima", [
-            "def nome(parametros): abre a função; o corpo é indentado",
-            "return devolve o resultado para quem chamou",
-            "> def dobro(n):",
-            ">     return n * 2",
-            "Na semana 5 voltamos às funções com calma",
-        ]),
+        (
+            "Aula 1: Ambiente, REPL e primeiro programa",
+            [
+                "Introdução à Programação com Python e Jogos",
+                "Profa. Ada Lovelace",
+                "Hoje: instalar, explorar o REPL e abrir uma janela",
+            ],
+        ),
+        (
+            "Instalação",
+            [
+                "Python 3.11 ou mais novo: python3 --version",
+                "Pyxel: pip install pyxel (de preferência dentro de um venv)",
+                "Teste: digite pyxel; ele imprime a versão",
+                "Problemas? Traga a mensagem de erro inteira para o atendimento",
+            ],
+        ),
+        (
+            "REPL e primeiro programa",
+            [
+                "REPL: digite uma expressão, veja o resultado na hora",
+                "> >>> 2 ** 10",
+                "Um programa é um arquivo .py rodado de ponta a ponta",
+                "> pyxel.init(160, 120)",
+                "> pyxel.run(update, draw)",
+            ],
+        ),
+        (
+            "Funções: a receita mínima",
+            [
+                "def nome(parametros): abre a função; o corpo é indentado",
+                "return devolve o resultado para quem chamou",
+                "> def dobro(n):",
+                ">     return n * 2",
+                "Na semana 5 voltamos às funções com calma",
+            ],
+        ),
     ],
     "semana-02/slides-variaveis.pdf": [
-        ("Aula 2: Variáveis, tipos e expressões", [
-            "Variável é um nome ligado a um valor",
-            "Tipos básicos: int, float, str, bool",
-            "Operadores: + - * / // % **",
-        ]),
-        ("A tela é um plano de coordenadas", [
-            "Origem (0, 0) no canto superior esquerdo",
-            "x cresce para a direita, y cresce para baixo",
-            "Tela 160x120: o último pixel é (159, 119)",
-            "pyxel.width e pyxel.height guardam o tamanho da tela",
-            "> pyxel.rect(x, y, w, h, cor)",
-        ]),
-        ("Cores", [
-            "16 cores, índices de 0 a 15",
-            "0 preto, 7 branco, 8 vermelho, 10 amarelo, 11 verde",
-            "Veja a paleta nas notas da aula",
-        ]),
+        (
+            "Aula 2: Variáveis, tipos e expressões",
+            [
+                "Variável é um nome ligado a um valor",
+                "Tipos básicos: int, float, str, bool",
+                "Operadores: + - * / // % **",
+            ],
+        ),
+        (
+            "A tela é um plano de coordenadas",
+            [
+                "Origem (0, 0) no canto superior esquerdo",
+                "x cresce para a direita, y cresce para baixo",
+                "Tela 160x120: o último pixel é (159, 119)",
+                "pyxel.width e pyxel.height guardam o tamanho da tela",
+                "> pyxel.rect(x, y, w, h, cor)",
+            ],
+        ),
+        (
+            "Cores",
+            [
+                "16 cores, índices de 0 a 15",
+                "0 preto, 7 branco, 8 vermelho, 10 amarelo, 11 verde",
+                "Veja a paleta nas notas da aula",
+            ],
+        ),
     ],
     "semana-03/slides-condicionais.pdf": [
-        ("Aula 3: Condicionais", [
-            "if, elif e else escolhem qual bloco roda",
-            "Comparações: == != < <= > >=",
-            "Lógicos: and, or, not",
-        ]),
-        ("Teclado no Pyxel", [
-            "btn(tecla): verdadeiro enquanto a tecla está apertada",
-            "btnp(tecla): verdadeiro só no quadro em que foi apertada",
-            "> if pyxel.btn(pyxel.KEY_LEFT):",
-            ">     x = x - 2",
-        ]),
-        ("Limites da tela", [
-            "Impedir que o personagem saia da janela",
-            "> if x > 160 - lado:",
-            ">     x = 160 - lado",
-            "Teste de mesa: simule o código no papel",
-        ]),
+        (
+            "Aula 3: Condicionais",
+            [
+                "if, elif e else escolhem qual bloco roda",
+                "Comparações: == != < <= > >=",
+                "Lógicos: and, or, not",
+            ],
+        ),
+        (
+            "Teclado no Pyxel",
+            [
+                "btn(tecla): verdadeiro enquanto a tecla está apertada",
+                "btnp(tecla): verdadeiro só no quadro em que foi apertada",
+                "> if pyxel.btn(pyxel.KEY_LEFT):",
+                ">     x = x - 2",
+            ],
+        ),
+        (
+            "Limites da tela",
+            [
+                "Impedir que o personagem saia da janela",
+                "> if x > 160 - lado:",
+                ">     x = 160 - lado",
+                "Teste de mesa: simule o código no papel",
+            ],
+        ),
     ],
     "semana-04/slides-lacos.pdf": [
-        ("Aula 4: Laços", [
-            "for repete para cada item de uma sequência",
-            "range(inicio, fim, passo): o fim não entra",
-            "while repete enquanto a condição for verdadeira",
-        ]),
-        ("Laços aninhados", [
-            "Laço externo escolhe a linha, o interno a coluna",
-            "> for linha in range(8):",
-            ">     for coluna in range(8):",
-            "O corpo interno roda 8 x 8 = 64 vezes",
-        ]),
-        ("Cuidados", [
-            "while sem atualizar a condição trava o programa",
-            "break sai do laço, continue pula para a próxima volta",
-            "Padrão xadrez: (linha + coluna) % 2",
-        ]),
+        (
+            "Aula 4: Laços",
+            [
+                "for repete para cada item de uma sequência",
+                "range(inicio, fim, passo): o fim não entra",
+                "while repete enquanto a condição for verdadeira",
+            ],
+        ),
+        (
+            "Laços aninhados",
+            [
+                "Laço externo escolhe a linha, o interno a coluna",
+                "> for linha in range(8):",
+                ">     for coluna in range(8):",
+                "O corpo interno roda 8 x 8 = 64 vezes",
+            ],
+        ),
+        (
+            "Cuidados",
+            [
+                "while sem atualizar a condição trava o programa",
+                "break sai do laço, continue pula para a próxima volta",
+                "Padrão xadrez: (linha + coluna) % 2",
+            ],
+        ),
     ],
     "semana-05/slides-funcoes.pdf": [
-        ("Aula 5 (reposição): Funções", [
-            "def nome(parametros): agrupa um comportamento",
-            "return devolve um valor; print só mostra",
-            "Variáveis locais não existem fora da função",
-        ]),
-        ("O ciclo do Pyxel", [
-            "update(): lógica, 30 vezes por segundo",
-            "draw(): desenho, logo depois de update",
-            "Nunca desenhe no update nem mude estado no draw",
-        ]),
-        ("Bola quicando", [
-            "> def quica(pos, vel, minimo, maximo):",
-            ">     if pos < minimo or pos > maximo:",
-            ">         return -vel",
-            ">     return vel",
-        ]),
+        (
+            "Aula 5 (reposição): Funções",
+            [
+                "def nome(parametros): agrupa um comportamento",
+                "return devolve um valor; print só mostra",
+                "Variáveis locais não existem fora da função",
+            ],
+        ),
+        (
+            "O ciclo do Pyxel",
+            [
+                "update(): lógica, 30 vezes por segundo",
+                "draw(): desenho, logo depois de update",
+                "Nunca desenhe no update nem mude estado no draw",
+            ],
+        ),
+        (
+            "Bola quicando",
+            [
+                "> def quica(pos, vel, minimo, maximo):",
+                ">     if pos < minimo or pos > maximo:",
+                ">         return -vel",
+                ">     return vel",
+            ],
+        ),
     ],
     "semana-06/slides-listas.pdf": [
-        ("Aula 6: Listas", [
-            "Uma lista guarda vários valores em ordem",
-            "Índices começam em 0; -1 é o último",
-            "append, pop, len, fatiamento lista[1:4]",
-        ]),
-        ("Vários inimigos", [
-            "Uma lista de inimigos, um laço para atualizar todos",
-            "> for gota in gotas:",
-            ">     gota[1] += 3",
-        ]),
-        ("Armadilha", [
-            "Remover itens durante o for pula elementos",
-            "Reconstrua a lista com uma compreensão",
-            "> gotas[:] = [g for g in gotas if g[1] < 120]",
-        ]),
+        (
+            "Aula 6: Listas",
+            [
+                "Uma lista guarda vários valores em ordem",
+                "Índices começam em 0; -1 é o último",
+                "append, pop, len, fatiamento lista[1:4]",
+            ],
+        ),
+        (
+            "Vários inimigos",
+            [
+                "Uma lista de inimigos, um laço para atualizar todos",
+                "> for gota in gotas:",
+                ">     gota[1] += 3",
+            ],
+        ),
+        (
+            "Armadilha",
+            [
+                "Remover itens durante o for pula elementos",
+                "Reconstrua a lista com uma compreensão",
+                "> gotas[:] = [g for g in gotas if g[1] < 120]",
+            ],
+        ),
     ],
     "semana-08/slides-dicionarios.pdf": [
-        ("Aula 8: Dicionários e tuplas", [
-            "Dicionário: pares chave -> valor",
-            "d[chave] falha se ausente; d.get(chave) devolve None",
-            "Tupla: sequência imutável, ideal para (x, y)",
-        ]),
-        ("Estado do jogo", [
-            "> state = {'tela': 'titulo', 'pontos': 0}",
-            "Uma função de update e uma de draw por tela",
-            "Máquina de estados: título, jogo, fim",
-        ]),
+        (
+            "Aula 8: Dicionários e tuplas",
+            [
+                "Dicionário: pares chave -> valor",
+                "d[chave] falha se ausente; d.get(chave) devolve None",
+                "Tupla: sequência imutável, ideal para (x, y)",
+            ],
+        ),
+        (
+            "Estado do jogo",
+            [
+                "> state = {'tela': 'titulo', 'pontos': 0}",
+                "Uma função de update e uma de draw por tela",
+                "Máquina de estados: título, jogo, fim",
+            ],
+        ),
     ],
     "semana-09/slides-classes.pdf": [
-        ("Aula 9: Classes", [
-            "Classe é a receita, objeto é o bolo",
-            "__init__ prepara os atributos do objeto",
-            "self é o próprio objeto, passado automaticamente",
-        ]),
-        ("Player e Enemy", [
-            "> class Enemy:",
-            ">     def __init__(self, x, y):",
-            ">         self.x = x",
-            "Cada objeto tem os seus próprios atributos",
-        ]),
-        ("Quando usar classes", [
-            "Dados e comportamento que andam juntos",
-            "Vários objetos do mesmo tipo",
-            "Não transforme tudo em classe: funções ainda servem",
-        ]),
+        (
+            "Aula 9: Classes",
+            [
+                "Classe é a receita, objeto é o bolo",
+                "__init__ prepara os atributos do objeto",
+                "self é o próprio objeto, passado automaticamente",
+            ],
+        ),
+        (
+            "Player e Enemy",
+            [
+                "> class Enemy:",
+                ">     def __init__(self, x, y):",
+                ">         self.x = x",
+                "Cada objeto tem os seus próprios atributos",
+            ],
+        ),
+        (
+            "Quando usar classes",
+            [
+                "Dados e comportamento que andam juntos",
+                "Vários objetos do mesmo tipo",
+                "Não transforme tudo em classe: funções ainda servem",
+            ],
+        ),
     ],
     "semana-10/slides-colisao.pdf": [
-        ("Aula 10: Colisão e geometria", [
-            "AABB: retângulo alinhado aos eixos",
-            "Dois retângulos se sobrepõem se os intervalos em x e em y se sobrepõem",
-        ]),
-        ("O teste", [
-            "> ax < bx + bw and bx < ax + aw",
-            "> and ay < by + bh and by < ay + ah",
-            "Desenhe os casos no papel antes de codar",
-        ]),
-        ("Círculos", [
-            "Distância entre centros <= soma dos raios",
-            "Compare os quadrados para evitar a raiz",
-        ]),
+        (
+            "Aula 10: Colisão e geometria",
+            [
+                "AABB: retângulo alinhado aos eixos",
+                "Dois retângulos se sobrepõem se os intervalos em x e em y se sobrepõem",
+            ],
+        ),
+        (
+            "O teste",
+            [
+                "> ax < bx + bw and bx < ax + aw",
+                "> and ay < by + bh and by < ay + ah",
+                "Desenhe os casos no papel antes de codar",
+            ],
+        ),
+        (
+            "Círculos",
+            [
+                "Distância entre centros <= soma dos raios",
+                "Compare os quadrados para evitar a raiz",
+            ],
+        ),
     ],
     "semana-11/slides-sprites.pdf": [
-        ("Aula 11: Sprites e tilemaps", [
-            "pyxel edit arquivo.pyxres abre o editor",
-            "Banco de imagens 256x256, tiles de 8x8",
-            "blt copia um pedaço do banco para a tela",
-        ]),
-        ("Tilemaps", [
-            "Um tilemap é uma grade de tiles",
-            "bltm desenha uma região do tilemap",
-            "tilemaps[0].pget(col, lin) lê o tile de uma celula",
-        ]),
-        ("Plataforma", [
-            "Gravidade: vy cresce a cada quadro",
-            "Teste os quatro cantos do personagem contra tiles sólidos",
-        ]),
+        (
+            "Aula 11: Sprites e tilemaps",
+            [
+                "pyxel edit arquivo.pyxres abre o editor",
+                "Banco de imagens 256x256, tiles de 8x8",
+                "blt copia um pedaço do banco para a tela",
+            ],
+        ),
+        (
+            "Tilemaps",
+            [
+                "Um tilemap é uma grade de tiles",
+                "bltm desenha uma região do tilemap",
+                "tilemaps[0].pget(col, lin) lê o tile de uma celula",
+            ],
+        ),
+        (
+            "Plataforma",
+            [
+                "Gravidade: vy cresce a cada quadro",
+                "Teste os quatro cantos do personagem contra tiles sólidos",
+            ],
+        ),
     ],
     "semana-12/slides-som.pdf": [
-        ("Aula 12: Som e música", [
-            "4 canais, 64 sons (0 a 63) e 8 músicas (0 a 7)",
-            "> pyxel.sounds[0].set('c3e3g3', 'p', '7', 'f', 6)",
-            "> pyxel.play(0, 0)",
-        ]),
-        ("Notas", [
-            "Letra da nota, # ou - e a oitava: c3, f#2, b-1",
-            "Pausa: r",
-            "Timbres: t triângulo, s quadrada, p pulso, n ruído",
-        ]),
-        ("Música", [
-            "Uma música é uma lista de sons por canal",
-            "> pyxel.musics[0].set([0], [1])",
-            "> pyxel.playm(0, loop=True)",
-        ]),
+        (
+            "Aula 12: Som e música",
+            [
+                "4 canais, 64 sons (0 a 63) e 8 músicas (0 a 7)",
+                "> pyxel.sounds[0].set('c3e3g3', 'p', '7', 'f', 6)",
+                "> pyxel.play(0, 0)",
+            ],
+        ),
+        (
+            "Notas",
+            [
+                "Letra da nota, # ou - e a oitava: c3, f#2, b-1",
+                "Pausa: r",
+                "Timbres: t triângulo, s quadrada, p pulso, n ruído",
+            ],
+        ),
+        (
+            "Música",
+            [
+                "Uma música é uma lista de sons por canal",
+                "> pyxel.musics[0].set([0], [1])",
+                "> pyxel.playm(0, loop=True)",
+            ],
+        ),
     ],
     "semana-13/slides-arquivos.pdf": [
-        ("Aula 13: Arquivos", [
-            "open(caminho, modo): 'r' ler, 'w' sobrescrever, 'a' acrescentar",
-            "with fecha o arquivo sozinho",
-        ]),
-        ("JSON", [
-            "json.load e json.dump para dicionários e listas",
-            "> with open('recorde.json') as f:",
-            ">     dados = json.load(f)",
-        ]),
-        ("Recorde em disco", [
-            "Arquivo ausente ou quebrado: comece de zero",
-            "Grave só quando bater o recorde",
-        ]),
+        (
+            "Aula 13: Arquivos",
+            [
+                "open(caminho, modo): 'r' ler, 'w' sobrescrever, 'a' acrescentar",
+                "with fecha o arquivo sozinho",
+            ],
+        ),
+        (
+            "JSON",
+            [
+                "json.load e json.dump para dicionários e listas",
+                "> with open('recorde.json') as f:",
+                ">     dados = json.load(f)",
+            ],
+        ),
+        (
+            "Recorde em disco",
+            [
+                "Arquivo ausente ou quebrado: comece de zero",
+                "Grave só quando bater o recorde",
+            ],
+        ),
     ],
     "curso/guia-de-estudo-python.pdf": [
-        ("Guia de estudo: tipos e operadores", [
-            "int 3, float 3.5, str 'oi', bool True",
-            "+ - * / (divisão real)  // (divisão inteira)  % (resto)  ** (potência)",
-            "== != < <= > >=   and or not",
-            "type(x) mostra o tipo; int('3') e str(3) convertem",
-        ]),
-        ("Guia de estudo: controle de fluxo", [
-            "> if x < 0:  ...  elif x == 0:  ...  else:  ...",
-            "> for i in range(inicio, fim, passo):  ...",
-            "> while condição:  ...",
-            "break sai do laço; continue pula para a próxima volta",
-        ]),
-        ("Guia de estudo: estruturas e funções", [
-            "lista [1, 2, 3]  tupla (1, 2)  dicionário {'a': 1}",
-            "lista.append(x)  lista[1:3]  len(lista)  d.get('a')",
-            "> def soma(a, b=0):  return a + b",
-            "> class Enemy:  def __init__(self, x):  self.x = x",
-            "> with open('f.txt') as f:  texto = f.read()",
-        ]),
+        (
+            "Guia de estudo: tipos e operadores",
+            [
+                "int 3, float 3.5, str 'oi', bool True",
+                "+ - * / (divisão real)  // (divisão inteira)  % (resto)  ** (potência)",
+                "== != < <= > >=   and or not",
+                "type(x) mostra o tipo; int('3') e str(3) convertem",
+            ],
+        ),
+        (
+            "Guia de estudo: controle de fluxo",
+            [
+                "> if x < 0:  ...  elif x == 0:  ...  else:  ...",
+                "> for i in range(inicio, fim, passo):  ...",
+                "> while condição:  ...",
+                "break sai do laço; continue pula para a próxima volta",
+            ],
+        ),
+        (
+            "Guia de estudo: estruturas e funções",
+            [
+                "lista [1, 2, 3]  tupla (1, 2)  dicionário {'a': 1}",
+                "lista.append(x)  lista[1:3]  len(lista)  d.get('a')",
+                "> def soma(a, b=0):  return a + b",
+                "> class Enemy:  def __init__(self, x):  self.x = x",
+                "> with open('f.txt') as f:  texto = f.read()",
+            ],
+        ),
     ],
 }
 
@@ -670,7 +820,16 @@ def make_pyxres() -> None:
         grid[8][col] = "0200"
     for col in range(22, 27):
         grid[11][col] = "0200"
-    for col, row in [(7, 9), (8, 9), (15, 7), (16, 7), (24, 10), (25, 10), (4, 13), (30, 13)]:
+    for col, row in [
+        (7, 9),
+        (8, 9),
+        (15, 7),
+        (16, 7),
+        (24, 10),
+        (25, 10),
+        (4, 13),
+        (30, 13),
+    ]:
         grid[row][col] = "0300"
     pyxel.tilemaps[0].set(0, 0, [" ".join(r) for r in grid])
     pyxel.sounds[0].set("c3e3g3c4", "p", "7", "f", 6)

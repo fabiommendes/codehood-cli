@@ -1,5 +1,4 @@
 import pyxel
-
 from collision import first_hit
 from ship import Ship, cleanup
 

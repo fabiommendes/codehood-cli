@@ -30,8 +30,8 @@ __all__ = [
     "extract_repository_links",
     "extract_resource_links",
     "rewrite_body_links",
-    "rewrite_repository_links",
     "rewrite_event_links",
+    "rewrite_repository_links",
     "rewrite_resource_links",
 ]
 

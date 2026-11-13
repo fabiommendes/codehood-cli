@@ -1,5 +1,4 @@
 import pyxel
-
 from patterns import grid_pos, is_dark, stair_line
 
 pyxel.init(160, 120, title="Padroes")

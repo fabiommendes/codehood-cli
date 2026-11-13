@@ -1,5 +1,6 @@
 """A nave do jogador e seus tiros."""
 
+
 class Bullet:
     def __init__(self, x: int, y: int, speed: int = -4):
         self.x = x

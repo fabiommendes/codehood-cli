@@ -9,18 +9,18 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Annotated
 
-import typer
 import mdq
+import typer
 from textual.app import ComposeResult
 from textual.widgets import Footer
 
 from ..theme import CodehoodApp
 from ..widgets.questions import (
     QUESTION_WIDGETS,
-    question_document,
     QuestionDocument,
     QuestionWidget,
     Response,
+    question_document,
 )
 from .base import app
 

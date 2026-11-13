@@ -16,7 +16,7 @@ from textual.widgets import Button, Markdown
 
 from .responses import Response
 
-__all__ = ["QuestionWidget", "QuestionDocument", "question_document"]
+__all__ = ["QuestionDocument", "QuestionWidget", "question_document"]
 
 #: A question as plain data, built by `question_document` -- this package
 #: never parses MDQ source itself.

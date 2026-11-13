@@ -7,8 +7,8 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from codehood.models.repo import PushConfig, RepoConfig
 from codehood.globs import is_excluded
+from codehood.models.repo import PushConfig, RepoConfig
 
 MATCHES = [
     ("questions/a.mdq", "questions/a.mdq"),

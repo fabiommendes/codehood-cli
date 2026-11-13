@@ -1,5 +1,4 @@
 import pyxel
-
 from shapes import center, color_at, mirror_x
 
 pyxel.init(160, 120, title="Cores")

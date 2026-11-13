@@ -14,7 +14,9 @@ JUMP = -4.2
 SPEED = 1.5
 
 pyxel.init(128, 128, title="Plataforma")
-pyxel.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "personagem.pyxres"))
+pyxel.load(
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "personagem.pyxres")
+)
 
 player = {"x": 16.0, "y": 80.0, "vy": 0.0, "on_ground": False, "facing": 1}
 score = 0

@@ -1,5 +1,4 @@
 import pyxel
-
 from controls import direction, next_x
 
 SIZE = 8

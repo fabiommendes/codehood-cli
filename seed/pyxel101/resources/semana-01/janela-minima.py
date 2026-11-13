@@ -7,7 +7,6 @@ pyxel.init(160, 120, title="Minha primeira janela")
 
 def update():
     """Roda a cada quadro e cuida da lógica. Aqui não há nada para atualizar."""
-    pass
 
 
 def draw():

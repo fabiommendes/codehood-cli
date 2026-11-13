@@ -1,5 +1,6 @@
+from collections.abc import Callable
 from functools import wraps
-from typing import Any, Callable, Literal, Protocol, cast, overload
+from typing import Any, Literal, Protocol, cast, overload
 
 
 class _Fn[Fst, **P, R](Protocol):

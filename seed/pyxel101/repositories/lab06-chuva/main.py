@@ -1,7 +1,6 @@
 import random
 
 import pyxel
-
 from rain import fall, make_drop
 
 W = 160

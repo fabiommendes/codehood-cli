@@ -10,8 +10,10 @@ O programa abaixo imprime `10`, e não `0`.
 ```python
 pontos = 10
 
+
 def zera():
     pontos = 0
+
 
 zera()
 print(pontos)

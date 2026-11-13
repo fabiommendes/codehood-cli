@@ -22,12 +22,12 @@ from textual.widgets.selection_list import Selection
 from .responses import parse_numeric_text
 
 __all__ = [
-    "Control",
     "ChoiceControl",
+    "Control",
     "MultiChoiceControl",
-    "TrueFalseControl",
     "NumericControl",
     "ShortAnswerControl",
+    "TrueFalseControl",
 ]
 
 

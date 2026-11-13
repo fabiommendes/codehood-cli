@@ -28,12 +28,12 @@ from .responses import (
 )
 
 __all__ = [
+    "EssayQuestion",
     "MultipleChoiceQuestion",
     "MultipleSelectionQuestion",
-    "TrueFalseQuestion",
     "NumericQuestion",
     "ShortAnswerQuestion",
-    "EssayQuestion",
+    "TrueFalseQuestion",
 ]
 
 

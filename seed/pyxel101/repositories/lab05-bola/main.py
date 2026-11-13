@@ -1,5 +1,4 @@
 import pyxel
-
 from ball import bounce_pos, bounce_vel
 
 W = 160

@@ -18,10 +18,11 @@ New package `codehood/push/`.
 @dataclass(frozen=True)
 class UpsertCourse:
     discipline: str
-    course: str            # "{instructor}_{edition}"
+    course: str  # "{instructor}_{edition}"
     description: str
     start_at: str
     end_at: str
+
 
 @dataclass(frozen=True)
 class UpsertResource:
@@ -29,26 +30,29 @@ class UpsertResource:
     type: Literal["MD", "CODE", "FILE"]
     title: str
     description: str | None
-    data: str | None       # MD/CODE body; None for FILE
-    extra: str | None      # CODE language; None otherwise
-    blob: bytes | None     # FILE bytes; None for MD/CODE
+    data: str | None  # MD/CODE body; None for FILE
+    extra: str | None  # CODE language; None otherwise
+    blob: bytes | None  # FILE bytes; None for MD/CODE
     content_hash: str
-    path: Path              # source file, for reporting/upload
+    path: Path  # source file, for reporting/upload
+
 
 @dataclass(frozen=True)
 class DeleteResource:
     slug: str
 
+
 PushOp = UpsertCourse | UpsertResource | DeleteResource
+
 
 def plan_push(
     discipline: str,
-    course: str,                            # "{instructor}_{edition}"
+    course: str,  # "{instructor}_{edition}"
     readme_text: str,
-    edition_dates: tuple[str, str],       # (start_at, end_at)
-    resources: Iterable[ResourceFile],     # from push/resource.py
+    edition_dates: tuple[str, str],  # (start_at, end_at)
+    resources: Iterable[ResourceFile],  # from push/resource.py
     server_course_exists: bool,
-    server_resources: Mapping[str, str],   # slug -> contentHash
+    server_resources: Mapping[str, str],  # slug -> contentHash
 ) -> Iterator[PushOp]: ...
 ```
 
@@ -76,7 +80,9 @@ class ResourceFile:
     content_hash: str
     path: Path
 
+
 def slugify(rel_path: Path) -> str: ...
+
 
 def content_hash(
     type: Literal["MD", "CODE", "FILE"],
@@ -86,6 +92,7 @@ def content_hash(
     extra: str | None,
     file_hash: str | None,
 ) -> str: ...
+
 
 def scan_resources(root: Path) -> Iterator[ResourceFile]: ...
 ```
@@ -121,9 +128,11 @@ class OpResult:
     ok: bool
     message: str
 
+
 def fetch_server_state(
     discipline: str, course: str, client: httpx.Client
-) -> tuple[bool, Mapping[str, str]]: ...   # (course exists, slug -> contentHash)
+) -> tuple[bool, Mapping[str, str]]: ...  # (course exists, slug -> contentHash)
+
 
 def run_plan(
     ops: Iterable[PushOp], *, discipline: str, course: str, client: httpx.Client

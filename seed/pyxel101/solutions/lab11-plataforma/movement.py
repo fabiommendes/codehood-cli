@@ -8,7 +8,12 @@ JUMP_SPEED = -6
 
 def collides(x: int, y: int, is_solid) -> bool:
     """O quadrado 8x8 em (x, y) toca um tile sólido?"""
-    corners = [(x, y), (x + TILE - 1, y), (x, y + TILE - 1), (x + TILE - 1, y + TILE - 1)]
+    corners = [
+        (x, y),
+        (x + TILE - 1, y),
+        (x, y + TILE - 1),
+        (x + TILE - 1, y + TILE - 1),
+    ]
     return any(is_solid(cx // TILE, cy // TILE) for cx, cy in corners)
 
 

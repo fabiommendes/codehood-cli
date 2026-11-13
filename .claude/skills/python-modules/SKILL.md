@@ -35,7 +35,7 @@ The module should be organized in the following order:
 * If you want to separate by sections, use the following comment style:
 
   ```python
-  # 
+  #
   # SECTION TITLE
   #
   ```

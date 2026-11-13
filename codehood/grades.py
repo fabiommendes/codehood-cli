@@ -21,11 +21,11 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 __all__ = [
-    "Student",
     "ExamResult",
     "ExamState",
     "GradeFunction",
     "GradeValue",
+    "Student",
 ]
 
 #: Why an exam has a score or lacks one: every answer graded, answers still

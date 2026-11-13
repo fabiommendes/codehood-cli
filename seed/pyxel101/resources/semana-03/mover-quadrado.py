@@ -25,14 +25,10 @@ def update():
         y = y + VELOCIDADE
 
     # Limites da tela: o quadrado inteiro precisa continuar visível.
-    if x < 0:
-        x = 0
-    if x > LARGURA - LADO:
-        x = LARGURA - LADO
-    if y < 0:
-        y = 0
-    if y > ALTURA - LADO:
-        y = ALTURA - LADO
+    x = max(x, 0)
+    x = min(x, LARGURA - LADO)
+    y = max(y, 0)
+    y = min(y, ALTURA - LADO)
 
 
 def draw():

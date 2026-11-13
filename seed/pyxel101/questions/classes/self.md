@@ -15,6 +15,7 @@ class Enemy:
     def move(self):
         self.x += 1
 
+
 a = Enemy(0)
 b = Enemy(10)
 a.move()

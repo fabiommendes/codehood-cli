@@ -23,8 +23,8 @@ from typing import Literal
 from ..grades import ExamResult, GradeFunction, GradeValue, Student
 
 __all__ = [
-    "GradeColumn",
     "ColumnSpec",
+    "GradeColumn",
     "GradesCsv",
     "GradesError",
     "Roster",

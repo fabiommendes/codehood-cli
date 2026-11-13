@@ -10,9 +10,10 @@ existence is not".
 from __future__ import annotations
 
 import re
-from urllib.parse import urlsplit
+from collections.abc import Callable
 from functools import wraps
-from typing import Annotated, Any, Callable
+from typing import Annotated, Any
+from urllib.parse import urlsplit
 
 from pydantic import AfterValidator
 
