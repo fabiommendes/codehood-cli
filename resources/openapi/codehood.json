@@ -6105,7 +6105,8 @@
                     "PENDING_GRADE",
                     "WILL_NOT_GRADE",
                     "GRADED_AUTOMATICALLY",
-                    "GRADED_MANUALLY"
+                    "GRADED_MANUALLY",
+                    "PRETEST_FAILED"
                   ]
                 },
                 "automaticallyTriggered": {
@@ -6235,7 +6236,8 @@
               "PENDING_GRADE",
               "WILL_NOT_GRADE",
               "GRADED_AUTOMATICALLY",
-              "GRADED_MANUALLY"
+              "GRADED_MANUALLY",
+              "PRETEST_FAILED"
             ]
           },
           "automaticallyTriggered": {
@@ -6299,7 +6301,8 @@
               "PENDING_GRADE",
               "WILL_NOT_GRADE",
               "GRADED_AUTOMATICALLY",
-              "GRADED_MANUALLY"
+              "GRADED_MANUALLY",
+              "PRETEST_FAILED"
             ]
           },
           "automaticallyTriggered": {
@@ -30519,7 +30522,8 @@
                                 "PENDING_GRADE",
                                 "WILL_NOT_GRADE",
                                 "GRADED_AUTOMATICALLY",
-                                "GRADED_MANUALLY"
+                                "GRADED_MANUALLY",
+                                "PRETEST_FAILED"
                               ]
                             },
                             "automaticallyTriggered": {
@@ -30758,7 +30762,8 @@
                               "PENDING_GRADE",
                               "WILL_NOT_GRADE",
                               "GRADED_AUTOMATICALLY",
-                              "GRADED_MANUALLY"
+                              "GRADED_MANUALLY",
+                              "PRETEST_FAILED"
                             ]
                           },
                           "automaticallyTriggered": {
@@ -30961,7 +30966,8 @@
                               "PENDING_GRADE",
                               "WILL_NOT_GRADE",
                               "GRADED_AUTOMATICALLY",
-                              "GRADED_MANUALLY"
+                              "GRADED_MANUALLY",
+                              "PRETEST_FAILED"
                             ]
                           },
                           "automaticallyTriggered": {
@@ -31176,7 +31182,8 @@
                               "PENDING_GRADE",
                               "WILL_NOT_GRADE",
                               "GRADED_AUTOMATICALLY",
-                              "GRADED_MANUALLY"
+                              "GRADED_MANUALLY",
+                              "PRETEST_FAILED"
                             ]
                           },
                           "automaticallyTriggered": {
@@ -31472,7 +31479,8 @@
                   "PENDING_GRADE",
                   "WILL_NOT_GRADE",
                   "GRADED_AUTOMATICALLY",
-                  "GRADED_MANUALLY"
+                  "GRADED_MANUALLY",
+                  "PRETEST_FAILED"
                 ]
               }
             },
@@ -31523,7 +31531,8 @@
                           "PENDING_GRADE",
                           "WILL_NOT_GRADE",
                           "GRADED_AUTOMATICALLY",
-                          "GRADED_MANUALLY"
+                          "GRADED_MANUALLY",
+                          "PRETEST_FAILED"
                         ]
                       },
                       "automaticallyTriggered": {
@@ -31650,7 +31659,8 @@
                         "PENDING_GRADE",
                         "WILL_NOT_GRADE",
                         "GRADED_AUTOMATICALLY",
-                        "GRADED_MANUALLY"
+                        "GRADED_MANUALLY",
+                        "PRETEST_FAILED"
                       ]
                     },
                     "automaticallyTriggered": {
@@ -31754,7 +31764,8 @@
                       "PENDING_GRADE",
                       "WILL_NOT_GRADE",
                       "GRADED_AUTOMATICALLY",
-                      "GRADED_MANUALLY"
+                      "GRADED_MANUALLY",
+                      "PRETEST_FAILED"
                     ]
                   }
                 }
@@ -31794,7 +31805,8 @@
                         "PENDING_GRADE",
                         "WILL_NOT_GRADE",
                         "GRADED_AUTOMATICALLY",
-                        "GRADED_MANUALLY"
+                        "GRADED_MANUALLY",
+                        "PRETEST_FAILED"
                       ]
                     },
                     "automaticallyTriggered": {
@@ -33323,7 +33335,8 @@
                               "PENDING_GRADE",
                               "WILL_NOT_GRADE",
                               "GRADED_AUTOMATICALLY",
-                              "GRADED_MANUALLY"
+                              "GRADED_MANUALLY",
+                              "PRETEST_FAILED"
                             ]
                           },
                           "automaticallyTriggered": {
