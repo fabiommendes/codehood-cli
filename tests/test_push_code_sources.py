@@ -1,7 +1,7 @@
 """
 Tests for the test sources of a `code` question: a linked source is read from
 disk and resolved before the question is pushed. See
-`dev/specs/to-do/fila-de-correcao-externa.md`, R27.
+`dev/specs/to-review/fila-de-correcao-externa.md`, R27.
 """
 
 from __future__ import annotations
