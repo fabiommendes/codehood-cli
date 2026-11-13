@@ -84,9 +84,19 @@ three-way comparison, as it does for questions (sync R10).
 ### `duration` and `scheduledAt` are never blanked
 
 An instructor action may set either server-side. When the file omits one,
-the key is left out of the payload, and the projection of the server's read
-model drops the same key before the comparison. A server-set value thus
-never shows as a change and is never overwritten with `null`.
+it is never sent as `null`, and what the comparison sees depends on the
+base:
+
+- The base holds the key (the CLI wrote it before): the local payload takes
+  the base's value, so dropping `start` is "no change" for `scheduledAt`.
+  Declaring a new value later is a plain local change, not a conflict, and
+  an instructor change while the file omits the key is a `Pull`.
+- The base lacks it: the key is dropped from base and server payloads
+  before the comparison. A value only the server ever set never shows as a
+  change.
+
+Removing `start` still moves the status to `DRAFT`; status is compared
+apart (below).
 
 `duration` is a `timedelta` in MDQ and `{hours, minutes}` on the wire, a
 plain total with no 24 h wrap. `start` is `datetime | date`: a bare date is
@@ -155,9 +165,9 @@ as any slug collision does.
 
 `exam` joins `EntityKind`, `BaseState.exams`, `ServerState.exams` and
 `write_rank`. `exam_payload(file)` is the wire payload without `rev`;
-`project_exam(read model)` maps `Exam` back to it (sync R3), dropping
-`duration`/`scheduledAt` when the local side does not declare them, and
-dropping `status`. `rev` is md5 of the canonical payload with the
+`project_exam(read model)` maps `Exam` back to it (sync R3) and drops
+`status`. Tags are sorted on both sides: the server reads them in primary
+key order. `rev` is the sha-256 of the canonical payload with the
 `REF_PREFIX` discipline of `resource.content_ref`.
 
 `fetch_server_state` lists exams with `statuses=DRAFT,SCHEDULED,ONGOING,COMPLETED`:
@@ -169,9 +179,12 @@ sends a status.
 
 `write_rank` puts exam deletions after question writes and exam upserts
 after both, so every slug an exam references exists when it is written.
-Deleting a question an exam still holds is not blocked by the server
-(questions are soft-deleted too); the local side never produces that case
-because a resolved include always names a local question.
+The server does not stop the deletion of a question an exam still holds,
+so the plan does: a question held by an exam the plan keeps (`InvalidExam`,
+or `KeptExamLive` whose file is gone), by that exam's base or server
+payload, is never pruned. Its decision becomes `Skip`. An inline question
+of an invalid exam, or an included file deleted under a kept exam, would
+otherwise be pruned.
 
 ## Architecture
 
