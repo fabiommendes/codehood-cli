@@ -4459,6 +4459,88 @@
                       "unmatched",
                       "pool"
                     ]
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "string",
+                        "minLength": 1
+                      },
+                      "uuid": {
+                        "type": "string",
+                        "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                        "example": "123e4567-e89b-12d3-a456-426614174000"
+                      },
+                      "title": {
+                        "type": "string"
+                      },
+                      "stem": {
+                        "type": "string"
+                      },
+                      "epilogue": {
+                        "type": "string"
+                      },
+                      "tags": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "uniqueItems": true
+                      },
+                      "locale": {
+                        "type": "string"
+                      },
+                      "weight": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "type": {
+                        "type": "string",
+                        "enum": [
+                          "code"
+                        ]
+                      },
+                      "template": {
+                        "type": "string"
+                      },
+                      "language": {
+                        "type": "string"
+                      },
+                      "file": {
+                        "type": "string"
+                      },
+                      "publicTests": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "properties": {
+                            "format": {
+                              "type": "string"
+                            },
+                            "text": {
+                              "type": "string"
+                            },
+                            "firstLine": {
+                              "type": "integer"
+                            },
+                            "example": {
+                              "type": "boolean"
+                            }
+                          },
+                          "required": [
+                            "format",
+                            "text",
+                            "firstLine",
+                            "example"
+                          ]
+                        }
+                      }
+                    },
+                    "required": [
+                      "stem",
+                      "type"
+                    ]
                   }
                 ]
               }
@@ -16979,7 +17061,8 @@
                   "numeric",
                   "short-answer",
                   "fill-in",
-                  "ordering"
+                  "ordering",
+                  "code"
                 ]
               }
             },
@@ -19475,6 +19558,88 @@
                                   "content",
                                   "unmatched",
                                   "pool"
+                                ]
+                              },
+                              {
+                                "type": "object",
+                                "properties": {
+                                  "id": {
+                                    "type": "string",
+                                    "minLength": 1
+                                  },
+                                  "uuid": {
+                                    "type": "string",
+                                    "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                    "example": "123e4567-e89b-12d3-a456-426614174000"
+                                  },
+                                  "title": {
+                                    "type": "string"
+                                  },
+                                  "stem": {
+                                    "type": "string"
+                                  },
+                                  "epilogue": {
+                                    "type": "string"
+                                  },
+                                  "tags": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "string"
+                                    },
+                                    "uniqueItems": true
+                                  },
+                                  "locale": {
+                                    "type": "string"
+                                  },
+                                  "weight": {
+                                    "type": "number",
+                                    "minimum": 0
+                                  },
+                                  "type": {
+                                    "type": "string",
+                                    "enum": [
+                                      "code"
+                                    ]
+                                  },
+                                  "template": {
+                                    "type": "string"
+                                  },
+                                  "language": {
+                                    "type": "string"
+                                  },
+                                  "file": {
+                                    "type": "string"
+                                  },
+                                  "publicTests": {
+                                    "type": "array",
+                                    "items": {
+                                      "type": "object",
+                                      "properties": {
+                                        "format": {
+                                          "type": "string"
+                                        },
+                                        "text": {
+                                          "type": "string"
+                                        },
+                                        "firstLine": {
+                                          "type": "integer"
+                                        },
+                                        "example": {
+                                          "type": "boolean"
+                                        }
+                                      },
+                                      "required": [
+                                        "format",
+                                        "text",
+                                        "firstLine",
+                                        "example"
+                                      ]
+                                    }
+                                  }
+                                },
+                                "required": [
+                                  "stem",
+                                  "type"
                                 ]
                               }
                             ]
@@ -23596,6 +23761,88 @@
                                 "unmatched",
                                 "pool"
                               ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                  "example": "123e4567-e89b-12d3-a456-426614174000"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "stem": {
+                                  "type": "string"
+                                },
+                                "epilogue": {
+                                  "type": "string"
+                                },
+                                "tags": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "uniqueItems": true
+                                },
+                                "locale": {
+                                  "type": "string"
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "code"
+                                  ]
+                                },
+                                "template": {
+                                  "type": "string"
+                                },
+                                "language": {
+                                  "type": "string"
+                                },
+                                "file": {
+                                  "type": "string"
+                                },
+                                "publicTests": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "format": {
+                                        "type": "string"
+                                      },
+                                      "text": {
+                                        "type": "string"
+                                      },
+                                      "firstLine": {
+                                        "type": "integer"
+                                      },
+                                      "example": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "format",
+                                      "text",
+                                      "firstLine",
+                                      "example"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "stem",
+                                "type"
+                              ]
                             }
                           ]
                         }
@@ -26145,6 +26392,88 @@
                                 "content",
                                 "unmatched",
                                 "pool"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                  "example": "123e4567-e89b-12d3-a456-426614174000"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "stem": {
+                                  "type": "string"
+                                },
+                                "epilogue": {
+                                  "type": "string"
+                                },
+                                "tags": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "uniqueItems": true
+                                },
+                                "locale": {
+                                  "type": "string"
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "code"
+                                  ]
+                                },
+                                "template": {
+                                  "type": "string"
+                                },
+                                "language": {
+                                  "type": "string"
+                                },
+                                "file": {
+                                  "type": "string"
+                                },
+                                "publicTests": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "format": {
+                                        "type": "string"
+                                      },
+                                      "text": {
+                                        "type": "string"
+                                      },
+                                      "firstLine": {
+                                        "type": "integer"
+                                      },
+                                      "example": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "format",
+                                      "text",
+                                      "firstLine",
+                                      "example"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "stem",
+                                "type"
                               ]
                             }
                           ]
@@ -30247,6 +30576,88 @@
                                 "content",
                                 "unmatched",
                                 "pool"
+                              ]
+                            },
+                            {
+                              "type": "object",
+                              "properties": {
+                                "id": {
+                                  "type": "string",
+                                  "minLength": 1
+                                },
+                                "uuid": {
+                                  "type": "string",
+                                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                                  "example": "123e4567-e89b-12d3-a456-426614174000"
+                                },
+                                "title": {
+                                  "type": "string"
+                                },
+                                "stem": {
+                                  "type": "string"
+                                },
+                                "epilogue": {
+                                  "type": "string"
+                                },
+                                "tags": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "string"
+                                  },
+                                  "uniqueItems": true
+                                },
+                                "locale": {
+                                  "type": "string"
+                                },
+                                "weight": {
+                                  "type": "number",
+                                  "minimum": 0
+                                },
+                                "type": {
+                                  "type": "string",
+                                  "enum": [
+                                    "code"
+                                  ]
+                                },
+                                "template": {
+                                  "type": "string"
+                                },
+                                "language": {
+                                  "type": "string"
+                                },
+                                "file": {
+                                  "type": "string"
+                                },
+                                "publicTests": {
+                                  "type": "array",
+                                  "items": {
+                                    "type": "object",
+                                    "properties": {
+                                      "format": {
+                                        "type": "string"
+                                      },
+                                      "text": {
+                                        "type": "string"
+                                      },
+                                      "firstLine": {
+                                        "type": "integer"
+                                      },
+                                      "example": {
+                                        "type": "boolean"
+                                      }
+                                    },
+                                    "required": [
+                                      "format",
+                                      "text",
+                                      "firstLine",
+                                      "example"
+                                    ]
+                                  }
+                                }
+                              },
+                              "required": [
+                                "stem",
+                                "type"
                               ]
                             }
                           ]

@@ -200,6 +200,23 @@ class LogoutResponse(Model):
     success: bool
 
 
+class PublicTestsItem(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    format: str
+    text: str
+    first_line: int = Field(alias="firstLine")
+    example: bool
+
+
+class Question2QuestionCodeRubricItem(Model):
+    value: float | None = None
+    binding: Literal["manual"]
+    text: str
+    feedback: str | None = None
+    comment: str | None = None
+
+
 class Question2QuestionEssay(Model):
     model_config = ConfigDict(populate_by_name=True)
 
@@ -328,14 +345,6 @@ class Question3QuestionOrdering(Model):
 class Question3QuestionShortAnswerPreAcceptItem(Model):
     pattern: str
     feedback: str | None = None
-
-
-class QuestionCodeRubricItem(Model):
-    value: float | None = None
-    binding: Literal["manual"]
-    text: str
-    feedback: str | None = None
-    comment: str | None = None
 
 
 class RepositoriesItem(Model):
@@ -647,6 +656,30 @@ class GradeColumnCreate(Model):
     values: list[ValuesItem]
 
 
+class Question2QuestionCode(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    field_schema: str | None = Field(default=None, alias="$schema")
+    id: str | None = None
+    uuid: str | None = None
+    title: str | None = None
+    author: str | None = None
+    stem: str
+    epilogue: str | None = None
+    comment: str | None = None
+    locale: str | None = None
+    tags: list[str] | None = None
+    weight: float | None = None
+    meta: dict[str, object | None] | None = None
+    type: Literal["code"]
+    language: str | None = None
+    file: str | None = None
+    tests: list[TestsItem] | None = None
+    rubric: list[Question2QuestionCodeRubricItem] | None = None
+    template: str | None = None
+    answer_key: str | None = Field(default=None, alias="answerKey")
+
+
 class Question2QuestionFillInBlanksItemMultipleChoice(Model):
     id: str
     type: Literal["multiple-choice"]
@@ -829,6 +862,26 @@ class Question2QuestionTrueFalse(Model):
     shuffle: bool | Literal["inherit"] | None = None
 
 
+class Question3QuestionCode(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str | None = None
+    uuid: str | None = None
+    title: str | None = None
+    stem: str
+    epilogue: str | None = None
+    tags: list[str] | None = None
+    locale: str | None = None
+    weight: float | None = None
+    type: Literal["code"]
+    template: str | None = None
+    language: str | None = None
+    file: str | None = None
+    public_tests: list[PublicTestsItem] | None = Field(
+        default=None, alias="publicTests"
+    )
+
+
 class Question3QuestionFillInBlanksItemMultipleChoice(Model):
     id: str
     type: Literal["multiple-choice"]
@@ -917,30 +970,6 @@ class Question3QuestionTrueFalse(Model):
         | None
     ) = None
     choices: list[Question3QuestionMultipleChoiceChoicesItem]
-
-
-class QuestionCode(Model):
-    model_config = ConfigDict(populate_by_name=True)
-
-    field_schema: str | None = Field(default=None, alias="$schema")
-    id: str | None = None
-    uuid: str | None = None
-    title: str | None = None
-    author: str | None = None
-    stem: str
-    epilogue: str | None = None
-    comment: str | None = None
-    locale: str | None = None
-    tags: list[str] | None = None
-    weight: float | None = None
-    meta: dict[str, object | None] | None = None
-    type: Literal["code"]
-    language: str | None = None
-    file: str | None = None
-    tests: list[TestsItem] | None = None
-    rubric: list[QuestionCodeRubricItem] | None = None
-    template: str | None = None
-    answer_key: str | None = Field(default=None, alias="answerKey")
 
 
 class Resource(Model):
@@ -1182,7 +1211,7 @@ class Question2(Model):
         | Question2QuestionEssay
         | Question2QuestionFillIn
         | Question2QuestionOrdering
-        | QuestionCode
+        | Question2QuestionCode
     )
 
 
@@ -1204,6 +1233,7 @@ class Question3(Model):
         | Question3QuestionEssay
         | Question3QuestionFillIn
         | Question3QuestionOrdering
+        | Question3QuestionCode
     )
 
 
@@ -1221,7 +1251,7 @@ class QuestionCreate(Model):
         | Question2QuestionEssay
         | Question2QuestionFillIn
         | Question2QuestionOrdering
-        | QuestionCode
+        | Question2QuestionCode
     )
 
 
@@ -1238,7 +1268,7 @@ class UpdateQuestionRequest(Model):
         | Question2QuestionEssay
         | Question2QuestionFillIn
         | Question2QuestionOrdering
-        | QuestionCode
+        | Question2QuestionCode
         | None
     ) = None
 
@@ -2046,6 +2076,7 @@ def list_question(
             "short-answer",
             "fill-in",
             "ordering",
+            "code",
         ]
     ]
     | None = None,
