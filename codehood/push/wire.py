@@ -148,7 +148,7 @@ def exam_payload(file: ExamFile) -> Payload:
     questions: list[JsonValue] = [
         {"slug": slug, "version": None} for slug in file.questions
     ]
-    tags: list[JsonValue] = [*file.tags]
+    tags: list[JsonValue] = [*sorted(file.tags)]
     payload: Payload = {
         "slug": file.slug,
         "type": file.type,

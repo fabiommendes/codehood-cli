@@ -530,3 +530,17 @@ def test_an_inline_code_question_with_a_missing_test_file_stops_the_scan(tmp_pat
 
     with pytest.raises(QuestionSourceError, match="Tests.elm"):
         scan(tmp_path)
+
+
+def test_a_duration_under_a_minute_makes_the_exam_invalid(tmp_path):
+    write(tmp_path, "exams/e.md", "---\nduration: PT30S\n---\n\n# [e] E\n")
+
+    exam = only_invalid(tmp_path)
+
+    assert "duration" in exam.reason
+
+
+def test_the_tags_of_the_payload_are_sorted(tmp_path):
+    write(tmp_path, "exams/e.md", "---\ntags: [b, a]\n---\n\n# [e] E\n")
+
+    assert exam_payload(only_exam(tmp_path))["tags"] == ["a", "b"]

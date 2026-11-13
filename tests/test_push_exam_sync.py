@@ -165,7 +165,7 @@ def read_exam(payload: Payload, status: str = "SCHEDULED") -> generated.Exam:
             "gradesReleasedAt": None,
             "author": "ada",
             "rev": "v1:abc",
-            "tags": payload["tags"],
+            "tags": sorted(payload["tags"]),  # type: ignore[type-var]
             "questions": questions,
             "createdAt": STAMP,
             "updatedAt": STAMP,
@@ -340,11 +340,11 @@ def test_a_completed_exam_with_an_edit_is_written_at_its_status():
 
 def test_the_file_wins_below_ongoing_in_both_directions():
     scheduled = exam_file(status="SCHEDULED")
-    draft = replace(scheduled, status="DRAFT", scheduled_at=None)
     server = server_state(mid=server_exam(scheduled, status="SCHEDULED"))
     base = base_of(server)
+    draft = replace(scheduled, status="DRAFT", scheduled_at=None)
 
-    down = plan(local_state(replace(scheduled, status="DRAFT")), server, base)
+    down = plan(local_state(draft), server, base)
     (write,) = exam_writes(down)
     assert isinstance(write, UpsertExam) and write.status == "DRAFT"
 
@@ -353,7 +353,6 @@ def test_the_file_wins_below_ongoing_in_both_directions():
     )
     (write,) = exam_writes(promoted)
     assert isinstance(write, UpsertExam) and write.status == "SCHEDULED"
-    assert draft.status == "DRAFT"
 
 
 def test_an_unresolved_include_keeps_the_server_copy():
@@ -518,3 +517,184 @@ def test_the_exams_of_the_base_are_stored_in_their_own_collection(tmp_path):
     save_base(tmp_path, state)
 
     assert load_base(tmp_path).exams == state.exams
+
+
+#
+# Review fixes
+#
+def with_question(file: ExamFile, inline: QuestionFile, **exam_changes):
+    """
+    A server and a base that hold `file` and its inline question.
+    """
+    from codehood.push.plan import ServerQuestion
+    from codehood.push.wire import question_payload
+
+    entry = RemoteEntry(question_payload(inline), rev=inline.version, updated_at=STAMP)
+    server = replace(
+        server_state(mid=server_exam(file, **exam_changes)),
+        questions={inline.slug: ServerQuestion(inline.version, entry, "PUBLISHED")},
+    )
+    base = replace(
+        base_of(server),
+        questions={inline.slug: BaseEntry(entry.payload, entry.rev, entry.updated_at)},
+    )
+    return server, base
+
+
+def pruned(result: Plan) -> list[str]:
+    return [w.slug for w in result.writes if isinstance(w, DeleteQuestion)]
+
+
+def test_the_inline_questions_of_an_invalid_exam_are_not_pruned():
+    inline = question_file("mid-a")
+    file = exam_file(questions=("mid-a",), inline=(inline,))
+    server, base = with_question(file, inline)
+    invalid = InvalidExam("mid", Path("exams/mid.md"), "broken")
+
+    result = plan(local_state(invalid), server, base)
+
+    assert pruned(result) == []
+    assert result.base_updates == ()
+    assert result.rejected
+
+
+def test_the_questions_of_a_live_exam_whose_file_is_gone_are_not_pruned():
+    inline = question_file("mid-a")
+    file = exam_file(questions=("mid-a",), inline=(inline,))
+    server, base = with_question(file, inline, status="ONGOING")
+
+    result = plan(local_state(), server, base)
+
+    assert pruned(result) == []
+
+
+def test_a_question_deleted_under_an_exam_that_includes_it_is_not_pruned():
+    included = question_file("a")
+    file = exam_file(questions=("a",))
+    server, base = with_question(file, included)
+    invalid = InvalidExam(
+        "mid", Path("exams/mid.md"), "include 'a' matches no question"
+    )
+
+    assert pruned(plan(local_state(invalid), server, base)) == []
+
+
+def test_a_kept_exam_does_not_stop_a_question_from_being_written():
+    inline = question_file("mid-a")
+    file = exam_file(questions=("mid-a",), inline=(inline,))
+    server, base = with_question(file, inline)
+    body = "---\ntitle: Q\n---\n\nWhat now?\n\n- [ ] 3\n- [*] 4\n"
+    edited = replace(
+        inline,
+        version=question_version(body.encode()),
+        question=mdq.parse(body, kind="question", ids="fill"),
+    )
+    invalid = InvalidExam("mid", Path("exams/mid.md"), "broken")
+    local = replace(local_state(invalid), questions=(edited,))
+
+    result = plan(local, server, base)
+
+    assert [w.slug for w in result.writes if isinstance(w, UpsertQuestion)] == ["mid-a"]
+
+
+def test_an_unrelated_question_is_still_pruned_next_to_a_kept_exam():
+    inline = question_file("mid-a")
+    other = question_file("other")
+    file = exam_file(questions=("mid-a",), inline=(inline,))
+    server, base = with_question(file, inline)
+    server2, base2 = with_question(file, other)
+    server = replace(server, questions={**server.questions, **server2.questions})
+    base = replace(base, questions={**base.questions, **base2.questions})
+    invalid = InvalidExam("mid", Path("exams/mid.md"), "broken")
+
+    assert pruned(plan(local_state(invalid), server, base)) == ["other"]
+
+
+def test_tags_that_are_not_alphabetical_converge():
+    file = exam_file(tags=("b", "a"))
+    server = server_state(mid=server_exam(file))
+    assert exam_payload(file)["tags"] == ["a", "b"]
+    read = read_exam(exam_payload(file))
+
+    assert project_exam(read) == exam_payload(file)
+    assert quiet(plan(local_state(file), server))
+
+
+def test_a_file_that_gets_a_new_start_after_dropping_it_is_a_write_not_a_conflict():
+    s1, s2 = "2026-03-15T14:00:00.000Z", "2026-04-01T09:00:00.000Z"
+    declared = exam_file(scheduled_at=s1)
+    server = server_state(mid=server_exam(declared))
+    base = base_of(server)
+
+    omitted = plan(local_state(replace(declared, scheduled_at=None)), server, base)
+    assert quiet(omitted)
+
+    again = plan(
+        local_state(replace(declared, scheduled_at=s2)),
+        server,
+        base_of(server),
+    )
+    (write,) = exam_writes(again)
+    assert isinstance(write, UpsertExam) and write.payload["scheduledAt"] == s2
+
+
+def test_the_reschedule_cycle_through_an_omitting_push_is_not_a_conflict():
+    s1, s2 = "2026-03-15T14:00:00.000Z", "2026-04-01T09:00:00.000Z"
+    declared = exam_file(scheduled_at=s1, duration={"hours": 2, "minutes": 0})
+    server = server_state(mid=server_exam(declared))
+    omitting = replace(declared, scheduled_at=None, duration=None, title="Other")
+
+    first = plan(local_state(omitting), server, base_of(server))
+    (write,) = exam_writes(first)
+    assert isinstance(write, UpsertExam)
+    assert write.payload["scheduledAt"] == s1
+    assert write.payload["duration"] == {"hours": 2, "minutes": 0}
+    (confirmation,) = [c for c in first.confirmations if c.write == write]
+    assert confirmation.update.entry is not None
+    assert confirmation.update.entry.payload["scheduledAt"] == s1
+
+    # The push went through: the server holds the new title, the base too.
+    pushed = server_state(
+        mid=server_exam(omitting, scheduledAt=s1, duration=write.payload["duration"])
+    )
+    base = base_of(pushed)
+    redeclared = replace(omitting, scheduled_at=s2, duration={"hours": 3, "minutes": 0})
+    second = plan(local_state(redeclared), pushed, base)
+
+    assert second.conflicts == ()
+    (write,) = exam_writes(second)
+    assert isinstance(write, UpsertExam)
+    assert write.payload["scheduledAt"] == s2
+    assert write.payload["duration"] == {"hours": 3, "minutes": 0}
+
+
+def test_an_instructor_change_to_a_key_the_file_omits_is_a_pull_not_an_overwrite():
+    declared = exam_file(scheduled_at="2026-03-15T14:00:00.000Z")
+    base = base_of(server_state(mid=server_exam(declared)))
+    server = server_state(
+        mid=server_exam(declared, scheduledAt="2026-05-01T10:00:00.000Z")
+    )
+    omitting = replace(declared, scheduled_at=None)
+
+    result = plan(local_state(omitting), server, base)
+
+    assert exam_writes(result) == []
+    assert [pull.fields for pull in result.pulls] == [("scheduledAt",)]
+
+
+def test_a_value_the_server_set_and_the_cli_never_wrote_is_never_a_change():
+    file = exam_file(scheduled_at=None, duration=None)
+    base = base_of(server_state(mid=server_exam(file)))
+    server = server_state(
+        mid=server_exam(
+            file,
+            scheduledAt="2026-05-01T10:00:00.000Z",
+            duration={"hours": 1, "minutes": 0},
+        )
+    )
+
+    assert quiet(plan(local_state(file), server, base))
+    result = plan(local_state(replace(file, title="New")), server, base)
+    (write,) = exam_writes(result)
+    assert isinstance(write, UpsertExam)
+    assert "scheduledAt" not in write.payload and "duration" not in write.payload

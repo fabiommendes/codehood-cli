@@ -513,6 +513,11 @@ def _build(
         )
         if set_
     )
+    if exam.duration is not None and exam_duration(exam.duration) == {
+        "hours": 0,
+        "minutes": 0,
+    }:
+        raise ValueError(f"duration {exam.duration} is under a minute")
     stem = _strip_suffix((path.name,))[0]
     return ExamFile(
         slug=slug,

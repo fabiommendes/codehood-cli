@@ -142,7 +142,7 @@ def project_exam(exam: generated.Exam) -> Payload:
     questions: list[JsonValue] = [
         {"slug": item.slug, "version": None} for item in exam.questions
     ]
-    tags: list[JsonValue] = [*exam.tags]
+    tags: list[JsonValue] = [*sorted(exam.tags)]
     payload: Payload = {
         "slug": exam.slug,
         "type": exam.type,

@@ -38,6 +38,7 @@ from .exam import (
     IgnoredExamPolicy,
     InvalidExam,
     LocalExamStatus,
+    exam_rev,
     inline_questions,
 )
 from .exclude import ExcludedFile
@@ -1127,7 +1128,11 @@ def plan_sync(
             ours=ours,
         )
         + Plan.of(resources)
-        + Plan.of(_sync_questions(local, base, remote))
+        + Plan.of(
+            _sync_questions(
+                local, base, remote, _kept_exam_questions(local, base, remote)
+            )
+        )
         + _sync_exams(local, base, remote)
         + _sync_grades(local, base, remote)
     )
@@ -1282,7 +1287,10 @@ def _sync_resources(
 
 
 def _sync_questions(
-    local: LocalState, base: BaseState, remote: ServerState
+    local: LocalState,
+    base: BaseState,
+    remote: ServerState,
+    protected: frozenset[str] = frozenset(),
 ) -> list[Decision]:
     files = {q.slug: q for q in local.questions}
     excluded = _excluded(local, "question")
@@ -1345,6 +1353,8 @@ def _sync_questions(
             put=put,
             prune=lambda: Prune(DeleteQuestion(slug=key)),
         )
+        if key in protected and isinstance(decision, Prune):
+            return Skip()
         if not isinstance(decision, Skip) or file is None or question is None:
             return decision
         if status != question.status:
@@ -1395,14 +1405,13 @@ def _sync_exams(local: LocalState, base: BaseState, remote: ServerState) -> Plan
         exam = remote.exams.get(key)
         # `duration` and `scheduledAt` may be set on the server by an
         # instructor: what the local side does not declare is not compared.
+        # An omitted key takes the value the base holds, so omitting is no
+        # change; one the base lacks is the server's alone and not compared.
+        if payload is not None:
+            payload = _carry_server_set(payload, entry)
         declared = payload if payload is not None else entry.payload if entry else None
-        if declared is not None:
-            if server is not None:
-                server = replace(
-                    server, payload=_declared_only(server.payload, declared)
-                )
-            if entry is not None:
-                entry = replace(entry, payload=_declared_only(entry.payload, declared))
+        if declared is not None and server is not None:
+            server = replace(server, payload=_declared_only(server.payload, declared))
         live = exam is not None and exam.status in LIVE_STATUSES
         status: ExamStatus
         notices: tuple[Notice, ...] = ()
@@ -1416,7 +1425,7 @@ def _sync_exams(local: LocalState, base: BaseState, remote: ServerState) -> Plan
                 )
 
             def put() -> Put:
-                return Put(_upsert_exam(file, status), notices)
+                return Put(_upsert_exam(file, status, payload), notices)
 
         else:
             status = "DRAFT"
@@ -1446,7 +1455,9 @@ def _sync_exams(local: LocalState, base: BaseState, remote: ServerState) -> Plan
             return decision
         if status != exam.status:
             assert payload is not None
-            return _put("exam", key, payload, _upsert_exam(file, status), notices)
+            return _put(
+                "exam", key, payload, _upsert_exam(file, status, payload), notices
+            )
         if notices:
             return Keep(notices[0], decision.base)
         return decision
@@ -1469,6 +1480,50 @@ def _sync_exams(local: LocalState, base: BaseState, remote: ServerState) -> Plan
         if isinstance(file, ExamFile) and file.ignored
     )
     return Plan.of(decisions) + Plan(notices=ignored)
+
+
+def _carry_server_set(payload: Payload, entry: BaseEntry | None) -> Payload:
+    """
+    `payload` with the `duration` and `scheduledAt` it omits taken from the
+    base, when the base holds them.
+    """
+    if entry is None:
+        return payload
+    carried = {
+        key: entry.payload[key]
+        for key in _SERVER_SET
+        if key not in payload and key in entry.payload
+    }
+    return {**payload, **carried}
+
+
+def _kept_exam_questions(
+    local: LocalState, base: BaseState, remote: ServerState
+) -> frozenset[str]:
+    """
+    The slugs of the questions held by an exam the plan keeps, which a push
+    must not prune: an invalid exam, or a running one whose file is gone.
+    """
+    files = {exam.slug: exam for exam in local.exams}
+    kept = {slug for slug, exam in files.items() if isinstance(exam, InvalidExam)}
+    kept |= {
+        slug
+        for slug, exam in remote.exams.items()
+        if slug not in files and exam.status in LIVE_STATUSES
+    }
+    payloads: list[Payload] = []
+    for slug in kept:
+        if slug in base.exams:
+            payloads.append(base.exams[slug].payload)
+        if slug in remote.exams:
+            payloads.append(remote.exams[slug].entry.payload)
+    held: set[str] = set()
+    for payload in payloads:
+        questions = payload.get("questions")
+        for item in questions if isinstance(questions, list) else ():
+            if isinstance(item, dict) and isinstance(item.get("slug"), str):
+                held.add(str(item["slug"]))
+    return frozenset(held)
 
 
 def _declared_only(server: Payload, declared: Payload) -> Payload:
@@ -1876,13 +1931,15 @@ def _upsert_question(question: QuestionFile, status: QuestionStatus) -> UpsertQu
     )
 
 
-def _upsert_exam(exam: ExamFile, status: ExamStatus) -> UpsertExam:
-    payload = exam_payload(exam)
+def _upsert_exam(
+    exam: ExamFile, status: ExamStatus, payload: Payload | None = None
+) -> UpsertExam:
+    payload = exam_payload(exam) if payload is None else payload
     return UpsertExam(
         slug=exam.slug,
         payload=payload,
         status=status,
-        rev=exam.rev,
+        rev=exam_rev(payload),
         path=exam.path,
     )
 
