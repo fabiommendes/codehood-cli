@@ -7,6 +7,7 @@ Patterns are relative to the repository root, with `/` as the separator:
 - `**` as a whole segment matches any number of directories.
 - A pattern that matches a directory also matches everything under it.
 - A leading or trailing `/` is ignored. There is no negation (`!`).
+- A backslash escapes the next character, so `\\*` is a literal `*`.
 """
 
 from __future__ import annotations
@@ -59,4 +60,12 @@ def _compile(pattern: str) -> re.Pattern[str]:
 
 def _segment_regex(segment: str) -> str:
     parts = {"*": "[^/]*", "?": "[^/]"}
-    return "".join(parts.get(char) or re.escape(char) for char in segment)
+    regex = ""
+    chars = iter(segment)
+    for char in chars:
+        if char == "\\":
+            char = next(chars, "\\")
+            regex += re.escape(char)
+        else:
+            regex += parts.get(char) or re.escape(char)
+    return regex

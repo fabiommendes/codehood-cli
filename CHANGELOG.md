@@ -4,6 +4,11 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- The "not pushed (no handler)" report of `codehood push` follows git's ignore
+  rules in a git repository (nested `.gitignore`, `.git/info/exclude`,
+  `core.excludesFile`). New `.codehoodignore` (gitignore syntax) hides paths
+  from the report; inside `questions/` and `resources/` it works like
+  `[push] exclude`. `roster.csv` reads `not synced yet (codehood roster)`.
 - `codehood push` is a three-way sync. It compares the repository, the base
   of the last sync (`.local/codehood/`, created by `ch init` or the first push, replaces
   `.codehood/`) and the server. It sends only local changes and reports

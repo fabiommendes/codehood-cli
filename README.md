@@ -110,6 +110,17 @@ there is no `!` negation. They apply to files under `questions/` and
 the server already holds for it is neither updated nor deleted. `codehood
 push` lists excluded files and does not fail because of them.
 
+`.codehoodignore` at the root takes gitignore syntax (with `!`) and makes
+codehood ignore the paths it matches, such as the files of another tool that
+shares the folder (`chalk.toml`, `p1/`). A match outside `questions/` and
+`resources/` disappears from the push report. A match inside them is treated
+like an `exclude` pattern: not pushed, and the server copy is kept. `codehood
+init` does not create the file.
+
+The "not pushed (no handler)" report follows git's rules in a git repository
+(`.gitignore` at any level, `.git/info/exclude`, `core.excludesFile`), and the
+root `.gitignore` only otherwise.
+
 
 ### Linking resources from a lesson
 

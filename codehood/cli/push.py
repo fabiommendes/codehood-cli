@@ -83,7 +83,9 @@ from ..push.unconsumed import (
     consumed_paths,
     excluded_paths,
     find_unconsumed,
+    ignore_patterns,
     list_files,
+    read_ignore,
 )
 from ..repo.file_tracker import scan_files
 from .base import app
@@ -264,7 +266,10 @@ def sync(
         typer.echo(f"excluded  {file.path}")
     excluded_note = f", {len(local.excluded)} excluded" if local.excluded else ""
     for unconsumed in local.unconsumed:
-        typer.echo(f"not pushed (no handler): {unconsumed}")
+        if unconsumed == "roster.csv":
+            typer.echo(f"not synced yet (codehood roster): {unconsumed}")
+        else:
+            typer.echo(f"not pushed (no handler): {unconsumed}")
     # `sync_lines` renders the drift notices along with the pulls and conflicts.
     for notice in plan.notices:
         if not isinstance(notice, ServerDrifted):
@@ -423,7 +428,8 @@ def read_local_state(path: Path, config: RepoConfig) -> LocalState:
     allocation = allocate(calendar)
 
     key = config.key
-    exclude = config.push.exclude
+    ignore = read_ignore(path)
+    exclude = [*config.push.exclude, *ignore_patterns(path, ignore)]
     tracked = tuple(scan_files(path, exclude))
     files, gitignore = list_files(path)
     trees = tuple(scan_repositories(path, exclude))
@@ -450,6 +456,7 @@ def read_local_state(path: Path, config: RepoConfig) -> LocalState:
             consumed=consumed_paths(tracked),
             excluded=excluded_paths(tracked),
             gitignore=gitignore,
+            codehoodignore=ignore,
         ),
         warnings=allocation.warnings,
     )
