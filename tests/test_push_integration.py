@@ -238,6 +238,69 @@ def test_push_questions_matches_the_repository_exactly_and_reconverges(
     assert "delete question" not in second.output
 
 
+def _exam_status(client: httpx.Client) -> dict[str, str]:
+    exams = generated.list_exam(
+        discipline=DISCIPLINE,
+        course=COURSE,
+        statuses=["DRAFT", "SCHEDULED", "ONGOING", "COMPLETED"],
+        client=client,
+    )
+    return {exam.slug: exam.status for exam in exams}
+
+
+def test_push_exams_matches_the_repository_exactly_and_reconverges(
+    course_repo_with_questions: Path, client: httpx.Client
+):
+    """
+    `dev/specs/to-review/push-exams.md`'s "Acceptance": the server holds the
+    exams the files account for with their questions, a second push plans
+    nothing, a `duration` set on the server survives, and a deleted file
+    archives its exam.
+    """
+    repo = course_repo_with_questions
+    (repo / "exams" / "quiz").mkdir()
+    (repo / "exams" / "quiz" / "week1.md").write_text(
+        "---\nstart: 2026-03-15T14:00:00\ntags: [b, a]\n---\n\n"
+        "# [week1] Week 1\n\n---\ninclude: fat\n---\n\n"
+        "---\nid: why\n---\n\nWhy?\n\n[essay]\n",
+        encoding="utf-8",
+    )
+    (repo / "exams" / "_notes.md").write_text(
+        "# [notes] Notes\n\n---\ninclude: example\n---\n", encoding="utf-8"
+    )
+
+    first = runner.invoke(app, ["push", str(repo), "--ours", "*"])
+    assert first.exit_code == 0, first.output
+    assert _exam_status(client) == {"week1": "SCHEDULED", "notes": "DRAFT"}
+    week1 = generated.read_exam(
+        discipline=DISCIPLINE, course=COURSE, slug="week1", client=client
+    )
+    assert week1.type == "QUIZ"
+    assert [q.slug for q in week1.questions] == ["fat", "week1-why"]
+    assert "week1-why" in _question_slugs(client)
+
+    second = runner.invoke(app, ["push", str(repo), "--dry-run"])
+    assert second.exit_code == 0, second.output
+    assert "planned  exam" not in second.output
+
+    client.patch(
+        f"/api/course/{DISCIPLINE}/{COURSE}/exam/notes",
+        json={"duration": {"hours": 1, "minutes": 30}},
+        headers=base_module.auth_headers(client),
+    ).raise_for_status()
+    third = runner.invoke(app, ["push", str(repo)])
+    assert third.exit_code == 0, third.output
+    notes = generated.read_exam(
+        discipline=DISCIPLINE, course=COURSE, slug="notes", client=client
+    )
+    assert notes.duration is not None and notes.duration.hours == 1
+
+    (repo / "exams" / "_notes.md").unlink()
+    fourth = runner.invoke(app, ["push", str(repo)])
+    assert fourth.exit_code == 0, fourth.output
+    assert _exam_status(client) == {"week1": "SCHEDULED"}
+
+
 def _planned_writes(output: str) -> list[str]:
     """The `planned` lines of a dry run that are real writes, not notices."""
     planned = [line for line in output.splitlines() if line.startswith("planned")]

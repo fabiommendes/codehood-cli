@@ -59,16 +59,6 @@ Backlog items are categorized in sections, not on priority.
 
 ## Features
 
-* **Exam includes do not resolve.** `mdq.loaders.FileLoader` looks for
-  `.mdq.md` and `.mdq`; `ch init` writes questions as plain `.md`, so an
-  exam's `include: example` raises `IncludeNotFound` against a repository
-  the CLI itself scaffolded. `FileLoader` also does not recurse, so a
-  question in a `questions/` subdirectory cannot be included at all.
-  Nothing breaks today -- the CLI never calls `mdq.parse_exam` -- but the
-  exam slice cannot start until the two agree on where a question lives.
-  Either `FileLoader` grows `.md` and a recursive walk, or the CLI ships
-  its own loader over `push.question.scan_questions`.
-
 * **`resources/` refs are sha-256, the mapping says md5.**
   `docs/design/mapping-local-filesystem.md` states that every content hash in
   Codehood is md5; `push/resource.content_ref` predates that line and uses

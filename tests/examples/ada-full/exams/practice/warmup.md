@@ -1,5 +1,6 @@
 ---
 course: cs101
+start: 2026-02-02T08:00:00
 duration: 20m
 ---
 

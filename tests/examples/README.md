@@ -110,22 +110,13 @@ Empty but for its own README. `bob` is the pre-seeded student enrolled in
 Ada's `cs101`; the student workflow has no repository layout yet, so
 there is nothing to scaffold. The folder is a placeholder.
 
-## Exams do not parse yet
+## Exams
 
-`exams/` in every fixture holds real MDQ exams, but nothing in the CLI
-reads them -- `codehood/` never calls `mdq.parse_exam`. They are there so
-the directory layout is realistic and so the exam slice has content to
-start from.
-
-They also do not resolve standalone. `mdq.loaders.FileLoader` looks for
-`.mdq.md` and `.mdq`, while `ch init` writes questions as plain `.md`, so
-an `include:` naming a `.md` question raises `IncludeNotFound`:
-
-```
-IncludeNotFound: cannot resolve included question 'example':
-looked for .mdq.md/.mdq under .../questions
-```
-
-`FileLoader` also does not recurse, so an include naming a question in a
-subdirectory would not resolve either. Both need settling as part of the
-exam slice; see `BACKLOG.md`.
+`exams/` in every fixture holds real MDQ exams that `ch push` sends. The
+directories are the author's: `published/`, `_draft/` and `practice/` mean
+something only through the rules of the mapping. A `_` makes a draft,
+`practice` and `quiz` in a path set the type, and a `start` schedules the
+exam. So `ada-full` has `published/midterm.md` (`EXAM`, `SCHEDULED`, one
+inline question without an id), `_draft/final.md` (`DRAFT`) and
+`practice/warmup.md` (`PRACTICE`, `SCHEDULED`). Their `include:` lines
+resolve by filename stem, which is unique across `questions/`.

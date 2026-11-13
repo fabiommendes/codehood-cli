@@ -4,6 +4,18 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- `codehood push` syncs `exams/`: every MDQ file under it, at any depth, is an
+  exam. The slug is the MDQ `id` (front matter or H1) or the path; `quiz` and
+  `practice` in a path set the type; a `_` makes a draft, otherwise a `start`
+  schedules it. `include:` resolves by slug, by unique filename stem or by
+  path, `includeAll:` by tag query (with `max` it is an error), and inline
+  questions are pushed as questions named `<exam>-<id>` or `<exam>-q<n>`. A
+  broken include makes the exam `invalid` (exit code 1) and the server copy,
+  and its questions, stay. A `duration` or `start` the file omits is never
+  blanked, an exam the server moved to `ONGOING` or `COMPLETED` keeps its
+  status, and `penalty`, `grading`, `shuffle` and `attachments` are warned
+  about and not sent. `FileType.EXAM` replaces the three `exams/{draft,
+  practice,published}` types.
 - The "not pushed (no handler)" report of `codehood push` follows git's ignore
   rules in a git repository (nested `.gitignore`, `.git/info/exclude`,
   `core.excludesFile`). New `.codehoodignore` (gitignore syntax) hides paths

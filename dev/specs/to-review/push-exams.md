@@ -1,6 +1,6 @@
 ---
 type: spec
-status: draft
+status: review
 tags: [codehood-cli, push, exams, questions, mdq, sync]
 relatedTo: [codehood-cli, push, push-questions, sync-fase-1]
 ---

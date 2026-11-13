@@ -15,6 +15,18 @@ matters.
 
 ## REST API Roadblocks
 
+- [ ] `ExamCreate` has no column for the MDQ exam fields `penalty`, `grading`,
+  `shuffle` and `attachments`, and no server code would apply them. **Worked
+  around**: `push` warns (`IgnoredExamPolicy`) when a file sets one to a
+  non-default value and sends nothing. Proposal: one nullable `Exam.policy`
+  JSON column with `{penalty, grading, shuffle}`, applied by grading and by
+  question order; see `dev/issues/politica-de-correcao-da-prova.md` in the
+  server repository (root). Once it is in the OpenAPI document the CLI sends
+  it and it enters the exam's `rev`.
+- [ ] `includeAll` with `max` has no stable meaning without a question pool on
+  the server: a random pick per push never converges. **Worked around**: it is
+  a local error.
+
 - [ ] `cli.course.preSync` is a stub, and is not in the OpenAPI document at
   all. **Not blocking any more, but it costs a round trip per entity type.**
   `src/rpc/cli.ts` resolves the course, has its only query commented out, and
