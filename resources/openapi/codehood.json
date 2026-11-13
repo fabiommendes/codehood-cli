@@ -2,7 +2,7 @@
   "openapi": "3.0.0",
   "info": {
     "title": "Codehood API",
-    "version": "0.3.2",
+    "version": "0.4.0",
     "description": "REST API for the UI, CLI and grading bots. Use a session cookie OR Authorization: Bearer <key>, never both. Unsafe requests with a foreign Origin are rejected unless authenticated by Bearer. Form-like requests require a local Origin without Bearer. See src/urls/README.md."
   },
   "servers": [
