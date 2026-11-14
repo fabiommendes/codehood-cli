@@ -169,6 +169,22 @@ class EventsItem(Model):
     time_slot: str = Field(alias="timeSlot")
 
 
+class ExamAttachmentsItem(Model):
+    name: str
+    format: str
+    text: str | None = None
+    origin: str | None = None
+    label: str | None = None
+
+
+class ExamCreateAttachmentsItem(Model):
+    name: str
+    format: str
+    text: str | None = None
+    origin: str | None = None
+    label: str | None = None
+
+
 class ExamCreateQuestionsItem(Model):
     slug: str
     version: str | None = None
@@ -236,27 +252,6 @@ class Question2QuestionCodeRubricItem(Model):
     comment: str | None = None
 
 
-class Question2QuestionEssay(Model):
-    model_config = ConfigDict(populate_by_name=True)
-
-    field_schema: str | None = Field(default=None, alias="$schema")
-    id: str | None = None
-    uuid: str | None = None
-    title: str | None = None
-    author: str | None = None
-    stem: str
-    epilogue: str | None = None
-    comment: str | None = None
-    locale: str | None = None
-    tags: list[str] | None = None
-    weight: float | None = None
-    meta: dict[str, object | None] | None = None
-    type: Literal["essay"]
-    content: Literal["code", "text", "plain"] | None = None
-    highlight: str | None = None
-    answer_key: str | None = Field(default=None, alias="answerKey")
-
-
 class Question2QuestionMultipleChoiceChoicesItem(Model):
     id: str | None = None
     text: str
@@ -294,18 +289,11 @@ class Question2QuestionTrueFalseChoicesItem(Model):
     comment: str | None = None
 
 
-class Question3QuestionEssay(Model):
-    id: str | None = None
-    uuid: str | None = None
-    title: str | None = None
-    stem: str
-    epilogue: str | None = None
-    tags: list[str] | None = None
-    locale: str | None = None
-    weight: float | None = None
-    type: Literal["essay"]
-    content: Literal["code", "text", "plain"] | None = None
-    highlight: str | None = None
+class Question3QuestionCodeAttachmentsItem(Model):
+    name: str
+    format: str
+    text: str | None = None
+    label: str | None = None
 
 
 class Question3QuestionFillInBlanksItemNumeric(Model):
@@ -321,44 +309,6 @@ class Question3QuestionFillInBlanksItemNumeric(Model):
 class Question3QuestionMultipleChoiceChoicesItem(Model):
     id: str
     text: str
-
-
-class Question3QuestionNumeric(Model):
-    model_config = ConfigDict(populate_by_name=True)
-
-    id: str | None = None
-    uuid: str | None = None
-    title: str | None = None
-    stem: str
-    epilogue: str | None = None
-    tags: list[str] | None = None
-    locale: str | None = None
-    weight: float | None = None
-    type: Literal["numeric"]
-    unit: str | None = None
-    domain: Literal["integer", "decimal", "fraction"]
-    decimal_places: int | None = Field(default=None, alias="decimalPlaces")
-
-
-class Question3QuestionOrdering(Model):
-    model_config = ConfigDict(populate_by_name=True)
-
-    id: str | None = None
-    uuid: str | None = None
-    title: str | None = None
-    stem: str
-    epilogue: str | None = None
-    tags: list[str] | None = None
-    locale: str | None = None
-    weight: float | None = None
-    type: Literal["ordering"]
-    content: Literal["code", "text"]
-    highlight: str | None = None
-    indentation: Literal["fixed", "lenient", "strict"] | None = None
-    unmatched: Literal["manual", "incorrect"]
-    normalizations: list[Literal["dedent", "skip-blanks"]] | None = None
-    max_level: int | None = Field(default=None, alias="maxLevel")
-    pool: list[list[int | str]]
 
 
 class Question3QuestionShortAnswerPreAcceptItem(Model):
@@ -652,6 +602,8 @@ class Exam(Model):
     questions: list[ExamQuestionsItem]
     created_at: str = Field(alias="createdAt")
     updated_at: str = Field(alias="updatedAt")
+    attachments: list[ExamAttachmentsItem] | None = None
+    files: dict[str, str] | None = None
 
 
 class ExamCreate(Model):
@@ -672,6 +624,8 @@ class ExamCreate(Model):
     rev: str | None = None
     tags: list[str] | None = None
     questions: list[ExamCreateQuestionsItem] | None = None
+    attachments: list[ExamCreateAttachmentsItem] | None = None
+    files: dict[str, str] | None = None
 
 
 class GradeColumn(Model):
@@ -712,12 +666,35 @@ class Question2QuestionCode(Model):
     tags: list[str] | None = None
     weight: float | None = None
     meta: dict[str, object | None] | None = None
+    attachments: list[ExamCreateAttachmentsItem] | None = None
     type: Literal["code"]
     language: str | None = None
     file: str | None = None
     tests: list[TestsItem] | None = None
     rubric: list[Question2QuestionCodeRubricItem] | None = None
     template: str | None = None
+    answer_key: str | None = Field(default=None, alias="answerKey")
+
+
+class Question2QuestionEssay(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    field_schema: str | None = Field(default=None, alias="$schema")
+    id: str | None = None
+    uuid: str | None = None
+    title: str | None = None
+    author: str | None = None
+    stem: str
+    epilogue: str | None = None
+    comment: str | None = None
+    locale: str | None = None
+    tags: list[str] | None = None
+    weight: float | None = None
+    meta: dict[str, object | None] | None = None
+    attachments: list[ExamCreateAttachmentsItem] | None = None
+    type: Literal["essay"]
+    content: Literal["code", "text", "plain"] | None = None
+    highlight: str | None = None
     answer_key: str | None = Field(default=None, alias="answerKey")
 
 
@@ -771,6 +748,7 @@ class Question2QuestionMultipleChoice(Model):
     tags: list[str] | None = None
     weight: float | None = None
     meta: dict[str, object | None] | None = None
+    attachments: list[ExamCreateAttachmentsItem] | None = None
     type: Literal["multiple-choice"]
     choices: list[Question2QuestionMultipleChoiceChoicesItem]
     grading: Literal["partial", "symmetric", "inherit"] | None = None
@@ -792,6 +770,7 @@ class Question2QuestionMultipleSelection(Model):
     tags: list[str] | None = None
     weight: float | None = None
     meta: dict[str, object | None] | None = None
+    attachments: list[ExamCreateAttachmentsItem] | None = None
     type: Literal["multiple-selection"]
     choices: list[Question2QuestionMultipleSelectionChoicesItem]
     grading: Literal["partial", "all-or-nothing", "symmetric", "inherit"] | None = None
@@ -813,6 +792,7 @@ class Question2QuestionNumeric(Model):
     tags: list[str] | None = None
     weight: float | None = None
     meta: dict[str, object | None] | None = None
+    attachments: list[ExamCreateAttachmentsItem] | None = None
     answer: float | str
     unit: str | None = None
     domain: Literal["integer", "decimal", "fraction"] | None = None
@@ -837,6 +817,7 @@ class Question2QuestionOrdering(Model):
     tags: list[str] | None = None
     weight: float | None = None
     meta: dict[str, object | None] | None = None
+    attachments: list[ExamCreateAttachmentsItem] | None = None
     type: Literal["ordering"]
     lines: list[list[int | str]]
     extra: list[list[int | str]] | None = None
@@ -865,6 +846,7 @@ class Question2QuestionShortAnswer(Model):
     tags: list[str] | None = None
     weight: float | None = None
     meta: dict[str, object | None] | None = None
+    attachments: list[ExamCreateAttachmentsItem] | None = None
     accept: list[str | Question2QuestionShortAnswerAcceptItem] | None = None
     reject: list[str | Question2QuestionShortAnswerAcceptItem] | None = None
     pre_accept: list[str | Question2QuestionShortAnswerAcceptItem] | None = Field(
@@ -894,6 +876,7 @@ class Question2QuestionTrueFalse(Model):
     tags: list[str] | None = None
     weight: float | None = None
     meta: dict[str, object | None] | None = None
+    attachments: list[ExamCreateAttachmentsItem] | None = None
     type: Literal["true-false"]
     choices: list[Question2QuestionTrueFalseChoicesItem]
     grading: (
@@ -906,6 +889,7 @@ class Question2QuestionTrueFalse(Model):
 class Question3QuestionCode(Model):
     model_config = ConfigDict(populate_by_name=True)
 
+    attachments: list[Question3QuestionCodeAttachmentsItem] | None = None
     id: str | None = None
     uuid: str | None = None
     title: str | None = None
@@ -921,6 +905,21 @@ class Question3QuestionCode(Model):
     public_tests: list[PublicTestsItem] | None = Field(
         default=None, alias="publicTests"
     )
+
+
+class Question3QuestionEssay(Model):
+    attachments: list[Question3QuestionCodeAttachmentsItem] | None = None
+    id: str | None = None
+    uuid: str | None = None
+    title: str | None = None
+    stem: str
+    epilogue: str | None = None
+    tags: list[str] | None = None
+    locale: str | None = None
+    weight: float | None = None
+    type: Literal["essay"]
+    content: Literal["code", "text", "plain"] | None = None
+    highlight: str | None = None
 
 
 class Question3QuestionFillInBlanksItemMultipleChoice(Model):
@@ -944,6 +943,7 @@ class Question3QuestionFillInBlanksItemShortAnswer(Model):
 
 
 class Question3QuestionMultipleChoice(Model):
+    attachments: list[Question3QuestionCodeAttachmentsItem] | None = None
     id: str | None = None
     uuid: str | None = None
     title: str | None = None
@@ -959,6 +959,7 @@ class Question3QuestionMultipleChoice(Model):
 
 
 class Question3QuestionMultipleSelection(Model):
+    attachments: list[Question3QuestionCodeAttachmentsItem] | None = None
     id: str | None = None
     uuid: str | None = None
     title: str | None = None
@@ -973,9 +974,50 @@ class Question3QuestionMultipleSelection(Model):
     choices: list[Question3QuestionMultipleChoiceChoicesItem]
 
 
+class Question3QuestionNumeric(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    attachments: list[Question3QuestionCodeAttachmentsItem] | None = None
+    id: str | None = None
+    uuid: str | None = None
+    title: str | None = None
+    stem: str
+    epilogue: str | None = None
+    tags: list[str] | None = None
+    locale: str | None = None
+    weight: float | None = None
+    type: Literal["numeric"]
+    unit: str | None = None
+    domain: Literal["integer", "decimal", "fraction"]
+    decimal_places: int | None = Field(default=None, alias="decimalPlaces")
+
+
+class Question3QuestionOrdering(Model):
+    model_config = ConfigDict(populate_by_name=True)
+
+    attachments: list[Question3QuestionCodeAttachmentsItem] | None = None
+    id: str | None = None
+    uuid: str | None = None
+    title: str | None = None
+    stem: str
+    epilogue: str | None = None
+    tags: list[str] | None = None
+    locale: str | None = None
+    weight: float | None = None
+    type: Literal["ordering"]
+    content: Literal["code", "text"]
+    highlight: str | None = None
+    indentation: Literal["fixed", "lenient", "strict"] | None = None
+    unmatched: Literal["manual", "incorrect"]
+    normalizations: list[Literal["dedent", "skip-blanks"]] | None = None
+    max_level: int | None = Field(default=None, alias="maxLevel")
+    pool: list[list[int | str]]
+
+
 class Question3QuestionShortAnswer(Model):
     model_config = ConfigDict(populate_by_name=True)
 
+    attachments: list[Question3QuestionCodeAttachmentsItem] | None = None
     id: str | None = None
     uuid: str | None = None
     title: str | None = None
@@ -996,6 +1038,7 @@ class Question3QuestionShortAnswer(Model):
 
 
 class Question3QuestionTrueFalse(Model):
+    attachments: list[Question3QuestionCodeAttachmentsItem] | None = None
     id: str | None = None
     uuid: str | None = None
     title: str | None = None
@@ -1124,6 +1167,8 @@ class UpdateExamRequest(Model):
     tags: list[str] | None = None
     questions: list[ExamCreateQuestionsItem] | None = None
     extra_time: Duration | None = Field(default=None, alias="extraTime")
+    attachments: list[ExamCreateAttachmentsItem] | None = None
+    files: dict[str, str] | None = None
 
 
 class UpdateGradeColumnRequest(Model):
@@ -1196,6 +1241,7 @@ class Question2QuestionFillIn(Model):
     tags: list[str] | None = None
     weight: float | None = None
     meta: dict[str, object | None] | None = None
+    attachments: list[ExamCreateAttachmentsItem] | None = None
     type: Literal["fill-in"]
     blanks: list[
         Question2QuestionFillInBlanksItemMultipleChoice
@@ -1212,6 +1258,7 @@ class Question2QuestionFillIn(Model):
 
 
 class Question3QuestionFillIn(Model):
+    attachments: list[Question3QuestionCodeAttachmentsItem] | None = None
     id: str | None = None
     uuid: str | None = None
     title: str | None = None
@@ -1278,6 +1325,8 @@ class Question2(Model):
         | Question2QuestionOrdering
         | Question2QuestionCode
     )
+    public_id: str = Field(alias="publicId")
+    files: dict[str, str] | None = None
 
 
 class Question3(Model):
@@ -1318,6 +1367,7 @@ class QuestionCreate(Model):
         | Question2QuestionOrdering
         | Question2QuestionCode
     )
+    files: dict[str, str] | None = None
 
 
 class UpdateQuestionRequest(Model):
@@ -1336,6 +1386,7 @@ class UpdateQuestionRequest(Model):
         | Question2QuestionCode
         | None
     ) = None
+    files: dict[str, str] | None = None
 
 
 class ClaimGradingJobsResponse(Model):
