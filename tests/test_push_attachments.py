@@ -852,3 +852,57 @@ def test_a_413_fails_that_question_and_the_push_goes_on(tmp_path, monkeypatch):
         "small",
     }
     assert len(server.puts("exam")) == 1
+
+
+class StatefulServer(FakeServer):
+    """
+    A `FakeServer` that keeps the course and the questions it was sent and
+    answers with them, so a second push sees what the first one wrote.
+    """
+
+    def __init__(self) -> None:
+        super().__init__(missing=[])
+        self.stored: dict[str, dict] = {}
+        self.has_course = False
+
+    def handle(self, request: httpx.Request) -> httpx.Response:
+        path, method = request.url.path, request.method
+        if method == "GET" and path == BASE and self.has_course:
+            return httpx.Response(200, json=course_json())
+        response = super().handle(request)
+        if method == "PUT" and path == "/api/course":
+            self.has_course = True
+        if method == "PUT" and path == f"{BASE}/question":
+            body = json.loads(request.content)
+            self.stored[body["slug"]] = {
+                **stored_question(body),
+                "files": body.get("files"),
+            }
+        elif method == "GET" and path == f"{BASE}/question":
+            return httpx.Response(200, json=list(self.stored.values()))
+        return response
+
+
+def test_editing_only_a_linked_file_pushes_only_that_question_after_a_push(
+    tmp_path, monkeypatch
+):
+    root = course(tmp_path)
+    write(root, "questions/pick.md", CHOICE.format(id="pick", origin="data.csv"))
+    csv = write(root, "questions/data.csv", b"x,y\n1,2\n")
+    write(root, "questions/other.md", PLAIN_CHOICE.replace("pick", "other"))
+    server = StatefulServer()
+    assert push(monkeypatch, server, root).exit_code == 0
+
+    server.calls.clear()
+    assert push(monkeypatch, server, root).exit_code == 0
+    assert server.puts("question") == []
+
+    csv.write_bytes(b"x,y\n1,3\n")
+    server.calls.clear()
+    result = push(monkeypatch, server, root)
+
+    assert result.exit_code == 0, result.output
+    (put,) = server.puts("question")
+    assert put.body is not None
+    assert put.body["slug"] == "pick"
+    assert put.body["files"] == {"data.csv": sha256(b"x,y\n1,3\n")}

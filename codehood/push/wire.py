@@ -128,12 +128,19 @@ def resource_payload(file: ResourceFile) -> Payload:
 
 def question_payload(file: QuestionFile) -> Payload:
     """
-    The canonical form of a question: its slug and its document.
+    The canonical form of a question: its slug, its document and, when it
+    links attachments, their `files`.
 
     `status` and `version` are left out: the status follows `join_status`,
     and the version digests the file's bytes rather than its content.
     """
-    return {"slug": file.slug, "question": canonical_question(file.question)}
+    payload: Payload = {
+        "slug": file.slug,
+        "question": canonical_question(file.question),
+    }
+    if file.files:
+        payload["files"] = dict(sorted(file.files.items()))
+    return payload
 
 
 def exam_payload(file: ExamFile) -> Payload:

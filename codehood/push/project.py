@@ -121,14 +121,22 @@ def project_question(item: Mapping[str, JsonValue]) -> Payload:
     Takes the item as JSON rather than as a generated model: the models drop
     the fields of a question type they do not declare. A document `mdq`
     cannot read (one stored in an older format) stays as the server holds
-    it, so it differs from every local question.
+    it, so it differs from every local question. `files` shows up only when
+    the question holds some, as in the local payload.
     """
     document = item["question"]
+    files = item.get("files")
     try:
         question = _QUESTION.validate_python(document)
+        payload: Payload = {
+            "slug": item["slug"],
+            "question": canonical_question(question),
+        }
     except ValidationError:
-        return {"slug": item["slug"], "question": document}
-    return {"slug": item["slug"], "question": canonical_question(question)}
+        payload = {"slug": item["slug"], "question": document}
+    if isinstance(files, dict) and files:
+        payload["files"] = dict(sorted(files.items()))
+    return payload
 
 
 def project_exam(exam: generated.Exam) -> Payload:
@@ -138,14 +146,15 @@ def project_exam(exam: generated.Exam) -> Payload:
     `duration` and `scheduledAt` are left out when the server holds none, the
     way a file that declares none leaves them out of its payload. The
     questions come back unpinned: a push never sends a version.
-
-    The attachments are projected empty: the generated read model does not
-    carry them yet, so an exam with attachments differs by its `rev`.
     """
     questions: list[JsonValue] = [
         {"slug": item.slug, "version": None} for item in exam.questions
     ]
     tags: list[JsonValue] = [*sorted(exam.tags)]
+    attachments: list[JsonValue] = [
+        item.model_dump(mode="json", by_alias=True, exclude_none=True)
+        for item in exam.attachments or []
+    ]
     payload: Payload = {
         "slug": exam.slug,
         "type": exam.type,
@@ -156,8 +165,8 @@ def project_exam(exam: generated.Exam) -> Payload:
         "tags": tags,
         "allowCodeRun": exam.allow_code_run,
         "questions": questions,
-        "attachments": [],
-        "files": {},
+        "attachments": attachments,
+        "files": dict(sorted((exam.files or {}).items())),
     }
     if exam.duration is not None:
         minutes = (exam.duration.hours or 0) * 60 + (exam.duration.minutes or 0)

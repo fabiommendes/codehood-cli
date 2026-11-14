@@ -835,21 +835,20 @@ def _run_upsert_question(
             # The dict is exactly the payload we mean to send, so this is
             # noise, not a signal.
             warnings.simplefilter("ignore", UserWarning)
-            if not op.files:
-                stored: object = generated.upsert_question(
-                    discipline=discipline, course=course, body=body, client=client
-                )
-            else:
-                # Sent by hand: the generated body may not carry `files`.
-                stored = _put_with_blobs(
-                    f"/api/course/{quote(discipline, safe='')}/"
-                    f"{quote(course, safe='')}/question",
-                    {**body.model_dump(mode="json", by_alias=True), "files": op.files},
-                    op.files,
-                    op.blobs,
-                    blobs,
-                    client,
-                )
+            # Sent by hand: the body may carry `files`, and the answer needs
+            # only the `rev` and `updatedAt`.
+            stored = _put_with_blobs(
+                f"/api/course/{quote(discipline, safe='')}/"
+                f"{quote(course, safe='')}/question",
+                {
+                    **body.model_dump(mode="json", by_alias=True, exclude={"files"}),
+                    **({"files": op.files} if op.files else {}),
+                },
+                op.files,
+                op.blobs,
+                blobs,
+                client,
+            )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
         return _failed(op, exc, op.files, op.blobs)
     return _stamp(op, stored, f"upserted {op.slug}")
