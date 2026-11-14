@@ -138,6 +138,9 @@ def project_exam(exam: generated.Exam) -> Payload:
     `duration` and `scheduledAt` are left out when the server holds none, the
     way a file that declares none leaves them out of its payload. The
     questions come back unpinned: a push never sends a version.
+
+    The attachments are projected empty: the generated read model does not
+    carry them yet, so an exam with attachments differs by its `rev`.
     """
     questions: list[JsonValue] = [
         {"slug": item.slug, "version": None} for item in exam.questions
@@ -153,6 +156,8 @@ def project_exam(exam: generated.Exam) -> Payload:
         "tags": tags,
         "allowCodeRun": exam.allow_code_run,
         "questions": questions,
+        "attachments": [],
+        "files": {},
     }
     if exam.duration is not None:
         minutes = (exam.duration.hours or 0) * 60 + (exam.duration.minutes or 0)

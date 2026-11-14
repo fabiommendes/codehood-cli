@@ -309,6 +309,10 @@ class UpsertQuestion:
     question: AnyQuestion
     path: Path
     status: QuestionStatus = "PUBLISHED"
+    #: Attachment name -> sha-256 of its bytes, for the linked attachments.
+    files: Mapping[str, str] = field(default_factory=dict)
+    #: Sha-256 -> the file its bytes are read from when the server lacks them.
+    blobs: Mapping[str, Path] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -332,6 +336,8 @@ class UpsertExam:
     status: ExamStatus
     rev: str
     path: Path
+    #: Sha-256 -> the file its bytes are read from when the server lacks them.
+    blobs: Mapping[str, Path] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -1938,6 +1944,8 @@ def _upsert_question(question: QuestionFile, status: QuestionStatus) -> UpsertQu
         question=question.question,
         path=question.path,
         status=status,
+        files=question.files,
+        blobs=question.blobs,
     )
 
 
@@ -1951,6 +1959,7 @@ def _upsert_exam(
         status=status,
         rev=exam_rev(payload),
         path=exam.path,
+        blobs=exam.blobs,
     )
 
 

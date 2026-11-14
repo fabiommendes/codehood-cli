@@ -63,11 +63,13 @@ class QuestionParseError(Exception):
 
 class QuestionSourceError(Exception):
     """
-    A test file linked by a `code` question cannot be read.
+    A file linked by a question or an exam (a test source or an attachment)
+    cannot be read, or is over the upload limit.
 
-    Raised by `question.resolve_test_sources` before any network call,
-    refusing the whole push: the question cannot be sent without the text of
-    its tests, and the server must not keep a version that lacks them.
+    Raised by `question.resolve_test_sources` and `question.read_attachments`
+    before any network call, refusing the whole push: the document cannot be
+    sent without the files it links, and the server must not keep a version
+    that lacks them.
     """
 
     def __init__(self, path: Path, origin: str, cause: Exception) -> None:
@@ -75,13 +77,14 @@ class QuestionSourceError(Exception):
         Args:
             path: The test file the link resolves to.
             origin: The link target, as written in the question.
-            cause: The `OSError` or `UnicodeDecodeError` reading it raised.
+            cause: The `OSError` or `UnicodeDecodeError` reading it raised,
+                or the `ValueError` saying it is too large.
         """
         self.path = path
         self.origin = origin
         self.cause = cause
         reason = "file not found" if isinstance(cause, FileNotFoundError) else cause
-        super().__init__(f"cannot read test source {origin!r} ({path}): {reason}")
+        super().__init__(f"cannot read linked file {origin!r} ({path}): {reason}")
 
 
 class CalendarError(Exception):

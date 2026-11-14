@@ -159,6 +159,11 @@ def exam_payload(file: ExamFile) -> Payload:
         "tags": tags,
         "allowCodeRun": file.allow_code_run,
         "questions": questions,
+        "attachments": [
+            attachment.model_dump(mode="json", by_alias=True, exclude_none=True)
+            for attachment in file.attachments
+        ],
+        "files": dict(sorted(file.files.items())),
     }
     if file.duration is not None:
         payload["duration"] = file.duration

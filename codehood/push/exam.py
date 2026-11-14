@@ -15,14 +15,14 @@ import json
 import re
 from collections import defaultdict
 from collections.abc import Collection, Iterator, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
 from typing import TYPE_CHECKING, Literal
 
 import mdq
 from mdq.errors import IncludeNotFound
-from mdq.models import Include, IncludeAll
+from mdq.models import Attachment, Include, IncludeAll
 from mdq.models._query import QuerySyntaxError, parse_query
 from pydantic import JsonValue, ValidationError
 
@@ -33,6 +33,7 @@ from .question import (
     QuestionFile,
     question_status,
     question_version,
+    read_attachments,
     resolve_exam_sources,
     test_source_paths,
 )
@@ -123,6 +124,14 @@ class ExamFile:
     inline: tuple[QuestionFile, ...] = ()
     #: The names of the `mdq` fields set to a value the server cannot hold.
     ignored: tuple[str, ...] = ()
+    #: The attachments of the exam itself, fenced and linked.
+    attachments: tuple[Attachment, ...] = ()
+    #: Attachment name -> sha-256 of the linked attachments' bytes.
+    files: Mapping[str, str] = field(default_factory=dict)
+    #: Sha-256 -> the file the bytes of that attachment are read from.
+    blobs: Mapping[str, Path] = field(default_factory=dict)
+    #: The files its linked attachments were read from.
+    sources: tuple[Path, ...] = ()
 
     @property
     def rev(self) -> str:
@@ -244,7 +253,16 @@ def exam_rev(payload: Mapping[str, JsonValue]) -> str:
     """
     Digest an exam payload into the `rev` the server stores, the way
     `resource.content_ref` digests a resource.
+
+    `attachments` and `files` count only when the exam has an attachment, so
+    the `rev` of an exam without one is the same as before they existed.
     """
+    if not payload.get("attachments"):
+        payload = {
+            key: value
+            for key, value in payload.items()
+            if key not in ("attachments", "files")
+        }
     canonical = json.dumps(
         {"v": REF_PREFIX, **payload},
         separators=(",", ":"),
@@ -529,7 +547,6 @@ def _build(
             ("penalty", exam.penalty != "none"),
             ("grading", exam.grading != "symmetric"),
             ("shuffle", exam.shuffle),
-            ("attachments", bool(exam.attachments)),
         )
         if set_
     )
@@ -538,6 +555,7 @@ def _build(
         "minutes": 0,
     }:
         raise ValueError(f"duration {exam.duration} is under a minute")
+    linked = read_attachments(exam.attachments, path.parent)
     stem = _strip_suffix((path.name,))[0]
     return ExamFile(
         slug=slug,
@@ -554,6 +572,10 @@ def _build(
         scheduled_at=exam_scheduled_at(exam.start) if exam.start is not None else None,
         inline=tuple(inline),
         ignored=ignored,
+        attachments=tuple(exam.attachments or ()),
+        files={item.name: item.sha256 for item in linked},
+        blobs={item.sha256: item.path for item in linked},
+        sources=tuple(item.path for item in linked),
     )
 
 
@@ -587,9 +609,17 @@ def _inline_file(
     """
     An inline question as a `QuestionFile`, versioned by its own content so
     editing one question does not change its siblings'.
+
+    Linked attachments are relative to the exam file and, when there are any,
+    their hashes join the canonical JSON as `files`.
     """
+    linked = read_attachments(question.attachments, path.parent)
+    files = {item.name: item.sha256 for item in linked}
+    document = canonical_question(question)
+    if files:
+        document["files"] = {**files}
     canonical = json.dumps(
-        canonical_question(question),
+        document,
         separators=(",", ":"),
         sort_keys=True,
         ensure_ascii=False,
@@ -600,5 +630,7 @@ def _inline_file(
         question=question,
         path=path,
         status=question_status(rel_path),
-        sources=test_source_paths(question, path.parent),
+        sources=(*test_source_paths(question, path.parent), *(i.path for i in linked)),
+        files=files,
+        blobs={item.sha256: item.path for item in linked},
     )

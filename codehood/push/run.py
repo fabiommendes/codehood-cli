@@ -12,9 +12,11 @@ union lands here and nowhere else.
 
 from __future__ import annotations
 
+import json
 import warnings
 from collections.abc import Iterable, Iterator, Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
+from pathlib import Path
 from typing import Protocol, cast
 from urllib.parse import quote
 
@@ -63,7 +65,7 @@ from .project import (
     project_resource,
     project_time_slot,
 )
-from .question import QuestionStatus
+from .question import MAX_UPLOAD_BYTES, QuestionStatus
 from .repository import RepositoryEntry, batch_entries
 from .resource import CodeData, FileData, LinkData, MdData, ResourceData
 from .wire import (
@@ -431,6 +433,8 @@ def run_plan(
     `client` by default.
     """
     api = repositories or HttpRepositoryApi(client, discipline, course)
+    ops = list(ops)
+    blobs = _AttachmentBlobs.of(ops)
     course_failed = False
     for op in ops:
         if course_failed:
@@ -442,7 +446,12 @@ def run_plan(
             )
             continue
         result = _run_op(
-            op, discipline=discipline, course=course, client=client, repositories=api
+            op,
+            discipline=discipline,
+            course=course,
+            client=client,
+            repositories=api,
+            blobs=blobs,
         )
         yield result
         course_failed = isinstance(op, UpsertCourse) and not result.ok
@@ -569,6 +578,7 @@ def _run_op(
     course: str,
     client: httpx.Client,
     repositories: RepositoryApi,
+    blobs: _AttachmentBlobs,
 ) -> OpResult:
     match op:
         case UpsertCourse():
@@ -587,7 +597,7 @@ def _run_op(
             )
         case UpsertQuestion():
             return _run_upsert_question(
-                op, discipline=discipline, course=course, client=client
+                op, discipline=discipline, course=course, client=client, blobs=blobs
             )
         case DeleteQuestion():
             return _run_delete_question(
@@ -595,7 +605,7 @@ def _run_op(
             )
         case UpsertExam():
             return _run_upsert_exam(
-                op, discipline=discipline, course=course, client=client
+                op, discipline=discipline, course=course, client=client, blobs=blobs
             )
         case DeleteExam():
             return _run_delete_exam(
@@ -795,7 +805,12 @@ def _run_delete_resource(
 
 
 def _run_upsert_question(
-    op: UpsertQuestion, *, discipline: str, course: str, client: httpx.Client
+    op: UpsertQuestion,
+    *,
+    discipline: str,
+    course: str,
+    client: httpx.Client,
+    blobs: _AttachmentBlobs,
 ) -> OpResult:
     payload = wire_question(op.question)
 
@@ -820,12 +835,148 @@ def _run_upsert_question(
             # The dict is exactly the payload we mean to send, so this is
             # noise, not a signal.
             warnings.simplefilter("ignore", UserWarning)
-            stored = generated.upsert_question(
-                discipline=discipline, course=course, body=body, client=client
-            )
+            if not op.files:
+                stored: object = generated.upsert_question(
+                    discipline=discipline, course=course, body=body, client=client
+                )
+            else:
+                # Sent by hand: the generated body may not carry `files`.
+                stored = _put_with_blobs(
+                    f"/api/course/{quote(discipline, safe='')}/"
+                    f"{quote(course, safe='')}/question",
+                    {**body.model_dump(mode="json", by_alias=True), "files": op.files},
+                    op.files,
+                    op.blobs,
+                    blobs,
+                    client,
+                )
     except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
-        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
+        return _failed(op, exc, op.files, op.blobs)
     return _stamp(op, stored, f"upserted {op.slug}")
+
+
+@dataclass
+class _AttachmentBlobs:
+    """
+    The attachment hashes a push cites and what the server says about them.
+
+    One `POST /api/blob/missing` answers for the whole push, asked before the
+    first write that cites a hash; each missing blob rides with the first
+    `PUT` that cites it.
+    """
+
+    hashes: tuple[str, ...]
+    _missing: set[str] | None = None
+    _sent: set[str] = field(default_factory=set)
+
+    @classmethod
+    def of(cls, ops: Iterable[Write]) -> _AttachmentBlobs:
+        """
+        The hashes cited by the questions and exams among `ops`, once each.
+        """
+        found: dict[str, None] = {}
+        for op in ops:
+            if isinstance(op, UpsertQuestion):
+                found.update(dict.fromkeys(op.files.values()))
+            elif isinstance(op, UpsertExam):
+                found.update(dict.fromkeys(_files_of(op.payload).values()))
+        return cls(tuple(found))
+
+    def to_send(self, hashes: Iterable[str], client: httpx.Client) -> list[str]:
+        """
+        The hashes among `hashes` the server lacks and no `PUT` has carried yet.
+
+        Raises:
+            CodehoodAPIError: `POST /api/blob/missing` failed.
+            httpx.HTTPStatusError: `POST /api/blob/missing` failed.
+        """
+        if self._missing is None:
+            result = generated.blob_missing(
+                body=generated.BlobMissingInput(hashes=list(self.hashes)),
+                client=client,
+            )
+            self._missing = set(result.missing)
+        return [h for h in dict.fromkeys(hashes) if h in self._missing - self._sent]
+
+    def sent(self, hashes: Iterable[str]) -> None:
+        """
+        Record that a `PUT` carried the bytes of `hashes`.
+        """
+        self._sent.update(hashes)
+
+
+def _files_of(payload: Mapping[str, JsonValue]) -> dict[str, str]:
+    """
+    The `files` of an exam payload: attachment name -> sha-256.
+    """
+    files = payload.get("files")
+    if not isinstance(files, dict):
+        return {}
+    return {name: h for name, h in files.items() if isinstance(h, str)}
+
+
+def _put_with_blobs(
+    url: str,
+    body: Mapping[str, object],
+    files: Mapping[str, str],
+    paths: Mapping[str, Path],
+    blobs: _AttachmentBlobs,
+    client: httpx.Client,
+) -> _Stored:
+    """
+    `PUT` `body`, as multipart with the bytes of the blobs the server lacks
+    when there are any, as JSON when there are none.
+
+    Multipart has the JSON in a `json` part and each blob in a part named by
+    its sha-256, as `_upsert_resource_with_file` does.
+    """
+    names = {h: name for name, h in files.items()}
+    pending = blobs.to_send(files.values(), client) if files else []
+    if pending:
+        # Built apart from the client: its default `Content-Type` would hide
+        # the multipart boundary `httpx` computes.
+        request = httpx.Request(
+            "PUT",
+            client.base_url.join(url),
+            data={"json": json.dumps(body)},
+            files=[
+                (h, (names[h], paths[h].read_bytes(), "application/octet-stream"))
+                for h in pending
+            ],
+            headers=auth_headers(client),
+        )
+        response = client.send(request)
+    else:
+        response = client.put(url, json=body, headers=auth_headers(client))
+    response.raise_for_status()
+    blobs.sent(pending)
+    return _Stored.of(response)
+
+
+def _failed(
+    op: Write,
+    exc: CodehoodAPIError | httpx.HTTPStatusError,
+    files: Mapping[str, str],
+    paths: Mapping[str, Path],
+) -> OpResult:
+    """
+    A failed result; a `413` also states the limit and the largest file.
+    """
+    message = f"failed: {describe_failure(exc)}"
+    if (
+        isinstance(exc, httpx.HTTPStatusError)
+        and exc.response.status_code == 413
+        and files
+    ):
+        name, size = max(
+            ((n, paths[h].stat().st_size) for n, h in files.items() if h in paths),
+            key=lambda item: item[1],
+            default=("", 0),
+        )
+        limit = MAX_UPLOAD_BYTES // (1024 * 1024)
+        message += f" (the server takes at most {limit} MiB per request"
+        message += f"; largest file: {name}, {size} bytes)" if name else ")"
+    return OpResult(op=op, ok=False, message=message)
 
 
 def _run_delete_question(
@@ -841,22 +992,29 @@ def _run_delete_question(
 
 
 def _run_upsert_exam(
-    op: UpsertExam, *, discipline: str, course: str, client: httpx.Client
+    op: UpsertExam,
+    *,
+    discipline: str,
+    course: str,
+    client: httpx.Client,
+    blobs: _AttachmentBlobs,
 ) -> OpResult:
     # Sent as plain JSON: the generated body would put an explicit `null` on
     # the wire for `duration` and `scheduledAt`, which the server may hold
     # from an instructor action and a push must never blank.
     body = {**op.payload, "status": op.status, "rev": op.rev}
+    files = _files_of(op.payload)
     try:
-        response = client.put(
+        stored = _put_with_blobs(
             f"/api/course/{discipline}/{course}/exam",
-            json=body,
-            headers=auth_headers(client),
+            body,
+            files,
+            op.blobs,
+            blobs,
+            client,
         )
-        response.raise_for_status()
-    except httpx.HTTPStatusError as exc:
-        return OpResult(op=op, ok=False, message=f"failed: {describe_failure(exc)}")
-    stored = _Stored.of(response)
+    except (CodehoodAPIError, httpx.HTTPStatusError) as exc:
+        return _failed(op, exc, files, op.blobs)
     return OpResult(
         op=op,
         ok=True,

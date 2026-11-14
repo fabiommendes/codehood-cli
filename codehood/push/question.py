@@ -12,13 +12,13 @@ from __future__ import annotations
 
 import hashlib
 from collections import defaultdict
-from collections.abc import Iterator, Sequence
-from dataclasses import dataclass
+from collections.abc import Iterator, Mapping, Sequence
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
 import mdq
-from mdq.models import CodeQuestion
+from mdq.models import Attachment, CodeQuestion
 from pydantic import ValidationError
 
 from ..repo.diff import FileType
@@ -28,8 +28,10 @@ from .resource import front_matter_str, slugify, slugify_text, split_front_matte
 
 __all__ = [
     "DRAFT_MARK",
+    "MAX_UPLOAD_BYTES",
     "AnyQuestion",
     "InvalidQuestion",
+    "LinkedFile",
     "LocalQuestionStatus",
     "QuestionFile",
     "QuestionStatus",
@@ -37,6 +39,7 @@ __all__ = [
     "question_slug",
     "question_status",
     "question_version",
+    "read_attachments",
     "resolve_exam_sources",
     "resolve_test_sources",
     "scan_questions",
@@ -57,6 +60,9 @@ type LocalQuestionStatus = Literal["DRAFT", "PUBLISHED"]
 #: is left out of the slug.
 DRAFT_MARK = "_"
 
+#: The largest file the server takes in one upload, in bytes.
+MAX_UPLOAD_BYTES = 16 * 1024 * 1024
+
 
 @dataclass(frozen=True)
 class QuestionFile:
@@ -69,8 +75,31 @@ class QuestionFile:
     question: AnyQuestion
     path: Path
     status: LocalQuestionStatus = "PUBLISHED"
-    #: The files its linked test sources were read from.
+    #: The files its linked test sources and attachments were read from.
     sources: tuple[Path, ...] = ()
+    #: Attachment name -> sha-256 of the linked attachments' bytes.
+    files: Mapping[str, str] = field(default_factory=dict)
+    #: Sha-256 -> the file the bytes of that attachment are read from.
+    blobs: Mapping[str, Path] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class LinkedFile:
+    """
+    A file a question or an exam links from its `## [attachments]` section,
+    read off disk.
+    """
+
+    name: str
+    path: Path
+    data: bytes
+
+    @property
+    def sha256(self) -> str:
+        """
+        The hex sha-256 of the file's bytes, the name the server stores it under.
+        """
+        return hashlib.sha256(self.data).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -199,17 +228,56 @@ def read_question(base: Path, slug: str, rel_path: Path) -> QuestionFile:
     except (mdq.InvalidDocument, ValidationError) as exc:
         raise QuestionParseError(path, exc) from exc
     sources = test_source_paths(question, path.parent)
-    # A linked test file is part of the question: editing it alone must
-    # change the version, or the push would skip the question.
-    content = raw + b"".join(b"\0" + source.read_bytes() for source in sources)
+    linked = read_attachments(question.attachments, path.parent)
+    # A linked test or attachment file is part of the question: editing it
+    # alone must change the version, or the push would skip the question.
+    content = raw + b"".join(
+        b"\0" + data
+        for data in (
+            *(source.read_bytes() for source in sources),
+            *(item.data for item in linked),
+        )
+    )
     return QuestionFile(
         slug=slug,
         version=question_version(content),
         question=question,
         path=path,
         status=question_status(rel_path),
-        sources=sources,
+        sources=(*sources, *(item.path for item in linked)),
+        files={item.name: item.sha256 for item in linked},
+        blobs={item.sha256: item.path for item in linked},
     )
+
+
+def read_attachments(
+    attachments: Sequence[Attachment] | None, base: Path
+) -> tuple[LinkedFile, ...]:
+    """
+    Read the files the linked attachments point to, in the order of the
+    document; fenced attachments carry their own text and are skipped.
+
+    Links are relative to `base`, the directory of the file that holds them.
+
+    Raises:
+        QuestionSourceError: a linked file is missing, cannot be read, or is
+            over `MAX_UPLOAD_BYTES`.
+    """
+    found: list[LinkedFile] = []
+    for attachment in attachments or ():
+        if attachment.origin is None:
+            continue
+        path = base / attachment.origin
+        try:
+            data = path.read_bytes()
+        except OSError as exc:
+            raise QuestionSourceError(path, attachment.origin, exc) from exc
+        if len(data) > MAX_UPLOAD_BYTES:
+            limit = MAX_UPLOAD_BYTES // (1024 * 1024)
+            reason = ValueError(f"{len(data)} bytes, over the {limit} MiB limit")
+            raise QuestionSourceError(path, attachment.origin, reason)
+        found.append(LinkedFile(attachment.name, path, data))
+    return tuple(found)
 
 
 def test_source_paths(question: AnyQuestion, base: Path) -> tuple[Path, ...]:

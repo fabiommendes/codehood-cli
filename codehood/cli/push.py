@@ -26,7 +26,7 @@ from ..push.errors import (
     ResourceLinkError,
     SlugCollisionError,
 )
-from ..push.exam import inline_questions, scan_exams
+from ..push.exam import ExamFile, inline_questions, scan_exams
 from ..push.exclude import scan_excluded
 from ..push.grades import GradesError
 from ..push.links import (
@@ -413,8 +413,8 @@ def read_local_state(path: Path, config: RepoConfig) -> LocalState:
             are the only source of the course's description and dates.
         CalendarError: `calendar.md` does not parse.
         SlugCollisionError: Two resources or two questions want one slug.
-        QuestionSourceError: A test file linked by a `code` question cannot
-            be read.
+        QuestionSourceError: A test file or an attachment linked by a question
+            or an exam cannot be read or is over the upload limit.
         RepositoryError: A folder under `repositories/` cannot be pushed.
         ResourceLinkError: A lesson links a missing resource or repository.
         ResourceFileError: An `info.yaml` or a `.url` file is malformed.
@@ -456,6 +456,12 @@ def read_local_state(path: Path, config: RepoConfig) -> LocalState:
         if isinstance(question, QuestionFile)
         for source in question.sources
     ]
+    sources.extend(
+        source
+        for exam in exams
+        if isinstance(exam, ExamFile)
+        for source in exam.sources
+    )
 
     return LocalState(
         key=key,
