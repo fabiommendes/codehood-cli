@@ -98,8 +98,9 @@ def _repo_config() -> RepoConfig:
     Neither command takes a `--server` flag -- see the spec's "Login and
     logout take no flags".
     """
-    config = repo.read_config(Path(repo.CONFIG_FILE))
+    path = repo.config_path(Path())
+    config = repo.read_config(path)
     if config is None:
-        typer.echo("error: not a codehood repository (no codehood.toml here)", err=True)
+        typer.echo(f"error: could not find Codehood config at {path}", err=True)
         raise typer.Exit(code=1)
     return config

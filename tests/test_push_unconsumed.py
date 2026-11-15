@@ -45,7 +45,6 @@ def test_find_unconsumed_is_pure_and_sorted():
     assert result == (
         "exams/exam/midterm.md",
         "questions/notes.txt",
-        "z.txt",
     )
 
 
@@ -54,15 +53,20 @@ def test_list_files_skips_dot_dirs_and_returns_gitignore(tmp_path):
     _write(tmp_path, ".git/config")
     _write(tmp_path, ".codehood/state")
     _write(tmp_path, ".local/codehood/base/course.json")
-    _write(tmp_path, "a.log")
-    _write(tmp_path, "tmp/b.txt")
-    _write(tmp_path, "kept/c.txt")
+    _write(tmp_path, "questions/a.log")
+    _write(tmp_path, "questions/tmp/b.txt")
+    _write(tmp_path, "questions/c.txt")
     paths, gitignore = list_files(tmp_path)
-    assert sorted(paths) == [".gitignore", "a.log", "kept/c.txt", "tmp/b.txt"]
+    assert sorted(paths) == [
+        ".gitignore",
+        "questions/a.log",
+        "questions/c.txt",
+        "questions/tmp/b.txt",
+    ]
     assert "*.log" in gitignore
     assert find_unconsumed(
         paths, consumed=set(), excluded=set(), gitignore=gitignore
-    ) == ("kept/c.txt",)
+    ) == ("questions/c.txt",)
 
 
 def _git_init(root) -> None:
@@ -116,8 +120,8 @@ def test_list_files_in_a_git_repo_keeps_tracked_and_drops_deleted(
 
 
 def test_codehoodignore_drops_paths_from_the_report(tmp_path):
-    _write(tmp_path, ".codehoodignore", "chalk.toml\np1/\n")
-    for name in ("chalk.toml", "p1/conf.yaml", "p1/grades.csv", "other.txt"):
+    _write(tmp_path, ".codehoodignore", "*.toml\nwip/\n")
+    for name in ("exams/a.toml", "exams/wip/x.md", "exams/other.txt"):
         _write(tmp_path, name)
     paths, gitignore = list_files(tmp_path)
     result = find_unconsumed(
@@ -127,7 +131,7 @@ def test_codehoodignore_drops_paths_from_the_report(tmp_path):
         gitignore=gitignore,
         codehoodignore=read_ignore(tmp_path),
     )
-    assert result == ("other.txt",)
+    assert result == ("exams/other.txt",)
 
 
 def test_codehoodignore_under_pushed_trees_is_excluded_and_protected(tmp_path):
@@ -156,9 +160,9 @@ def test_ignore_patterns_escape_glob_characters(tmp_path):
 def test_outside_git_only_the_root_gitignore_applies(tmp_path, monkeypatch):
     monkeypatch.setenv("GIT_CONFIG_GLOBAL", str(tmp_path / "none"))
     _write(tmp_path, ".gitignore", "*.log\n")
-    _write(tmp_path, "sub/.gitignore", "inner.txt\n")
-    _write(tmp_path, "a.log")
-    _write(tmp_path, "sub/inner.txt")
+    _write(tmp_path, "resources/sub/.gitignore", "inner.txt\n")
+    _write(tmp_path, "resources/a.log")
+    _write(tmp_path, "resources/sub/inner.txt")
     paths, gitignore = list_files(tmp_path)
     result = find_unconsumed(paths, consumed=set(), excluded=set(), gitignore=gitignore)
-    assert result == ("sub/.gitignore", "sub/inner.txt")
+    assert result == ("resources/sub/.gitignore", "resources/sub/inner.txt")

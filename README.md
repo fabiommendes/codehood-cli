@@ -64,6 +64,25 @@ pushing changes to the Codehood server using a simple command:
 codehood push
 ```
 
+### Two servers, one repository
+
+`--config` (`-c`) reads another file in place of `codehood.toml`, so one
+repository can sync with two servers. Keep `codehood.toml` for one and, say,
+`codehood.prod.toml` (same `[course]`, another `[server] url`) for the other:
+
+```bash
+codehood -c codehood.prod.toml login
+codehood -c codehood.prod.toml push
+```
+
+The option goes before the command. `CODEHOOD_CONFIG=codehood.prod.toml` does
+the same, and `--config` wins when both are set. Only the config file changes:
+the repository root is still the current directory (or the `push` path), and
+a relative `--config` is relative to the current directory. Tokens are stored
+per server URL, so each config uses its own. `codehood -c file init` writes
+the config to `file`. To use a second identity on the same server, set
+`CODEHOOD_TOKEN`.
+
 ### When the server changed
 
 `codehood push` sends only what you changed locally. It compares your files, a
@@ -110,16 +129,17 @@ there is no `!` negation. They apply to files under `questions/` and
 the server already holds for it is neither updated nor deleted. `codehood
 push` lists excluded files and does not fail because of them.
 
-`.codehoodignore` at the root takes gitignore syntax (with `!`) and makes
-codehood ignore the paths it matches, such as the files of another tool that
-shares the folder (`chalk.toml`, `p1/`). A match outside `questions/` and
-`resources/` disappears from the push report. A match inside them is treated
-like an `exclude` pattern: not pushed, and the server copy is kept. `codehood
-init` does not create the file.
+`.codehoodignore` at the root takes gitignore syntax (with `!`). A match under
+`questions/`, `resources/` or `exams/` is treated like an `exclude` pattern:
+not pushed, and the server copy is kept. `codehood init` does not create the
+file.
 
-The "not pushed (no handler)" report follows git's rules in a git repository
-(`.gitignore` at any level, `.git/info/exclude`, `core.excludesFile`), and the
-root `.gitignore` only otherwise.
+`codehood push` reports "not pushed (no handler)" only for files under
+`questions/`, `resources/` and `exams/` that it did not read. Anything else
+(extra files at the root, folders such as `solutions/`, another tool's config)
+is never read and never reported. The report follows git's rules in a git
+repository (`.gitignore` at any level, `.git/info/exclude`,
+`core.excludesFile`), and the root `.gitignore` only otherwise.
 
 
 ### Linking resources from a lesson

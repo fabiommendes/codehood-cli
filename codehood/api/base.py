@@ -60,7 +60,7 @@ def get_client(base_url: str | None = None) -> httpx.Client:
 
 
 def _default_base_url() -> str:
-    config = repo.read_config(Path(repo.CONFIG_FILE))
+    config = repo.read_config(repo.config_path(Path()))
     return config.server.url if config is not None else DEFAULT_BASE_URL
 
 

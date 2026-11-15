@@ -19,6 +19,7 @@ from pydantic import ValidationError
 from rich.console import Console
 from rich.table import Table
 
+from .. import repo
 from ..api import generated
 from ..api.base import get_client
 from ..models.repo import RepoConfig
@@ -45,7 +46,7 @@ def attendance(
     Print the course's attendance table, or write it to a CSV file.
     """
     try:
-        config = RepoConfig.open(path)
+        config = RepoConfig.open(repo.config_path(path))
     except (FileNotFoundError, ValidationError) as exc:
         typer.echo(f"error: {exc}", err=True)
         raise typer.Exit(code=1) from exc

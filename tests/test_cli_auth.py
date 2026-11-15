@@ -48,7 +48,7 @@ def test_login_outside_a_repo_errors_cleanly(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(app, ["login"])
     assert result.exit_code == 1
-    assert "not a codehood repository" in result.output
+    assert "could not find Codehood config at codehood.toml" in result.output
 
 
 def test_login_happy_path_stores_token_and_never_prints_it(repo, monkeypatch):
@@ -99,7 +99,7 @@ def test_logout_outside_a_repo_errors_cleanly(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     result = runner.invoke(app, ["logout"])
     assert result.exit_code == 1
-    assert "not a codehood repository" in result.output
+    assert "could not find Codehood config at codehood.toml" in result.output
 
 
 def test_logout_deletes_an_existing_token(repo):

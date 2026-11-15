@@ -4,6 +4,13 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- Global `--config`/`-c` option (and `CODEHOOD_CONFIG`) reads another file in
+  place of `codehood.toml`, in every command that reads it; `init` writes the
+  config there. `login` and `logout` without a config now report
+  `could not find Codehood config at <path>`.
+- The "not pushed (no handler)" report of `codehood push` covers only
+  `questions/`, `resources/` and `exams/`. Files at the root and in other
+  folders are ignored, and `roster.csv` lost its "not synced yet" line.
 - `codehood push` syncs `exams/`: every MDQ file under it, at any depth, is an
   exam. The slug is the MDQ `id` (front matter or H1) or the path; `quiz` and
   `practice` in a path set the type; a `_` makes a draft, otherwise a `start`

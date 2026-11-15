@@ -14,6 +14,7 @@ import httpx
 import typer
 from pydantic import ValidationError
 
+from .. import repo
 from ..api.base import get_client
 from ..models.repo import RepoConfig
 from ..push.base import BaseState, load_base, save_base
@@ -169,7 +170,7 @@ def push(
     exams and grade columns.
     """
     try:
-        config = RepoConfig.open(path)
+        config = RepoConfig.open(repo.config_path(path))
         local = read_local_state(path, config)
     except (
         FileNotFoundError,
@@ -273,10 +274,7 @@ def sync(
         typer.echo(f"excluded  {file.path}")
     excluded_note = f", {len(local.excluded)} excluded" if local.excluded else ""
     for unconsumed in local.unconsumed:
-        if unconsumed == "roster.csv":
-            typer.echo(f"not synced yet (codehood roster): {unconsumed}")
-        else:
-            typer.echo(f"not pushed (no handler): {unconsumed}")
+        typer.echo(f"not pushed (no handler): {unconsumed}")
     # `sync_lines` renders the drift notices along with the pulls and conflicts.
     for notice in plan.notices:
         if not isinstance(notice, ServerDrifted):

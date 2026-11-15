@@ -10,6 +10,7 @@ import tomlkit
 
 from ..models.repo import CourseIdentity, RepoConfig, ServerConfig
 from . import _layout
+from ._config import config_path
 
 PathStatus = Literal["created", "exists"]
 
@@ -72,8 +73,9 @@ def write_repo(
             different course.
     """
     path.mkdir(parents=True, exist_ok=True)
+    config_path(path).parent.mkdir(parents=True, exist_ok=True)
     reports = [
-        ensure_config(path / _layout.CONFIG_FILE, identity, server),
+        ensure_config(config_path(path), identity, server),
         ensure_file(
             path / _layout.README_FILE,
             _layout.render_readme(name or identity.discipline),
@@ -103,8 +105,18 @@ def write_repo(
     if git_report is not None:
         reports.append(git_report)
     return [
-        PathReport(report.path.relative_to(path), report.status) for report in reports
+        PathReport(_relative_to(report.path, path), report.status) for report in reports
     ]
+
+
+def _relative_to(path: Path, root: Path) -> Path:
+    """
+    `path` relative to `root`, or `path` itself when it lies elsewhere (a config override).
+    """
+    try:
+        return path.relative_to(root)
+    except ValueError:
+        return path
 
 
 def ensure_machine_dir(root: Path) -> list[PathReport]:

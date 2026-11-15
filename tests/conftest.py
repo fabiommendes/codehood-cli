@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 
+from codehood import repo as repo_module
 from codehood.api import base as base_module
 from codehood.models.repo import CourseIdentity, ServerConfig
 
@@ -23,6 +24,16 @@ def no_token_env(monkeypatch):
     An ambient `CODEHOOD_TOKEN` would override every stored token a test sets up.
     """
     monkeypatch.delenv("CODEHOOD_TOKEN", raising=False)
+
+
+@pytest.fixture(autouse=True)
+def no_config_override(monkeypatch):
+    """
+    The `--config` override is process state: no test starts with one, and
+    whatever a test sets is undone with it. `CODEHOOD_CONFIG` is cleared too.
+    """
+    monkeypatch.delenv("CODEHOOD_CONFIG", raising=False)
+    monkeypatch.setattr(repo_module._config, "config_override", None)
 
 
 @pytest.fixture

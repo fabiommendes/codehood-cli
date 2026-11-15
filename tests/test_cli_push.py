@@ -1086,8 +1086,8 @@ def _course(repo, monkeypatch, *, repositories: bool = True):
 
 def _check(output: str) -> None:
     assert "not pushed (no handler): exams/notes.txt" in output
-    assert "not pushed (no handler): notes.txt" in output
-    assert "not pushed (no handler): solutions/s1.py" in output
+    assert "not pushed (no handler): notes.txt" not in output
+    assert "solutions/s1.py" not in output
     assert "not pushed (no handler): questions/notes.txt" in output
     assert "repositories/lab/main.py" not in output
     assert "big-o.md" not in output.replace("question big-o", "")

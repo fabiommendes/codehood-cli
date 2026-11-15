@@ -10,6 +10,7 @@ how to write it, but nothing about the terminal or the network -- see
 
 from __future__ import annotations
 
+from ._config import config_path, set_config_override
 from ._layout import (
     CALENDAR_FILE,
     CONFIG_FILE,
@@ -53,7 +54,9 @@ __all__ = [
     "PathReport",
     "PathStatus",
     "RepoError",
+    "config_path",
     "ensure_machine_dir",
     "read_config",
+    "set_config_override",
     "write_repo",
 ]

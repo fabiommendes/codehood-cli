@@ -16,7 +16,6 @@ from pathlib import Path
 
 import pathspec
 
-from ..repo import REPOSITORIES_DIR
 from ..repo.diff import FileType
 from ..repo.file_tracker import File
 
@@ -37,8 +36,9 @@ IGNORE_FILE = ".codehoodignore"
 #: forgotten, so the server copy survives the prune.
 PUSHED_TREES = ("questions", "resources", "exams")
 
-#: Files at the root that the push stages read.
-ROOT_CONSUMED = ("codehood.toml", "README.md", "calendar.md", "grades.py", "grades.csv")
+#: Only files under these prefixes can be reported: anything else in the
+#: course (root files, other folders) is not codehood's business.
+PUSHED_PREFIXES = tuple(f"{tree}/" for tree in PUSHED_TREES)
 
 #: Directories never versioned by the course: skipped without a gitignore.
 SKIPPED_DIRS = frozenset({".git", ".codehood", ".local"})
@@ -53,11 +53,11 @@ def find_unconsumed(
     codehoodignore: Iterable[str] = (),
 ) -> tuple[str, ...]:
     """
-    Sort the versionable paths that no push stage read.
+    Sort the versionable paths under `questions/`, `resources/` and `exams/`
+    that no push stage read.
 
-    `paths` are `/`-separated and relative to the repository root. Everything
-    under `repositories/` counts as consumed, `excluded` paths have their own
-    list, and the root `.gitignore` and `.codehoodignore` are not reported.
+    `paths` are `/`-separated and relative to the repository root. Files
+    elsewhere are never reported, and `excluded` paths have their own list.
     `codehoodignore` lines (gitignore syntax) drop a path as if it did not exist.
     """
     ignored = pathspec.PathSpec.from_lines("gitignore", gitignore)
@@ -66,10 +66,9 @@ def find_unconsumed(
         sorted(
             path
             for path in set(paths)
-            if path not in consumed
+            if path.startswith(PUSHED_PREFIXES)
+            and path not in consumed
             and path not in excluded
-            and path not in (".gitignore", IGNORE_FILE)
-            and not path.startswith(f"{REPOSITORIES_DIR}/")
             and not ignored.match_file(path)
             and not dropped.match_file(path)
         )
@@ -83,8 +82,8 @@ def consumed_paths(
     root: Path | None = None,
 ) -> frozenset[str]:
     """
-    The paths the push stages read: the fixed root files, plus the tracked
-    questions and resources that are not excluded.
+    The paths under the pushed trees that the push stages read: the tracked
+    questions, resources and exams that are not excluded.
 
     `sources` are the test files that `code` questions link. They count as
     read when they lie under `root`.
@@ -95,9 +94,8 @@ def consumed_paths(
         for source in sources
         if (relative := _relative_to(source, root)) is not None
     }
-    return (
-        frozenset(ROOT_CONSUMED)
-        | linked
+    return frozenset(
+        linked
         | {
             file.path.as_posix()
             for file in files
