@@ -68,8 +68,8 @@ class CourseCreate(Model):
     edition: str
     instructor: str | None = None
     rev: str | None = None
-    start_at: str = Field(alias="startAt")
-    end_at: str = Field(alias="endAt")
+    start_date: str = Field(alias="startDate")
+    end_date: str = Field(alias="endDate")
 
 
 class CourseGradesResponseStudentsItemShape(Model):
@@ -139,8 +139,8 @@ class Edition(Model):
 
     slug: str
     name: str
-    start_at: str = Field(alias="startAt")
-    end_at: str = Field(alias="endAt")
+    start_date: str = Field(alias="startDate")
+    end_date: str = Field(alias="endDate")
     created_at: str = Field(alias="createdAt")
 
 
@@ -149,8 +149,8 @@ class EditionCreate(Model):
 
     slug: str
     name: str
-    start_at: str = Field(alias="startAt")
-    end_at: str = Field(alias="endAt")
+    start_date: str = Field(alias="startDate")
+    end_date: str = Field(alias="endDate")
 
 
 class Event(Model):
@@ -488,8 +488,8 @@ class UpdateCourseRequest(Model):
     model_config = ConfigDict(populate_by_name=True)
 
     description: str | None = None
-    start_at: str | None = Field(default=None, alias="startAt")
-    end_at: str | None = Field(default=None, alias="endAt")
+    start_date: str | None = Field(default=None, alias="startDate")
+    end_date: str | None = Field(default=None, alias="endDate")
     rev: str | None = None
 
 
@@ -501,8 +501,8 @@ class UpdateEditionRequest(Model):
     model_config = ConfigDict(populate_by_name=True)
 
     name: str | None = None
-    start_at: str | None = Field(default=None, alias="startAt")
-    end_at: str | None = Field(default=None, alias="endAt")
+    start_date: str | None = Field(default=None, alias="startDate")
+    end_date: str | None = Field(default=None, alias="endDate")
 
 
 class UpdateRollCallRequestShape(Model):
@@ -549,8 +549,8 @@ class Course(Model):
     instructor: Instructor
     enrollment_count: int = Field(alias="enrollmentCount")
     rev: str | None
-    start_at: str = Field(alias="startAt")
-    end_at: str = Field(alias="endAt")
+    start_date: str = Field(alias="startDate")
+    end_date: str = Field(alias="endDate")
     created_at: str = Field(alias="createdAt")
     updated_at: str = Field(alias="updatedAt")
     joined_at: str = Field(alias="joinedAt")

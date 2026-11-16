@@ -446,13 +446,15 @@
             "nullable": true,
             "minLength": 1
           },
-          "startAt": {
+          "startDate": {
             "type": "string",
-            "format": "date-time"
+            "format": "date",
+            "example": "2026-08-03"
           },
-          "endAt": {
+          "endDate": {
             "type": "string",
-            "format": "date-time"
+            "format": "date",
+            "example": "2026-08-03"
           },
           "createdAt": {
             "type": "string",
@@ -474,8 +476,8 @@
           "instructor",
           "enrollmentCount",
           "rev",
-          "startAt",
-          "endAt",
+          "startDate",
+          "endDate",
           "createdAt",
           "updatedAt",
           "joinedAt"
@@ -508,20 +510,22 @@
             "nullable": true,
             "minLength": 1
           },
-          "startAt": {
+          "startDate": {
             "type": "string",
-            "format": "date-time"
+            "format": "date",
+            "example": "2026-08-03"
           },
-          "endAt": {
+          "endDate": {
             "type": "string",
-            "format": "date-time"
+            "format": "date",
+            "example": "2026-08-03"
           }
         },
         "required": [
           "discipline",
           "edition",
-          "startAt",
-          "endAt"
+          "startDate",
+          "endDate"
         ]
       },
       "Discipline": {
@@ -581,13 +585,15 @@
             "type": "string",
             "minLength": 1
           },
-          "startAt": {
+          "startDate": {
             "type": "string",
-            "format": "date-time"
+            "format": "date",
+            "example": "2026-08-03"
           },
-          "endAt": {
+          "endDate": {
             "type": "string",
-            "format": "date-time"
+            "format": "date",
+            "example": "2026-08-03"
           },
           "createdAt": {
             "type": "string",
@@ -597,8 +603,8 @@
         "required": [
           "slug",
           "name",
-          "startAt",
-          "endAt",
+          "startDate",
+          "endDate",
           "createdAt"
         ]
       },
@@ -614,20 +620,22 @@
             "type": "string",
             "minLength": 1
           },
-          "startAt": {
+          "startDate": {
             "type": "string",
-            "format": "date-time"
+            "format": "date",
+            "example": "2026-08-03"
           },
-          "endAt": {
+          "endDate": {
             "type": "string",
-            "format": "date-time"
+            "format": "date",
+            "example": "2026-08-03"
           }
         },
         "required": [
           "slug",
           "name",
-          "startAt",
-          "endAt"
+          "startDate",
+          "endDate"
         ]
       },
       "Exam": {
@@ -10013,13 +10021,15 @@
                         "nullable": true,
                         "minLength": 1
                       },
-                      "startAt": {
+                      "startDate": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date",
+                        "example": "2026-08-03"
                       },
-                      "endAt": {
+                      "endDate": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date",
+                        "example": "2026-08-03"
                       },
                       "createdAt": {
                         "type": "string",
@@ -10041,8 +10051,8 @@
                       "instructor",
                       "enrollmentCount",
                       "rev",
-                      "startAt",
-                      "endAt",
+                      "startDate",
+                      "endDate",
                       "createdAt",
                       "updatedAt",
                       "joinedAt"
@@ -10115,20 +10125,22 @@
                     "nullable": true,
                     "minLength": 1
                   },
-                  "startAt": {
+                  "startDate": {
                     "type": "string",
-                    "format": "date-time"
+                    "format": "date",
+                    "example": "2026-08-03"
                   },
-                  "endAt": {
+                  "endDate": {
                     "type": "string",
-                    "format": "date-time"
+                    "format": "date",
+                    "example": "2026-08-03"
                   }
                 },
                 "required": [
                   "discipline",
                   "edition",
-                  "startAt",
-                  "endAt"
+                  "startDate",
+                  "endDate"
                 ]
               }
             }
@@ -10216,13 +10228,15 @@
                       "nullable": true,
                       "minLength": 1
                     },
-                    "startAt": {
+                    "startDate": {
                       "type": "string",
-                      "format": "date-time"
+                      "format": "date",
+                      "example": "2026-08-03"
                     },
-                    "endAt": {
+                    "endDate": {
                       "type": "string",
-                      "format": "date-time"
+                      "format": "date",
+                      "example": "2026-08-03"
                     },
                     "createdAt": {
                       "type": "string",
@@ -10244,8 +10258,8 @@
                     "instructor",
                     "enrollmentCount",
                     "rev",
-                    "startAt",
-                    "endAt",
+                    "startDate",
+                    "endDate",
                     "createdAt",
                     "updatedAt",
                     "joinedAt"
@@ -10374,13 +10388,15 @@
                       "nullable": true,
                       "minLength": 1
                     },
-                    "startAt": {
+                    "startDate": {
                       "type": "string",
-                      "format": "date-time"
+                      "format": "date",
+                      "example": "2026-08-03"
                     },
-                    "endAt": {
+                    "endDate": {
                       "type": "string",
-                      "format": "date-time"
+                      "format": "date",
+                      "example": "2026-08-03"
                     },
                     "createdAt": {
                       "type": "string",
@@ -10402,8 +10418,8 @@
                     "instructor",
                     "enrollmentCount",
                     "rev",
-                    "startAt",
-                    "endAt",
+                    "startDate",
+                    "endDate",
                     "createdAt",
                     "updatedAt",
                     "joinedAt"
@@ -10458,13 +10474,15 @@
                     "type": "string",
                     "nullable": true
                   },
-                  "startAt": {
+                  "startDate": {
                     "type": "string",
-                    "format": "date-time"
+                    "format": "date",
+                    "example": "2026-08-03"
                   },
-                  "endAt": {
+                  "endDate": {
                     "type": "string",
-                    "format": "date-time"
+                    "format": "date",
+                    "example": "2026-08-03"
                   },
                   "rev": {
                     "type": "string",
@@ -10558,13 +10576,15 @@
                       "nullable": true,
                       "minLength": 1
                     },
-                    "startAt": {
+                    "startDate": {
                       "type": "string",
-                      "format": "date-time"
+                      "format": "date",
+                      "example": "2026-08-03"
                     },
-                    "endAt": {
+                    "endDate": {
                       "type": "string",
-                      "format": "date-time"
+                      "format": "date",
+                      "example": "2026-08-03"
                     },
                     "createdAt": {
                       "type": "string",
@@ -10586,8 +10606,8 @@
                     "instructor",
                     "enrollmentCount",
                     "rev",
-                    "startAt",
-                    "endAt",
+                    "startDate",
+                    "endDate",
                     "createdAt",
                     "updatedAt",
                     "joinedAt"
@@ -11154,13 +11174,15 @@
                         "type": "string",
                         "minLength": 1
                       },
-                      "startAt": {
+                      "startDate": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date",
+                        "example": "2026-08-03"
                       },
-                      "endAt": {
+                      "endDate": {
                         "type": "string",
-                        "format": "date-time"
+                        "format": "date",
+                        "example": "2026-08-03"
                       },
                       "createdAt": {
                         "type": "string",
@@ -11170,8 +11192,8 @@
                     "required": [
                       "slug",
                       "name",
-                      "startAt",
-                      "endAt",
+                      "startDate",
+                      "endDate",
                       "createdAt"
                     ]
                   }
@@ -11202,20 +11224,22 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "startAt": {
+                  "startDate": {
                     "type": "string",
-                    "format": "date-time"
+                    "format": "date",
+                    "example": "2026-08-03"
                   },
-                  "endAt": {
+                  "endDate": {
                     "type": "string",
-                    "format": "date-time"
+                    "format": "date",
+                    "example": "2026-08-03"
                   }
                 },
                 "required": [
                   "slug",
                   "name",
-                  "startAt",
-                  "endAt"
+                  "startDate",
+                  "endDate"
                 ]
               }
             }
@@ -11238,13 +11262,15 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "startAt": {
+                    "startDate": {
                       "type": "string",
-                      "format": "date-time"
+                      "format": "date",
+                      "example": "2026-08-03"
                     },
-                    "endAt": {
+                    "endDate": {
                       "type": "string",
-                      "format": "date-time"
+                      "format": "date",
+                      "example": "2026-08-03"
                     },
                     "createdAt": {
                       "type": "string",
@@ -11254,8 +11280,8 @@
                   "required": [
                     "slug",
                     "name",
-                    "startAt",
-                    "endAt",
+                    "startDate",
+                    "endDate",
                     "createdAt"
                   ]
                 }
@@ -11299,13 +11325,15 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "startAt": {
+                    "startDate": {
                       "type": "string",
-                      "format": "date-time"
+                      "format": "date",
+                      "example": "2026-08-03"
                     },
-                    "endAt": {
+                    "endDate": {
                       "type": "string",
-                      "format": "date-time"
+                      "format": "date",
+                      "example": "2026-08-03"
                     },
                     "createdAt": {
                       "type": "string",
@@ -11315,8 +11343,8 @@
                   "required": [
                     "slug",
                     "name",
-                    "startAt",
-                    "endAt",
+                    "startDate",
+                    "endDate",
                     "createdAt"
                   ]
                 }
@@ -11351,13 +11379,15 @@
                     "type": "string",
                     "minLength": 1
                   },
-                  "startAt": {
+                  "startDate": {
                     "type": "string",
-                    "format": "date-time"
+                    "format": "date",
+                    "example": "2026-08-03"
                   },
-                  "endAt": {
+                  "endDate": {
                     "type": "string",
-                    "format": "date-time"
+                    "format": "date",
+                    "example": "2026-08-03"
                   }
                 }
               }
@@ -11381,13 +11411,15 @@
                       "type": "string",
                       "minLength": 1
                     },
-                    "startAt": {
+                    "startDate": {
                       "type": "string",
-                      "format": "date-time"
+                      "format": "date",
+                      "example": "2026-08-03"
                     },
-                    "endAt": {
+                    "endDate": {
                       "type": "string",
-                      "format": "date-time"
+                      "format": "date",
+                      "example": "2026-08-03"
                     },
                     "createdAt": {
                       "type": "string",
@@ -11397,8 +11429,8 @@
                   "required": [
                     "slug",
                     "name",
-                    "startAt",
-                    "endAt",
+                    "startDate",
+                    "endDate",
                     "createdAt"
                   ]
                 }
