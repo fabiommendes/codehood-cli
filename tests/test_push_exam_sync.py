@@ -166,7 +166,8 @@ def read_exam(payload: Payload, status: str = "SCHEDULED") -> generated.Exam:
             "author": "ada",
             "rev": "v1:abc",
             "tags": sorted(payload["tags"]),  # type: ignore[type-var]
-            "questions": questions,
+            # Output only: the server reads it from the question's version.
+            "questions": [{**question, "weight": 1.0} for question in questions],
             "createdAt": STAMP,
             "updatedAt": STAMP,
         }

@@ -1,6 +1,6 @@
 [project]
 name = "codehood-cli"
-version = "0.1.0"
+version = "0.2.0"
 description = "Command line client for Codehood, an LMS for geeky types."
 readme = "README.md"
 license = "MIT"
@@ -11,7 +11,7 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "httpx>=0.28.1",
-    "mdq",
+    "mdq>=0.2.0",
     "pathspec>=1.1.1",
     "pydantic>=2.13.5",
     "pyyaml>=6.0.3",
@@ -23,9 +23,9 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/fabiommendes/codehood"
-Source = "https://github.com/fabiommendes/codehood/tree/main/cli"
-Issues = "https://github.com/fabiommendes/codehood/issues"
-Changelog = "https://github.com/fabiommendes/codehood/blob/main/cli/CHANGELOG.md"
+Source = "https://github.com/fabiommendes/codehood-cli"
+Issues = "https://github.com/fabiommendes/codehood-cli/issues"
+Changelog = "https://github.com/fabiommendes/codehood-cli/blob/main/CHANGELOG.md"
 
 [project.scripts]
 codehood = "codehood.cli:main"

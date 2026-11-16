@@ -9,23 +9,22 @@ This document outlines the near future goals of the project.
   - [x] `codehood api` for interactive exploration of the REST API/debugging.
   - [x] `codehood login` to fetch the API token from the server.
   - [x] `codehood logout` to remove the locally stored API token.
-  - [ ] `codehood push`:
+  - [x] `codehood push`:
     - [x] Push basic course information from README.md and codehood.toml.
-    - [-] Push new resources. `MD` and `CODE` land; `FILE` is blocked on
-      the server (`ROADBLOCKS.md` item 1) and `LINK` waits on the resource
-      manifest (`BACKLOG.md`).
-    - [ ] Push new questions and exams.
-    - [ ] Push calendar.
+    - [-] Push new resources. `MD`, `CODE` and `FILE` land; `LINK` waits on
+      the resource manifest (`BACKLOG.md`).
+    - [x] Push new questions and exams.
+    - [x] Push calendar.
   - [ ] `codehood roster`:
     - [ ] Download and sync the roster file.
 
 
 ## 0.2.0
 
-- [ ] `codehood push`:
-    - [ ] Update existing resources.
-    - [ ] Update existing questions and exams.
-    - [ ] Update existing calendar.
+- [x] `codehood push`:
+    - [x] Update existing resources.
+    - [x] Update existing questions and exams.
+    - [x] Update existing calendar.
 
 
 ## 0.3.0

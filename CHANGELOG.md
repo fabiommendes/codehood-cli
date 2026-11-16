@@ -4,6 +4,10 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+## 0.2.0
+
+First release on PyPI (`uv tool install codehood-cli`).
+
 - Course dates go to the server as `startDate`/`endDate` (`YYYY-MM-DD`)
   instead of midnight UTC timestamps. The first push of an existing course
   after upgrading may report a conflict on the course: resolve it with

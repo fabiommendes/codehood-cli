@@ -1319,7 +1319,7 @@ def _exam_json(slug: str, status: str = "SCHEDULED", **overrides) -> dict:
         "author": "ada",
         "rev": "v1:abc",
         "tags": ["b", "a"],
-        "questions": [{"slug": "q1", "version": "md5:x"}],
+        "questions": [{"slug": "q1", "version": "md5:x", "weight": 1.0}],
         "createdAt": "2026-01-01T00:00:00Z",
         "updatedAt": "2026-01-02T00:00:00Z",
     }

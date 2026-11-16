@@ -5,8 +5,15 @@ or students to manage their Codehood projects and assignments.
 
 ## Installation
 
-The CLI is not on PyPI yet. Install it from a checkout of the
-[Codehood repository](https://github.com/fabiommendes/codehood), with
+```bash
+uv tool install codehood-cli    # or: pipx install codehood-cli
+```
+
+It installs two commands, `codehood` and its short alias `ch`. Python 3.13 or
+later is required.
+
+To work on the CLI itself, clone the
+[Codehood repository](https://github.com/fabiommendes/codehood) with
 [mdq](https://github.com/fabiommendes/mdq-spec) checked out next to it:
 
 ```bash
