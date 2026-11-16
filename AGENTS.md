@@ -58,7 +58,6 @@ Here are some files and folders agents might be interested in:
 
 | Script                                   | Description                                   |
 | :--------------------------------------- | :-------------------------------------------- |
-| `scripts/copy-openapi.py`                | Refresh `resources/openapi/codehood.json` from the server (see below) |
 | `uv run python -m codehood.api.generate resources/openapi/codehood.json` | Regenerate `codehood/api/generated.py` from the snapshot |
 | `uv run codehood`, `uv run ch`           | Run the Codehood CLI tool.                    |
 | `ch init`                                | Initialize a Codehood project.                |
@@ -82,7 +81,8 @@ can collect screenshots or other evidence to support your claims. Show them
 to the human.
 
 Once completed, move the spec file to `dev/specs/to-review/` and update the
-changelog. If you find any bugs, create a new issue in `dev/issues/`. If the
+changelog. If you find any bugs, create a new issue in the server's
+`../dev/issues/`, tagged `cli` (the CLI keeps no issue folder of its own). If the
 bug is simple, create a regression test and fix it. If it is complex, ask the
 human for help.
 
@@ -180,14 +180,8 @@ Here are the important endpoints:
 document and `codehood/api/generated.py` is generated from it. Refresh both
 together after any change to what the REST API accepts or returns:
 
-- In the server repository (this CLI in its `cli/`): `pnpm run openapi:cli`
-  at the root. It writes the snapshot and regenerates the client.
-- Standalone, next to a server checkout (`../codehood-server/` or
-  `../codehood/`): `uv run python scripts/copy-openapi.py`, then
-  `uv run python -m codehood.api.generate resources/openapi/codehood.json`.
-  The script takes the document from `$CODEHOOD_OPENAPI_JSON` (URL or file),
-  else from the dev server on `localhost:4321`, else by running the checkout's
-  generator.
+`pnpm run openapi:cli`, at the server's root, writes the snapshot and
+regenerates the client.
 
 Both are checked offline: `tests/test_generated_in_sync.py` fails when
 `generated.py` differs from what the snapshot generates, and the server's

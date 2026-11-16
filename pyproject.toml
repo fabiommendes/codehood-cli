@@ -23,9 +23,9 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/fabiommendes/codehood"
-Source = "https://github.com/fabiommendes/codehood-cli"
-Issues = "https://github.com/fabiommendes/codehood-cli/issues"
-Changelog = "https://github.com/fabiommendes/codehood-cli/blob/main/CHANGELOG.md"
+Source = "https://github.com/fabiommendes/codehood/tree/main/cli"
+Issues = "https://github.com/fabiommendes/codehood/issues"
+Changelog = "https://github.com/fabiommendes/codehood/blob/main/cli/CHANGELOG.md"
 
 [project.scripts]
 codehood = "codehood.cli:main"
