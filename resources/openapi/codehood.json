@@ -7188,6 +7188,9 @@
           "acceptingSubmissions": {
             "type": "boolean"
           },
+          "preview": {
+            "type": "boolean"
+          },
           "closedAt": {
             "type": "string",
             "nullable": true,
@@ -7303,6 +7306,7 @@
           "author",
           "practiceSession",
           "acceptingSubmissions",
+          "preview",
           "closedAt",
           "submissions",
           "createdAt",
@@ -35408,6 +35412,9 @@
                       "acceptingSubmissions": {
                         "type": "boolean"
                       },
+                      "preview": {
+                        "type": "boolean"
+                      },
                       "closedAt": {
                         "type": "string",
                         "nullable": true,
@@ -35523,6 +35530,7 @@
                       "author",
                       "practiceSession",
                       "acceptingSubmissions",
+                      "preview",
                       "closedAt",
                       "submissions",
                       "createdAt",
@@ -35657,217 +35665,7 @@
                     "acceptingSubmissions": {
                       "type": "boolean"
                     },
-                    "closedAt": {
-                      "type": "string",
-                      "nullable": true,
-                      "format": "date-time"
-                    },
-                    "submissions": {
-                      "type": "array",
-                      "items": {
-                        "type": "object",
-                        "properties": {
-                          "publicId": {
-                            "type": "string",
-                            "maxLength": 64,
-                            "pattern": "^[A-Za-z0-9_\\-]+$",
-                            "example": "k3Vx9QpL2a"
-                          },
-                          "response": {
-                            "type": "string",
-                            "maxLength": 64,
-                            "pattern": "^[A-Za-z0-9_\\-]+$",
-                            "example": "k3Vx9QpL2a"
-                          },
-                          "question": {
-                            "type": "string",
-                            "maxLength": 200,
-                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
-                            "example": "intro-to-recursion"
-                          },
-                          "status": {
-                            "type": "string",
-                            "enum": [
-                              "PENDING_GRADE",
-                              "WILL_NOT_GRADE",
-                              "GRADED_AUTOMATICALLY",
-                              "GRADED_MANUALLY",
-                              "PRETEST_FAILED"
-                            ]
-                          },
-                          "kind": {
-                            "type": "string",
-                            "enum": [
-                              "AUTOSAVE",
-                              "SUBMIT",
-                              "FINAL"
-                            ]
-                          },
-                          "automaticallyTriggered": {
-                            "type": "boolean"
-                          },
-                          "payload": {
-                            "anyOf": [
-                              {
-                                "type": "string"
-                              },
-                              {
-                                "type": "number"
-                              },
-                              {
-                                "type": "boolean"
-                              },
-                              {
-                                "type": "array",
-                                "items": {
-                                  "nullable": true
-                                }
-                              },
-                              {
-                                "type": "object",
-                                "additionalProperties": {
-                                  "nullable": true
-                                }
-                              },
-                              {
-                                "nullable": true
-                              }
-                            ]
-                          },
-                          "startedAt": {
-                            "type": "string",
-                            "nullable": true,
-                            "format": "date-time"
-                          },
-                          "createdAt": {
-                            "type": "string",
-                            "format": "date-time"
-                          }
-                        },
-                        "required": [
-                          "publicId",
-                          "response",
-                          "question",
-                          "status",
-                          "kind",
-                          "automaticallyTriggered",
-                          "payload",
-                          "startedAt",
-                          "createdAt"
-                        ]
-                      }
-                    },
-                    "createdAt": {
-                      "type": "string",
-                      "format": "date-time"
-                    },
-                    "updatedAt": {
-                      "type": "string",
-                      "format": "date-time"
-                    }
-                  },
-                  "required": [
-                    "publicId",
-                    "exam",
-                    "author",
-                    "practiceSession",
-                    "acceptingSubmissions",
-                    "closedAt",
-                    "submissions",
-                    "createdAt",
-                    "updatedAt"
-                  ]
-                }
-              }
-            }
-          },
-          "412": {
-            "description": "The row is not at the version the request expected.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PreconditionFailed"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/course/{discipline}/{course}/response/{publicId}": {
-      "get": {
-        "operationId": "readResponse",
-        "summary": "Find a single Response.",
-        "tags": [
-          "Responses"
-        ],
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "discipline",
-            "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "course",
-            "in": "path"
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "required": true,
-            "name": "publicId",
-            "in": "path"
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Success",
-            "headers": {
-              "ETag": {
-                "schema": {
-                  "type": "string",
-                  "description": "The row's `updatedAt`, in quotes. Send it back as If-Match."
-                },
-                "required": true,
-                "description": "The row's `updatedAt`, in quotes. Send it back as If-Match."
-              }
-            },
-            "content": {
-              "application/json": {
-                "schema": {
-                  "type": "object",
-                  "properties": {
-                    "publicId": {
-                      "type": "string",
-                      "maxLength": 64,
-                      "pattern": "^[A-Za-z0-9_\\-]+$",
-                      "example": "k3Vx9QpL2a"
-                    },
-                    "exam": {
-                      "type": "string",
-                      "maxLength": 200,
-                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
-                      "example": "intro-to-recursion"
-                    },
-                    "author": {
-                      "type": "string",
-                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
-                      "example": "ada"
-                    },
-                    "practiceSession": {
-                      "type": "string",
-                      "nullable": true,
-                      "format": "date-time"
-                    },
-                    "acceptingSubmissions": {
+                    "preview": {
                       "type": "boolean"
                     },
                     "closedAt": {
@@ -35985,6 +35783,224 @@
                     "author",
                     "practiceSession",
                     "acceptingSubmissions",
+                    "preview",
+                    "closedAt",
+                    "submissions",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "412": {
+            "description": "The row is not at the version the request expected.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PreconditionFailed"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/response/{publicId}": {
+      "get": {
+        "operationId": "readResponse",
+        "summary": "Find a single Response.",
+        "tags": [
+          "Responses"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "publicId",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "headers": {
+              "ETag": {
+                "schema": {
+                  "type": "string",
+                  "description": "The row's `updatedAt`, in quotes. Send it back as If-Match."
+                },
+                "required": true,
+                "description": "The row's `updatedAt`, in quotes. Send it back as If-Match."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "publicId": {
+                      "type": "string",
+                      "maxLength": 64,
+                      "pattern": "^[A-Za-z0-9_\\-]+$",
+                      "example": "k3Vx9QpL2a"
+                    },
+                    "exam": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                      "example": "intro-to-recursion"
+                    },
+                    "author": {
+                      "type": "string",
+                      "pattern": "^[A-Za-z0-9][A-Za-z0-9_\\-]{1,30}$",
+                      "example": "ada"
+                    },
+                    "practiceSession": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    },
+                    "acceptingSubmissions": {
+                      "type": "boolean"
+                    },
+                    "preview": {
+                      "type": "boolean"
+                    },
+                    "closedAt": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    },
+                    "submissions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "publicId": {
+                            "type": "string",
+                            "maxLength": 64,
+                            "pattern": "^[A-Za-z0-9_\\-]+$",
+                            "example": "k3Vx9QpL2a"
+                          },
+                          "response": {
+                            "type": "string",
+                            "maxLength": 64,
+                            "pattern": "^[A-Za-z0-9_\\-]+$",
+                            "example": "k3Vx9QpL2a"
+                          },
+                          "question": {
+                            "type": "string",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                            "example": "intro-to-recursion"
+                          },
+                          "status": {
+                            "type": "string",
+                            "enum": [
+                              "PENDING_GRADE",
+                              "WILL_NOT_GRADE",
+                              "GRADED_AUTOMATICALLY",
+                              "GRADED_MANUALLY",
+                              "PRETEST_FAILED"
+                            ]
+                          },
+                          "kind": {
+                            "type": "string",
+                            "enum": [
+                              "AUTOSAVE",
+                              "SUBMIT",
+                              "FINAL"
+                            ]
+                          },
+                          "automaticallyTriggered": {
+                            "type": "boolean"
+                          },
+                          "payload": {
+                            "anyOf": [
+                              {
+                                "type": "string"
+                              },
+                              {
+                                "type": "number"
+                              },
+                              {
+                                "type": "boolean"
+                              },
+                              {
+                                "type": "array",
+                                "items": {
+                                  "nullable": true
+                                }
+                              },
+                              {
+                                "type": "object",
+                                "additionalProperties": {
+                                  "nullable": true
+                                }
+                              },
+                              {
+                                "nullable": true
+                              }
+                            ]
+                          },
+                          "startedAt": {
+                            "type": "string",
+                            "nullable": true,
+                            "format": "date-time"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        },
+                        "required": [
+                          "publicId",
+                          "response",
+                          "question",
+                          "status",
+                          "kind",
+                          "automaticallyTriggered",
+                          "payload",
+                          "startedAt",
+                          "createdAt"
+                        ]
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "publicId",
+                    "exam",
+                    "author",
+                    "practiceSession",
+                    "acceptingSubmissions",
+                    "preview",
                     "closedAt",
                     "submissions",
                     "createdAt",
@@ -36095,6 +36111,9 @@
                     "acceptingSubmissions": {
                       "type": "boolean"
                     },
+                    "preview": {
+                      "type": "boolean"
+                    },
                     "closedAt": {
                       "type": "string",
                       "nullable": true,
@@ -36210,6 +36229,7 @@
                     "author",
                     "practiceSession",
                     "acceptingSubmissions",
+                    "preview",
                     "closedAt",
                     "submissions",
                     "createdAt",
@@ -38291,6 +38311,9 @@
                     "acceptingSubmissions": {
                       "type": "boolean"
                     },
+                    "preview": {
+                      "type": "boolean"
+                    },
                     "closedAt": {
                       "type": "string",
                       "nullable": true,
@@ -38406,6 +38429,7 @@
                     "author",
                     "practiceSession",
                     "acceptingSubmissions",
+                    "preview",
                     "closedAt",
                     "submissions",
                     "createdAt",
