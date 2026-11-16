@@ -628,7 +628,10 @@ def test_a_pushed_question_carries_a_rev_and_an_edit_with_a_new_rev_is_other_cli
 
     assert result.exit_code == 0, result.output
     assert re.search(r"other cli .*question sum", result.output), result.output
-    assert not re.search(r"^pull +question", result.output, re.MULTILINE), result.output
+    # The seed's own questions on the scratch course show as pulls: only `sum` counts.
+    assert not re.search(r"^pull +question sum\b", result.output, re.MULTILINE), (
+        result.output
+    )
     assert _question_json(client, "sum")["question"]["stem"] == WEB
 
 
@@ -764,11 +767,12 @@ def test_a_rebuilt_base_of_a_full_course_syncs_without_a_decision_or_a_write(
     result = _push(synced)
 
     assert result.exit_code == 0, result.output
-    # The scratch course also holds time slots the seed created (`tue`, `thu`),
-    # which always show as pulls and are none of this course's content.
+    # The scratch course also holds what the seed created (time slots,
+    # questions, exams), which always shows as pulls and is none of this
+    # repository's content: only the entities pushed above count.
     decisions = re.findall(
-        r"^(?:pull|conflict|other cli) +(?:course|resource|question|calendar event"
-        r"|grade column)\b.*$",
+        r"^(?:pull|conflict|other cli) +(?:course|resource (?:hello|notes|logo)"
+        r"|question sum|calendar event|grade column total)\b.*$",
         result.output,
         re.MULTILINE,
     )
