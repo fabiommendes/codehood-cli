@@ -35375,6 +35375,14 @@
             "required": false,
             "name": "acceptingSubmissions",
             "in": "query"
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "required": false,
+            "name": "preview",
+            "in": "query"
           }
         ],
         "responses": {
@@ -37057,6 +37065,14 @@
             },
             "required": false,
             "name": "automated",
+            "in": "query"
+          },
+          {
+            "schema": {
+              "type": "boolean"
+            },
+            "required": false,
+            "name": "preview",
             "in": "query"
           }
         ],
