@@ -997,6 +997,85 @@
           "title"
         ]
       },
+      "GradeReleaseRefused": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string",
+            "enum": [
+              "error"
+            ]
+          },
+          "code": {
+            "type": "string",
+            "enum": [
+              "invalid-data"
+            ]
+          },
+          "status": {
+            "type": "number",
+            "enum": [
+              409
+            ]
+          },
+          "message": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "errors": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string"
+                  },
+                  "message": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "code"
+                ]
+              }
+            }
+          },
+          "reason": {
+            "type": "string",
+            "enum": [
+              "not-an-exam",
+              "not-closed",
+              "exception-open",
+              "pending"
+            ],
+            "description": "Why the grades cannot be released: `not-an-exam` (a quiz or practice exam releases on its own), `not-closed` (the exam is still open or scheduled), `exception-open` (a personal window of a student is not over) or `pending` (an answer waits for a grade)."
+          },
+          "pendingAnswers": {
+            "type": "integer",
+            "description": "Answers still waiting for a grade. 0 unless `reason` is `pending`."
+          },
+          "openExceptions": {
+            "type": "integer",
+            "description": "Exceptions whose personal window (makeup or extra time) is not over."
+          }
+        },
+        "required": [
+          "type",
+          "code",
+          "status",
+          "message",
+          "timestamp",
+          "errors",
+          "reason",
+          "pendingAnswers",
+          "openExceptions"
+        ],
+        "description": "The exam's grades cannot be released yet."
+      },
       "Exam Exception": {
         "type": "object",
         "properties": {
@@ -13085,6 +13164,266 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PreconditionFailed"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/course/{discipline}/{course}/exam/{slug}/release": {
+      "post": {
+        "operationId": "examRelease",
+        "summary": "Release the grades of an exam to its students.",
+        "description": "Stamps `gradesReleasedAt` and answers the exam. Idempotent: releasing an exam already released answers 200 and keeps the date of the first release. Only the course's instructor, by session or CLI key; a BOT key gets 403. A release that is not possible answers 409 with the reason and the counts.",
+        "tags": [
+          "Exams"
+        ],
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "discipline",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "course",
+            "in": "path"
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "required": true,
+            "name": "slug",
+            "in": "path"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "slug": {
+                      "type": "string",
+                      "maxLength": 200,
+                      "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                      "example": "intro-to-recursion"
+                    },
+                    "type": {
+                      "type": "string",
+                      "enum": [
+                        "PRACTICE",
+                        "QUIZ",
+                        "EXAM"
+                      ]
+                    },
+                    "status": {
+                      "type": "string",
+                      "enum": [
+                        "DRAFT",
+                        "ARCHIVED",
+                        "SCHEDULED",
+                        "ONGOING",
+                        "COMPLETED"
+                      ]
+                    },
+                    "title": {
+                      "type": "string",
+                      "minLength": 1
+                    },
+                    "description": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "preamble": {
+                      "type": "string",
+                      "nullable": true
+                    },
+                    "format": {
+                      "type": "string",
+                      "enum": [
+                        "PLAINTEXT",
+                        "MARKDOWN",
+                        "HTML"
+                      ]
+                    },
+                    "scheduledAt": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    },
+                    "duration": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "hours": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "minutes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "extraTime": {
+                      "type": "object",
+                      "nullable": true,
+                      "properties": {
+                        "hours": {
+                          "type": "integer",
+                          "minimum": 0
+                        },
+                        "minutes": {
+                          "type": "integer",
+                          "minimum": 0
+                        }
+                      }
+                    },
+                    "allowCodeRun": {
+                      "type": "boolean",
+                      "nullable": true
+                    },
+                    "answerHistory": {
+                      "type": "boolean",
+                      "nullable": true
+                    },
+                    "gradesReleasedAt": {
+                      "type": "string",
+                      "nullable": true,
+                      "format": "date-time"
+                    },
+                    "author": {
+                      "type": "string"
+                    },
+                    "rev": {
+                      "type": "string",
+                      "nullable": true,
+                      "minLength": 1
+                    },
+                    "tags": {
+                      "type": "array",
+                      "items": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    },
+                    "questions": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "slug": {
+                            "type": "string",
+                            "maxLength": 200,
+                            "pattern": "^[a-z0-9][a-z0-9._\\-]*$",
+                            "example": "intro-to-recursion"
+                          },
+                          "version": {
+                            "type": "string",
+                            "nullable": true,
+                            "minLength": 1
+                          },
+                          "weight": {
+                            "type": "number",
+                            "minimum": 0
+                          }
+                        },
+                        "required": [
+                          "slug",
+                          "version",
+                          "weight"
+                        ]
+                      }
+                    },
+                    "createdAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "updatedAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    },
+                    "attachments": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "name": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "format": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "text": {
+                            "type": "string"
+                          },
+                          "origin": {
+                            "type": "string",
+                            "minLength": 1
+                          },
+                          "label": {
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "name",
+                          "format"
+                        ]
+                      }
+                    },
+                    "files": {
+                      "type": "object",
+                      "additionalProperties": {
+                        "type": "string",
+                        "pattern": "^[0-9a-f]{64}$",
+                        "example": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+                      }
+                    }
+                  },
+                  "required": [
+                    "slug",
+                    "type",
+                    "status",
+                    "title",
+                    "description",
+                    "preamble",
+                    "format",
+                    "scheduledAt",
+                    "duration",
+                    "extraTime",
+                    "allowCodeRun",
+                    "answerHistory",
+                    "gradesReleasedAt",
+                    "author",
+                    "rev",
+                    "tags",
+                    "questions",
+                    "createdAt",
+                    "updatedAt"
+                  ]
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "The grades cannot be released yet.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GradeReleaseRefused"
                 }
               }
             }

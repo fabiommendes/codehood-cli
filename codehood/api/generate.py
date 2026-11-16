@@ -58,6 +58,7 @@ ENDPOINTS = {
     *_crud("grade-column"),
     "courseGrades",
     "courseAttendance",
+    "examRelease",
     "repositoryList",
     "repositoryUpsert",
     "repositoryDelete",

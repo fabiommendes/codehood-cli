@@ -1394,6 +1394,57 @@ class ClaimGradingJobsResponse(Model):
     jobs: list[JobsItem]
 
 
+class GradeReleaseRefused(CodehoodAPIError):
+    class Payload(Model):
+        model_config = ConfigDict(populate_by_name=True)
+
+        type: Literal["error"]
+        code: Literal["invalid-data"]
+        status: Literal[409]
+        message: str
+        timestamp: str
+        errors: dict[str, list[GradeReleaseRefusedShape]]
+        reason: Literal["not-an-exam", "not-closed", "exception-open", "pending"]
+        pending_answers: int = Field(alias="pendingAnswers")
+        open_exceptions: int = Field(alias="openExceptions")
+
+    payload: Payload
+
+    @property
+    def type(self) -> Literal["error"]:
+        return self.payload.type
+
+    @property
+    def code(self) -> Literal["invalid-data"]:
+        return self.payload.code
+
+    @property
+    def message(self) -> str:
+        return self.payload.message
+
+    @property
+    def timestamp(self) -> str:
+        return self.payload.timestamp
+
+    @property
+    def errors(self) -> dict[str, list[GradeReleaseRefusedShape]]:
+        return self.payload.errors
+
+    @property
+    def reason(
+        self,
+    ) -> Literal["not-an-exam", "not-closed", "exception-open", "pending"]:
+        return self.payload.reason
+
+    @property
+    def pending_answers(self) -> int:
+        return self.payload.pending_answers
+
+    @property
+    def open_exceptions(self) -> int:
+        return self.payload.open_exceptions
+
+
 class HealthError(CodehoodAPIError):
     class Payload(Model):
         status: Literal["error"]
@@ -2037,6 +2088,30 @@ def delete_user(*, username: str, client: httpx.Client | None = None) -> Deleted
     )
     if response.status_code == 200:
         return Deleted.model_validate(response.json())
+    response.raise_for_status()
+    raise CodehoodAPIError(response.status_code, Model())
+
+
+def exam_release(
+    *, discipline: str, course: str, slug: str, client: httpx.Client | None = None
+) -> Exam:
+    """
+    Release the grades of an exam to its students.
+    """
+    client = client if client is not None else get_client()
+    response = client.post(
+        "/api/course/{discipline}/{course}/exam/{slug}/release".format(
+            discipline=discipline, course=course, slug=slug
+        ),
+        headers=auth_headers(client),
+    )
+    if response.status_code == 409:
+        raise GradeReleaseRefused(
+            response.status_code,
+            GradeReleaseRefused.Payload.model_validate(response.json()),
+        )
+    if response.status_code == 200:
+        return Exam.model_validate(response.json())
     response.raise_for_status()
     raise CodehoodAPIError(response.status_code, Model())
 
