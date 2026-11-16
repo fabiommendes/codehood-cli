@@ -62,7 +62,6 @@ from codehood.push.wire import (
     course_payload,
     event_payload,
     grade_column_payload,
-    instant,
     question_payload,
     resource_payload,
     time_slot_payload,
@@ -72,7 +71,7 @@ KEY = CourseKey("cs101", "ada", "2026-1")
 START, END = date(2026, 1, 1), date(2026, 6, 1)
 DESCRIPTION = "Course description."
 COURSE_PAYLOAD = course_payload(KEY, DESCRIPTION, START, END)
-COURSE_REF = course_ref(DESCRIPTION, instant(START), instant(END))
+COURSE_REF = course_ref(DESCRIPTION, START.isoformat(), END.isoformat())
 
 QUESTION = """---
 title: Example question

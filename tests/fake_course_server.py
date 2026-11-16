@@ -107,8 +107,8 @@ class FakeCourseServer:
 
         self.course = _course_json(
             description=body["description"],
-            startAt=body["startAt"],
-            endAt=body["endAt"],
+            startDate=body["startDate"],
+            endDate=body["endDate"],
             rev=body["rev"],
             updatedAt=self.tick(),
         )

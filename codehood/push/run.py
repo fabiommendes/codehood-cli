@@ -702,8 +702,8 @@ def _run_upsert_course(op: UpsertCourse, *, client: httpx.Client) -> OpResult:
         instructor=op.key.instructor,
         edition=op.key.edition,
         description=op.description,
-        startAt=op.start_at,
-        endAt=op.end_at,
+        startDate=op.start_date,
+        endDate=op.end_date,
         rev=op.ref,
     )
     try:

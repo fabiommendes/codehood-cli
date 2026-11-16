@@ -139,18 +139,20 @@ def slot(client: httpx.Client) -> Iterator[TimeSlot]:
 
 def test_course_round_trips(client: httpx.Client) -> None:
     before = generated.read_course(discipline=DISCIPLINE, course=COURSE, client=client)
-    start = date.fromisoformat(before.start_at[:10])
-    end = date.fromisoformat(before.end_at[:10])
+    start = date.fromisoformat(before.start_date)
+    end = date.fromisoformat(before.end_date)
     payload = course_payload(KEY, "Round trip description.", start, end)
-    ref = course_ref("Round trip description.", payload["startAt"], payload["endAt"])  # type: ignore[arg-type]
+    ref = course_ref(
+        "Round trip description.", payload["startDate"], payload["endDate"]
+    )  # type: ignore[arg-type]
     try:
         _run(
             client,
             UpsertCourse(
                 key=KEY,
                 description="Round trip description.",
-                start_at=str(payload["startAt"]),
-                end_at=str(payload["endAt"]),
+                start_date=str(payload["startDate"]),
+                end_date=str(payload["endDate"]),
                 ref=ref,
             ),
         )
@@ -164,8 +166,8 @@ def test_course_round_trips(client: httpx.Client) -> None:
             UpsertCourse(
                 key=KEY,
                 description=before.description or "",
-                start_at=before.start_at,
-                end_at=before.end_at,
+                start_date=before.start_date,
+                end_date=before.end_date,
                 ref=before.rev or "restored",
             ),
         )
@@ -289,8 +291,8 @@ def test_course_with_an_empty_description_comes_back_empty(
     client: httpx.Client,
 ) -> None:
     before = generated.read_course(discipline=DISCIPLINE, course=COURSE, client=client)
-    start = date.fromisoformat(before.start_at[:10])
-    end = date.fromisoformat(before.end_at[:10])
+    start = date.fromisoformat(before.start_date)
+    end = date.fromisoformat(before.end_date)
     payload = course_payload(KEY, "", start, end)
     try:
         _run(
@@ -298,9 +300,9 @@ def test_course_with_an_empty_description_comes_back_empty(
             UpsertCourse(
                 key=KEY,
                 description="",
-                start_at=str(payload["startAt"]),
-                end_at=str(payload["endAt"]),
-                ref=course_ref("", payload["startAt"], payload["endAt"]),  # type: ignore[arg-type]
+                start_date=str(payload["startDate"]),
+                end_date=str(payload["endDate"]),
+                ref=course_ref("", payload["startDate"], payload["endDate"]),  # type: ignore[arg-type]
             ),
         )
         state = fetch_server_state(DISCIPLINE, COURSE, client)
@@ -314,8 +316,8 @@ def test_course_with_an_empty_description_comes_back_empty(
             UpsertCourse(
                 key=KEY,
                 description=before.description or "",
-                start_at=before.start_at,
-                end_at=before.end_at,
+                start_date=before.start_date,
+                end_date=before.end_date,
                 ref=before.rev or "restored",
             ),
         )

@@ -72,8 +72,8 @@ def project_course(course: generated.Course) -> Payload:
         "instructor": course.instructor.username,
         "edition": course.edition.slug,
         "description": course.description or "",
-        "startAt": _instant(course.start_at),
-        "endAt": _instant(course.end_at),
+        "startDate": course.start_date,
+        "endDate": course.end_date,
     }
 
 
@@ -265,8 +265,8 @@ def project_grade_column(column: generated.GradeColumn) -> Payload:
 #
 def _instant(text: str) -> str:
     """
-    Respell an ISO timestamp the way `wire.instant` does: UTC, milliseconds,
-    a `Z`.
+    Respell an ISO timestamp the way the server spells it back: UTC,
+    milliseconds, a `Z`.
     """
     moment = datetime.fromisoformat(text).astimezone(UTC)
     return f"{moment:%Y-%m-%dT%H:%M:%S}.{moment.microsecond // 1000:03d}Z"

@@ -111,7 +111,6 @@ def realize(local: LocalState, server: ServerState) -> ServerState:
     `server` with every placeholder entry given the payload it implies.
     """
     from codehood.push.plan import course_ref
-    from codehood.push.wire import instant
 
     files = {f.slug: f for f in local.resources}
     questions = {q.slug: q for q in local.questions if isinstance(q, QuestionFile)}
@@ -119,7 +118,9 @@ def realize(local: LocalState, server: ServerState) -> ServerState:
     columns = {c.slug: c for c in local.grade_columns or ()}
     course = server.course
     if course is not None and _pending(course):
-        ref = course_ref(local.description, instant(local.start), instant(local.end))
+        ref = course_ref(
+            local.description, local.start.isoformat(), local.end.isoformat()
+        )
         description = local.description if course.rev == ref else "server copy"
         course = _entry(
             course, course_payload(local.key, description, local.start, local.end)

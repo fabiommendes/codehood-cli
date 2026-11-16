@@ -39,7 +39,7 @@ from codehood.push.plan import (
 )
 from codehood.push.project import RemoteEntry, project_exam
 from codehood.push.question import QuestionFile, question_version
-from codehood.push.wire import Payload, course_payload, exam_payload, instant
+from codehood.push.wire import Payload, course_payload, exam_payload
 
 KEY = CourseKey("cs101", "ada", "2026-1")
 START, END = date(2026, 1, 1), date(2026, 6, 1)
@@ -74,7 +74,7 @@ def local_state(*exams: ExamFile | InvalidExam) -> LocalState:
 
 
 def course_entry() -> RemoteEntry:
-    ref = course_ref("d", instant(START), instant(END))
+    ref = course_ref("d", START.isoformat(), END.isoformat())
     payload = course_payload(KEY, "d", START, END)
     return RemoteEntry(payload, rev=ref, updated_at=STAMP)
 

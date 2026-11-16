@@ -55,7 +55,6 @@ from codehood.push.wire import (
     course_payload,
     event_payload,
     grade_column_payload,
-    instant,
     question_payload,
     resource_payload,
     time_slot_payload,
@@ -100,8 +99,8 @@ def read_course(payload: Payload) -> generated.Course:
                 "instructor": {"username": payload["instructor"], "name": "Name"},
                 "enrollmentCount": 0,
                 "rev": None,
-                "startAt": payload["startAt"],
-                "endAt": payload["endAt"],
+                "startDate": payload["startDate"],
+                "endDate": payload["endDate"],
                 "createdAt": STAMP,
                 "updatedAt": STAMP,
                 "joinedAt": STAMP,
@@ -395,12 +394,11 @@ def test_an_event_without_description_reads_as_an_empty_one():
     assert project_calendar_event(read) == event_payload(event)
 
 
-def test_an_instant_is_respelled_in_utc_with_milliseconds():
+def test_course_dates_are_read_back_as_calendar_dates():
     start = date(2026, 3, 1)
     key = CourseKey("cs101", "ada", "2026-1")
     payload = course_payload(key, "d", start, start)
-    read = read_course({**payload, "startAt": "2026-03-01T00:00:00Z"})
-    assert project_course(read)["startAt"] == instant(start)
+    assert project_course(read_course(payload))["startDate"] == "2026-03-01"
 
 
 def test_a_question_document_mdq_cannot_read_stays_as_the_server_holds_it():

@@ -37,7 +37,6 @@ __all__ = [
     "event_payload",
     "exam_payload",
     "grade_column_payload",
-    "instant",
     "question_payload",
     "resource_payload",
     "time_slot_payload",
@@ -74,14 +73,6 @@ def canonical_question(question: mdq.Question) -> dict[str, JsonValue]:
     return wire_question(question.with_ids().normalize())
 
 
-def instant(day: date) -> str:
-    """
-    A date as the UTC midnight timestamp the server's `startAt`/`endAt`
-    take, spelled the way the server spells it back.
-    """
-    return f"{day.isoformat()}T00:00:00.000Z"
-
-
 def course_payload(key: CourseKey, description: str, start: date, end: date) -> Payload:
     """
     The body of the course's `PUT`.
@@ -91,8 +82,8 @@ def course_payload(key: CourseKey, description: str, start: date, end: date) -> 
         "instructor": key.instructor,
         "edition": key.edition,
         "description": description,
-        "startAt": instant(start),
-        "endAt": instant(end),
+        "startDate": start.isoformat(),
+        "endDate": end.isoformat(),
     }
 
 

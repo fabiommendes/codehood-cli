@@ -425,7 +425,7 @@ def allocate(calendar: Calendar) -> Allocation:
         return Allocation(events=(), warnings=tuple(warnings))
 
     # 6. `week` is the ISO-week distance from the week the course starts in,
-    # the same week 0 the server counts from the course's `startAt`.
+    # the same week 0 the server counts from the course's `startDate`.
     start_monday = _iso_week_start(calendar.start)
 
     emitted.sort(

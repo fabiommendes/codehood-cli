@@ -53,7 +53,6 @@ from .wire import (
     event_payload,
     exam_payload,
     grade_column_payload,
-    instant,
     question_payload,
     resource_payload,
     time_slot_payload,
@@ -251,8 +250,8 @@ class UpsertCourse:
 
     key: CourseKey
     description: str
-    start_at: str
-    end_at: str
+    start_date: str
+    end_date: str
     #: The `course_ref` the row is stored with, as its `rev`.
     ref: str
 
@@ -1147,14 +1146,14 @@ def plan_sync(
 
 
 def _sync_course(local: LocalState, base: BaseState, remote: ServerState) -> Plan:
-    start_at, end_at = _timestamp(local.start), _timestamp(local.end)
-    ref = course_ref(local.description, start_at, end_at)
+    start_date, end_date = local.start.isoformat(), local.end.isoformat()
+    ref = course_ref(local.description, start_date, end_date)
     payload = course_payload(local.key, local.description, local.start, local.end)
     op = UpsertCourse(
         key=local.key,
         description=local.description,
-        start_at=start_at,
-        end_at=end_at,
+        start_date=start_date,
+        end_date=end_date,
         ref=ref,
     )
     entry = remote.course if remote.course_exists else None
@@ -1963,23 +1962,20 @@ def _upsert_exam(
     )
 
 
-def course_ref(description: str, start_at: str, end_at: str) -> str:
+def course_ref(description: str, start_date: str, end_date: str) -> str:
     """
     Digest the fields a push writes on the course row into the `rev` it
     stores, the way `resource.content_ref` digests a resource.
     """
     canonical = json.dumps(
-        {"v": "v1", "description": description, "startAt": start_at, "endAt": end_at},
+        {
+            "v": "v1",
+            "description": description,
+            "startDate": start_date,
+            "endDate": end_date,
+        },
         separators=(",", ":"),
         sort_keys=True,
         ensure_ascii=False,
     )
     return f"v1:{hashlib.sha256(canonical.encode('utf-8')).hexdigest()}"
-
-
-def _timestamp(day: date) -> str:
-    """
-    A date as the UTC midnight timestamp the server's `startAt`/`endAt`
-    expect.
-    """
-    return instant(day)

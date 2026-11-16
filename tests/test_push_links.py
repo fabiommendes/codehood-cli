@@ -984,9 +984,7 @@ def test_dry_run_reports_the_resource_whose_server_event_was_lost(
             return response
         return httpx.Response(
             200,
-            json=_course_json(
-                startAt="2026-01-01T00:00:00Z", endAt="2026-06-01T00:00:00Z"
-            ),
+            json=_course_json(startDate="2026-01-01", endDate="2026-06-01"),
         )
 
     monkeypatch.setattr(

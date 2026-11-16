@@ -4,6 +4,10 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- Course dates go to the server as `startDate`/`endDate` (`YYYY-MM-DD`)
+  instead of midnight UTC timestamps. The first push of an existing course
+  after upgrading may report a conflict on the course: resolve it with
+  `codehood push --ours course/course`.
 - Global `--config`/`-c` option (and `CODEHOOD_CONFIG`) reads another file in
   place of `codehood.toml`, in every command that reads it; `init` writes the
   config there. `login` and `logout` without a config now report

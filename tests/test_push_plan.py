@@ -234,8 +234,8 @@ def test_plan_always_upserts_the_course():
         assert course_op.discipline == DISCIPLINE
         assert course_op.course == COURSE
         assert course_op.description == "Course description."
-        assert course_op.start_at == "2026-01-01T00:00:00.000Z"
-        assert course_op.end_at == "2026-06-01T00:00:00.000Z"
+        assert course_op.start_date == "2026-01-01"
+        assert course_op.end_date == "2026-06-01"
 
 
 #
@@ -1127,7 +1127,7 @@ def test_event_with_a_roll_call_still_local_with_new_content_is_upserted_without
 
 def test_course_with_a_matching_rev_is_not_upserted():
     [course] = [op for op in _push(_local(), _server()) if isinstance(op, UpsertCourse)]
-    assert course.ref == course_ref(DESCRIPTION, course.start_at, course.end_at)
+    assert course.ref == course_ref(DESCRIPTION, course.start_date, course.end_date)
 
     again = _push(_local(), _server(course_rev=course.ref))
     assert [op for op in again if isinstance(op, UpsertCourse)] == []

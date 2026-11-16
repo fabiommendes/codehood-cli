@@ -96,15 +96,15 @@ def _course_json(**overrides) -> dict:
         "edition": {
             "slug": "2026-1",
             "name": "2026-1",
-            "startAt": "2026-01-01T00:00:00Z",
-            "endAt": "2026-06-01T00:00:00Z",
+            "startDate": "2026-01-01",
+            "endDate": "2026-06-01",
             "createdAt": "2026-01-01T00:00:00Z",
         },
         "instructor": {"name": "Ada Lovelace", "username": "ada"},
         "enrollmentCount": 0,
         "rev": None,
-        "startAt": "2026-01-01T00:00:00Z",
-        "endAt": "2026-06-01T00:00:00Z",
+        "startDate": "2026-01-01",
+        "endDate": "2026-06-01",
         "createdAt": "2026-01-01T00:00:00Z",
         "updatedAt": "2026-01-01T00:00:00Z",
         "joinedAt": "2026-01-01T00:00:00Z",
@@ -258,7 +258,7 @@ def test_fetch_server_state_reports_course_and_resource_refs():
     assert state.resources["week1-slides"].updated_at == "2026-01-01T00:00:00Z"
     assert state.resources["week1-slides"].payload["slug"] == "week1-slides"
     assert state.course is not None
-    assert state.course.payload["startAt"] == "2026-01-01T00:00:00.000Z"
+    assert state.course.payload["startDate"] == "2026-01-01"
 
 
 def test_fetch_server_state_reports_question_versions():
@@ -534,8 +534,8 @@ def test_run_plan_upsert_course_puts_the_natural_key_in_the_body():
     op = UpsertCourse(
         key=KEY,
         description="A course.",
-        start_at="2026-01-01T00:00:00Z",
-        end_at="2026-06-01T00:00:00Z",
+        start_date="2026-01-01",
+        end_date="2026-06-01",
         ref="v1:abc",
     )
     [result] = list(
@@ -564,8 +564,8 @@ def test_run_plan_upsert_course_404_yields_a_failed_result_not_a_raise():
     op = UpsertCourse(
         key=KEY,
         description="A course.",
-        start_at="2026-01-01T00:00:00Z",
-        end_at="2026-06-01T00:00:00Z",
+        start_date="2026-01-01",
+        end_date="2026-06-01",
         ref="v1:abc",
     )
     results = list(
@@ -590,8 +590,8 @@ def test_run_plan_after_a_failed_upsert_course_attempts_nothing_else():
         UpsertCourse(
             key=KEY,
             description="A course.",
-            start_at="2026-01-01T00:00:00Z",
-            end_at="2026-06-01T00:00:00Z",
+            start_date="2026-01-01",
+            end_date="2026-06-01",
             ref="v1:abc",
         ),
         DeleteResource(slug="a"),
