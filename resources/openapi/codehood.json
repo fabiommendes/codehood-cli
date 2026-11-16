@@ -761,11 +761,16 @@
                   "type": "string",
                   "nullable": true,
                   "minLength": 1
+                },
+                "weight": {
+                  "type": "number",
+                  "minimum": 0
                 }
               },
               "required": [
                 "slug",
-                "version"
+                "version",
+                "weight"
               ]
             }
           },
@@ -11749,11 +11754,16 @@
                               "type": "string",
                               "nullable": true,
                               "minLength": 1
+                            },
+                            "weight": {
+                              "type": "number",
+                              "minimum": 0
                             }
                           },
                           "required": [
                             "slug",
-                            "version"
+                            "version",
+                            "weight"
                           ]
                         }
                       },
@@ -12196,11 +12206,16 @@
                             "type": "string",
                             "nullable": true,
                             "minLength": 1
+                          },
+                          "weight": {
+                            "type": "number",
+                            "minimum": 0
                           }
                         },
                         "required": [
                           "slug",
-                          "version"
+                          "version",
+                          "weight"
                         ]
                       }
                     },
@@ -12460,11 +12475,16 @@
                             "type": "string",
                             "nullable": true,
                             "minLength": 1
+                          },
+                          "weight": {
+                            "type": "number",
+                            "minimum": 0
                           }
                         },
                         "required": [
                           "slug",
-                          "version"
+                          "version",
+                          "weight"
                         ]
                       }
                     },
@@ -12905,11 +12925,16 @@
                             "type": "string",
                             "nullable": true,
                             "minLength": 1
+                          },
+                          "weight": {
+                            "type": "number",
+                            "minimum": 0
                           }
                         },
                         "required": [
                           "slug",
-                          "version"
+                          "version",
+                          "weight"
                         ]
                       }
                     },

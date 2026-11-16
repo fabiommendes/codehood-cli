@@ -193,6 +193,7 @@ class ExamCreateQuestionsItem(Model):
 class ExamQuestionsItem(Model):
     slug: str
     version: str | None
+    weight: float
 
 
 class ExamsItem(Model):
