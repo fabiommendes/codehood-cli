@@ -147,11 +147,13 @@ class Generator:
         for name in exceptions_needed:
             needed.pop(name, None)
 
-        models = self._render_models(needed, shapes, exclude=exceptions_needed.keys())
+        # Exceptions first: their payloads can reach models (a nested shape)
+        # that no other operation does, and those must be rendered too.
         exceptions = [
             render_exception(name, schema, TypeCtx(self.spec, needed, shapes))
             for name, schema in sorted(exceptions_needed.items())
         ]
+        models = self._render_models(needed, shapes, exclude=exceptions_needed.keys())
 
         body = models + exceptions + functions
         imports = self._render_imports(

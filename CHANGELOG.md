@@ -4,6 +4,12 @@ Changelog of releases of Codehood CLI.
 
 ## Unreleased
 
+- `codehood exam release <exam>` releases an exam's grades to its students. A
+  refusal says why: the exam is not closed, N answers still have no grade, or
+  N student exceptions are still open.
+- The client generator renders models that only an error payload reaches. The
+  409 of `exam_release` used to fail with `PydanticUserError`.
+
 ## 0.2.0
 
 First release on PyPI (`uv tool install codehood-cli`).

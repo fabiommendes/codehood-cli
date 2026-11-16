@@ -644,6 +644,47 @@ def test_anyof_of_two_strings_collapses_to_str(monkeypatch):
     assert validated.login == "a@b.com"
 
 
+def test_a_shape_only_an_error_payload_reaches_is_still_rendered(monkeypatch):
+    """
+    A model nested in a documented error, and in nothing else, is rendered
+    too: otherwise the exception's `Payload` refers to an undefined class
+    and fails the first time the server answers with that error.
+    """
+    spec = _spec_with_response_schema({"type": "object"})
+    spec["components"]["schemas"]["Refused"] = {
+        "type": "object",
+        "properties": {
+            "errors": {
+                "type": "object",
+                "additionalProperties": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {"code": {"type": "string"}},
+                        "required": ["code"],
+                    },
+                },
+            }
+        },
+        "required": ["errors"],
+    }
+    responses = spec["paths"]["/api/health"]["get"]["responses"]
+    responses["409"] = {
+        "description": "refused",
+        "content": {
+            "application/json": {"schema": {"$ref": "#/components/schemas/Refused"}}
+        },
+    }
+    monkeypatch.setattr("codehood.api.generate.ENDPOINTS", {"health"})
+
+    namespace = _exec_generated(Generator(spec).generate())
+    payload = namespace["Refused"].Payload.model_validate(
+        {"errors": {"exam": [{"code": "invalid"}]}}
+    )
+
+    assert payload.errors["exam"][0].code == "invalid"
+
+
 #
 # `additionalProperties`
 #

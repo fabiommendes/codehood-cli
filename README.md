@@ -239,6 +239,18 @@ you release it on the Grades tab.
 whatever is installed beside the CLI. To use another package, install the
 CLI with it: `uv tool install --editable codehood/cli --with pandas`.
 
+### Releasing exam grades
+
+Students see the grades of an exam only after you release them:
+
+```bash
+codehood exam release midterm
+```
+
+The server refuses while the exam is still open, while answers wait for a
+grade, or while a student exception keeps a personal window open, and the
+command says which and how many. Releasing an exam twice changes nothing.
+
 
 ## For students
 

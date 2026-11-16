@@ -9,6 +9,7 @@ from .attendance import attendance
 from .auth import login, logout
 from .base import app as _app
 from .chill import chill
+from .exam import exam
 from .grades import grades
 from .init import init
 from .push import push
@@ -21,6 +22,7 @@ __all__ = [
     "api",
     "attendance",
     "chill",
+    "exam",
     "grades",
     "init",
     "login",

@@ -213,6 +213,11 @@ class FailGradingJobResponse(Model):
     state: Literal["QUEUED", "CLAIMED", "DONE", "FAILED", "CANCELLED"]
 
 
+class GradeReleaseRefusedShape(Model):
+    code: str
+    message: str | None = None
+
+
 class HealthResponse(Model):
     status: Literal["ok"]
     database: Literal["ok"]
